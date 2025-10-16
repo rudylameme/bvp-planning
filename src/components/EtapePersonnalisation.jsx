@@ -1,0 +1,323 @@
+import { useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, Download, Upload, ArrowUpAZ, ArrowDownWideNarrow, LayoutGrid, List } from 'lucide-react';
+import TableauProduits from './TableauProduits';
+import TableauProduitsGroupes from './TableauProduitsGroupes';
+import { parseCSV } from '../utils/parsers';
+
+export default function EtapePersonnalisation({
+  produits,
+  sortType,
+  onChangerFamille,
+  onChangerLibelle,
+  onChangerPotentiel,
+  onToggleActif,
+  onSupprimerProduit,
+  onAjouterProduitCustom,
+  onTrier,
+  onRetour,
+  onCalculerPlanning,
+  setProduits,
+  frequentationData
+}) {
+  const refReglages = useRef(null);
+  const [modeAffichage, setModeAffichage] = useState('groupes'); // 'groupes' ou 'liste'
+
+  // Déterminer le jour de la semaine depuis une date
+  const getJourSemaine = (dateStr) => {
+    let date;
+    if (!isNaN(dateStr)) {
+      const excelEpoch = new Date(1899, 11, 30);
+      date = new Date(excelEpoch.getTime() + dateStr * 86400000);
+    } else {
+      date = new Date(dateStr);
+    }
+    if (isNaN(date.getTime())) return null;
+    const jours = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+    return jours[date.getDay()];
+  };
+
+  // Calculer automatiquement les potentiels à partir des ventes
+  const calculerPotentielsAuto = () => {
+    if (!confirm('Voulez-vous calculer automatiquement les potentiels hebdomadaires ?\n\nFormule : Vente MAX ÷ Poids du jour de cette vente\n\nCela écrasera les potentiels actuels.')) {
+      return;
+    }
+
+    console.log('🤖 Calcul automatique des potentiels avec formule précise...');
+
+    const produitsAvecPotentielCalcule = produits.map(p => {
+      if (p.custom || !p.ventesParJour) {
+        return p;
+      }
+
+      // Trouver la vente MAX et sa date
+      let venteMax = 0;
+      let dateVenteMax = null;
+
+      Object.entries(p.ventesParJour).forEach(([date, quantite]) => {
+        if (quantite > venteMax) {
+          venteMax = quantite;
+          dateVenteMax = date;
+        }
+      });
+
+      if (venteMax === 0) {
+        return { ...p, potentielHebdo: 0 };
+      }
+
+      // Déterminer le jour et son poids
+      const jourVenteMax = getJourSemaine(dateVenteMax);
+      let poidsJour = 0.14;
+
+      if (frequentationData && frequentationData.poidsJours) {
+        if (jourVenteMax && frequentationData.poidsJours[jourVenteMax]) {
+          poidsJour = frequentationData.poidsJours[jourVenteMax];
+        } else {
+          poidsJour = Math.max(...Object.values(frequentationData.poidsJours));
+        }
+      }
+
+      // Formule : Potentiel = Vente MAX ÷ Poids du jour
+      const potentielCalcule = Math.ceil(venteMax / poidsJour);
+
+      return {
+        ...p,
+        potentielHebdo: potentielCalcule
+      };
+    });
+
+    setProduits(produitsAvecPotentielCalcule);
+    alert('✅ Potentiels calculés avec la formule : Vente MAX ÷ Poids du jour !');
+  };
+
+  // Exporter les réglages en CSV
+  const exporterReglages = () => {
+    const headers = 'Libelle,LibellePersonnalise,Famille,PotentielHebdo,Actif,Custom\n';
+    const rows = produits.map(p =>
+      `${p.libelle},${p.libellePersonnalise},${p.famille},${p.potentielHebdo},${p.actif},${p.custom}`
+    ).join('\n');
+
+    const csvContent = headers + rows;
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'reglages_bvp.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Importer les réglages depuis CSV
+  const importerReglages = (e, setProduits) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const parsed = parseCSV(event.target.result);
+
+      // Créer un map des réglages importés
+      const reglagesMap = new Map();
+      parsed.data.forEach(row => {
+        reglagesMap.set(row.Libelle, {
+          libellePersonnalise: row.LibellePersonnalise,
+          famille: row.Famille,
+          potentielHebdo: parseFloat(row.PotentielHebdo) || 0,
+          actif: row.Actif === 'true',
+          custom: row.Custom === 'true'
+        });
+      });
+
+      // Appliquer les réglages aux produits existants
+      const produitsAvecReglages = produits.map(p => {
+        if (reglagesMap.has(p.libelle)) {
+          const reglage = reglagesMap.get(p.libelle);
+          return { ...p, ...reglage };
+        }
+        return p;
+      });
+
+      // Identifier les produits custom qui ne sont pas dans les ventes actuelles
+      const libellesExistants = new Set(produits.map(p => p.libelle));
+      const produitsCustomManquants = [];
+      reglagesMap.forEach((reglage, libelle) => {
+        if (reglage.custom && !libellesExistants.has(libelle)) {
+          produitsCustomManquants.push(libelle);
+        }
+      });
+
+      // Si des produits custom manquants, demander à l'utilisateur
+      if (produitsCustomManquants.length > 0) {
+        const message = `Les produits suivants sont dans vos réglages mais pas dans vos ventes actuelles:\n${produitsCustomManquants.join(', ')}\n\nVoulez-vous les conserver comme produits custom ?`;
+        if (confirm(message)) {
+          // Ajouter les produits custom manquants
+          const nouveauxId = Math.max(...produitsAvecReglages.map(p => p.id), -1);
+          produitsCustomManquants.forEach((libelle, index) => {
+            const reglage = reglagesMap.get(libelle);
+            produitsAvecReglages.push({
+              id: nouveauxId + index + 1,
+              libelle,
+              libellePersonnalise: reglage.libellePersonnalise,
+              famille: reglage.famille,
+              ventesParJour: {},
+              totalVentes: 0,
+              potentielHebdo: reglage.potentielHebdo,
+              actif: reglage.actif,
+              custom: true
+            });
+          });
+        }
+      }
+
+      setProduits(produitsAvecReglages);
+    };
+    reader.readAsText(file);
+  };
+
+  // Vérifier combien de produits ont des potentiels > 0
+  const nbProduitsAvecPotentiel = produits.filter(p => p.potentielHebdo > 0).length;
+  const nbProduitsTotal = produits.length;
+
+  return (
+    <div className="bg-white rounded-lg shadow-lg p-6">
+      {/* Message d'information sur les potentiels */}
+      {nbProduitsAvecPotentiel === nbProduitsTotal && nbProduitsTotal > 0 && (
+        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+          <p className="text-sm text-green-800">
+            ✅ <strong>Potentiels calculés automatiquement</strong> pour {nbProduitsTotal} produits à partir des ventes historiques. Vous pouvez les ajuster manuellement si besoin.
+          </p>
+        </div>
+      )}
+      {nbProduitsAvecPotentiel > 0 && nbProduitsAvecPotentiel < nbProduitsTotal && (
+        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p className="text-sm text-yellow-800">
+            ⚠️ {nbProduitsAvecPotentiel}/{nbProduitsTotal} produits ont des potentiels définis. Utilisez le bouton "🤖 Auto-Potentiels" pour calculer les potentiels manquants.
+          </p>
+        </div>
+      )}
+      {nbProduitsAvecPotentiel === 0 && nbProduitsTotal > 0 && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-800">
+            ❌ Aucun potentiel défini. Cliquez sur "🤖 Auto-Potentiels" pour les calculer automatiquement à partir des ventes.
+          </p>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-gray-800">Personnalisation des produits</h2>
+        <div className="flex gap-2">
+          {/* Toggle mode d'affichage */}
+          <button
+            onClick={() => setModeAffichage(modeAffichage === 'groupes' ? 'liste' : 'groupes')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
+              modeAffichage === 'groupes' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+            title={modeAffichage === 'groupes' ? 'Passer en mode liste' : 'Passer en mode groupé'}
+          >
+            {modeAffichage === 'groupes' ? <LayoutGrid size={20} /> : <List size={20} />}
+            {modeAffichage === 'groupes' ? 'Groupé' : 'Liste'}
+          </button>
+
+          {/* Tri (uniquement en mode liste) */}
+          {modeAffichage === 'liste' && (
+            <>
+              <button
+                onClick={() => onTrier('nom')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
+                  sortType === 'nom' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                <ArrowUpAZ size={20} />
+                Tri A-Z
+              </button>
+              <button
+                onClick={() => onTrier('volume')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
+                  sortType === 'volume' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                <ArrowDownWideNarrow size={20} />
+                Tri Volume
+              </button>
+            </>
+          )}
+          <button
+            onClick={calculerPotentielsAuto}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+            title="Calculer automatiquement les potentiels à partir des ventes"
+          >
+            🤖 Auto-Potentiels
+          </button>
+          <button
+            onClick={onAjouterProduitCustom}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+          >
+            + Ajouter
+          </button>
+          <button
+            onClick={exporterReglages}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          >
+            <Download size={20} />
+            Exporter
+          </button>
+          <input
+            ref={refReglages}
+            type="file"
+            accept=".csv"
+            onChange={importerReglages}
+            className="hidden"
+          />
+          <button
+            onClick={() => refReglages.current.click()}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+          >
+            <Upload size={20} />
+            Importer
+          </button>
+        </div>
+      </div>
+
+      {/* Tableau des produits */}
+      {modeAffichage === 'liste' ? (
+        <TableauProduits
+          produits={produits}
+          onChangerFamille={onChangerFamille}
+          onChangerLibelle={onChangerLibelle}
+          onChangerPotentiel={onChangerPotentiel}
+          onToggleActif={onToggleActif}
+          onSupprimerProduit={onSupprimerProduit}
+        />
+      ) : (
+        <TableauProduitsGroupes
+          produits={produits}
+          onChangerFamille={onChangerFamille}
+          onChangerLibelle={onChangerLibelle}
+          onChangerPotentiel={onChangerPotentiel}
+          onToggleActif={onToggleActif}
+          onSupprimerProduit={onSupprimerProduit}
+        />
+      )}
+
+      {/* Boutons navigation */}
+      <div className="mt-6 flex justify-between">
+        <button
+          onClick={onRetour}
+          className="flex items-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
+        >
+          <ChevronLeft size={20} />
+          Retour
+        </button>
+        <button
+          onClick={() => {
+            console.log('🖱️ Clic sur "Calculer le planning"');
+            onCalculerPlanning();
+          }}
+          className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+        >
+          Calculer le planning
+          <ChevronRight size={20} />
+        </button>
+      </div>
+    </div>
+  );
+}
