@@ -188,6 +188,7 @@ export const parseVentesExcel = (arrayBuffer) => {
   const dataRows = allData.slice(headerRowIndex + 1);
 
   // Trouver les indices des colonnes importantes
+  const itm8Index = headers.findIndex(h => h && h.toString().toLowerCase().includes('itm8'));
   const libelleIndex = headers.findIndex(h => h && h.toString().toLowerCase().includes('libellé'));
   const dateIndex = headers.findIndex(h => h && h.toString().toLowerCase() === 'date');
   const quantiteIndex = headers.findIndex(h => h && h.toString().toLowerCase().includes('quantité'));
@@ -197,10 +198,14 @@ export const parseVentesExcel = (arrayBuffer) => {
     return null;
   }
 
+  console.log(`📋 Colonnes détectées: ITM8=${itm8Index}, Libellé=${libelleIndex}, Date=${dateIndex}, Quantité=${quantiteIndex}`);
+
   // Regrouper les données par produit et par date
+  // Structure: Map<libelle, { ventesParJour: {}, itm8: number }>
   const produitsMap = new Map();
 
   dataRows.forEach(row => {
+    const itm8Raw = row[itm8Index];
     const libelle = row[libelleIndex];
     const date = row[dateIndex];
     const quantite = parseFloat(row[quantiteIndex]) || 0;
@@ -212,12 +217,30 @@ export const parseVentesExcel = (arrayBuffer) => {
     // Ignorer la ligne "BOULANGERIE PATISSERIE" (ligne de catégorie)
     if (libelleStr === 'BOULANGERIE PATISSERIE') return;
 
+    // Extraire l'ITM8 (peut être un nombre ou une chaîne)
+    let itm8 = null;
+    if (itm8Raw !== undefined && itm8Raw !== null && itm8Raw !== '') {
+      const itm8Num = parseInt(itm8Raw);
+      if (!isNaN(itm8Num)) {
+        itm8 = itm8Num;
+      }
+    }
+
     if (!produitsMap.has(libelleStr)) {
-      produitsMap.set(libelleStr, {});
+      produitsMap.set(libelleStr, {
+        ventesParJour: {},
+        itm8: itm8
+      });
     }
 
     const dateStr = date.toString();
-    produitsMap.get(libelleStr)[dateStr] = (produitsMap.get(libelleStr)[dateStr] || 0) + quantite;
+    const produitData = produitsMap.get(libelleStr);
+    produitData.ventesParJour[dateStr] = (produitData.ventesParJour[dateStr] || 0) + quantite;
+
+    // Si on trouve un ITM8 et qu'on n'en avait pas encore, on le met à jour
+    if (itm8 && !produitData.itm8) {
+      produitData.itm8 = itm8;
+    }
   });
 
   // Convertir en tableau de produits

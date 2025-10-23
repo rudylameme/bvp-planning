@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Download, Upload, ArrowUpAZ, ArrowDownWideNarrow, LayoutGrid, List } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Upload, ArrowUpAZ, ArrowDownWideNarrow, LayoutGrid, List, Layers } from 'lucide-react';
 import TableauProduits from './TableauProduits';
 import TableauProduitsGroupes from './TableauProduitsGroupes';
+import AttributionManuelle from './AttributionManuelle';
 import { parseCSV } from '../utils/parsers';
 
 export default function EtapePersonnalisation({
@@ -21,6 +22,11 @@ export default function EtapePersonnalisation({
 }) {
   const refReglages = useRef(null);
   const [modeAffichage, setModeAffichage] = useState('groupes'); // 'groupes' ou 'liste'
+  const [showAttributionManuelle, setShowAttributionManuelle] = useState(false);
+
+  // Identifier les produits non reconnus
+  const produitsNonReconnus = produits.filter(p => !p.reconnu && !p.custom);
+  const nbProduitsNonReconnus = produitsNonReconnus.length;
 
   // Déterminer le jour de la semaine depuis une date
   const getJourSemaine = (dateStr) => {
@@ -201,12 +207,54 @@ export default function EtapePersonnalisation({
     }
   };
 
+  // Handler pour l'attribution manuelle
+  const handleAttribuer = (produitId, attributs) => {
+    setProduits(prev => prev.map(p => {
+      if (p.id === produitId) {
+        const updated = { ...p, ...attributs };
+        // Si rayon et programme sont définis, marquer comme reconnu
+        if (updated.rayon && updated.programme) {
+          updated.reconnu = true;
+        }
+        return updated;
+      }
+      return p;
+    }));
+  };
+
   // Vérifier combien de produits ont des potentiels > 0
   const nbProduitsAvecPotentiel = produits.filter(p => p.potentielHebdo > 0).length;
   const nbProduitsTotal = produits.length;
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
+    <>
+      {/* Modal d'attribution manuelle */}
+      {showAttributionManuelle && (
+        <AttributionManuelle
+          produitsNonReconnus={produitsNonReconnus}
+          onAttribuer={handleAttribuer}
+          onFermer={() => setShowAttributionManuelle(false)}
+        />
+      )}
+
+      <div className="bg-white rounded-lg shadow-lg p-6">
+      {/* Message pour les produits non reconnus */}
+      {nbProduitsNonReconnus > 0 && (
+        <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-orange-800">
+              ⚠️ <strong>{nbProduitsNonReconnus} produit(s) non reconnu(s)</strong> par le référentiel ITM8. Veuillez attribuer manuellement le rayon et le programme de cuisson.
+            </p>
+            <button
+              onClick={() => setShowAttributionManuelle(true)}
+              className="ml-4 px-3 py-1 bg-orange-600 text-white text-sm rounded hover:bg-orange-700 transition whitespace-nowrap"
+            >
+              Attribuer
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Message d'information sur les potentiels */}
       {nbProduitsAvecPotentiel === nbProduitsTotal && nbProduitsTotal > 0 && (
         <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
@@ -265,6 +313,16 @@ export default function EtapePersonnalisation({
               >
                 <ArrowDownWideNarrow size={20} />
                 Tri Volume
+              </button>
+              <button
+                onClick={() => onTrier('rayon-programme')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
+                  sortType === 'rayon-programme' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+                title="Trier par rayon, puis programme, puis volume"
+              >
+                <Layers size={20} />
+                Tri Rayon/Prog
               </button>
             </>
           )}

@@ -14,6 +14,8 @@ export default function TableauProduits({
         <thead className="bg-gray-100">
           <tr>
             <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Libellé</th>
+            <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Rayon</th>
+            <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Programme</th>
             <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Famille</th>
             <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Potentiel Hebdo</th>
             <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Volume</th>
@@ -47,6 +49,28 @@ export default function TableauProduits({
                         <Star size={12} />
                         Custom
                       </span>
+                    )}
+                  </div>
+                </td>
+                <td className="px-4 py-2">
+                  <div className="text-sm">
+                    {produit.rayon ? (
+                      <span className={`px-2 py-1 rounded text-xs ${produit.reconnu ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
+                        {produit.rayon}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-xs">Non défini</span>
+                    )}
+                  </div>
+                </td>
+                <td className="px-4 py-2">
+                  <div className="text-sm">
+                    {produit.programme ? (
+                      <span className={`px-2 py-1 rounded text-xs ${produit.reconnu ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
+                        {produit.programme}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-xs">Non défini</span>
                     )}
                   </div>
                 </td>

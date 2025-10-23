@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Upload, ChevronRight, Download, FileUp, RotateCcw } from 'lucide-react';
 import EtapeUpload from './components/EtapeUpload';
 import EtapePersonnalisation from './components/EtapePersonnalisation';
@@ -6,6 +6,7 @@ import EtapePlanning from './components/EtapePlanning';
 import { parseVentesExcel, parseFrequentationExcel } from './utils/parsers';
 import { classerProduit } from './utils/classification';
 import { calculerPlanning } from './services/planningCalculator';
+import { chargerReferentielITM8, rechercherParITM8, mapRayonVersFamille, isReferentielCharge } from './services/referentielITM8';
 
 function App() {
   // État principal
@@ -18,6 +19,22 @@ function App() {
   const [pdvInfo, setPdvInfo] = useState(null);
   const [ponderationType, setPonderationType] = useState('standard'); // 'standard', 'saisonnier', 'fortePromo'
   const [frequentationFile, setFrequentationFile] = useState(null);
+  const [referentielCharge, setReferentielCharge] = useState(false);
+
+  // Charger le référentiel ITM8 au démarrage
+  useEffect(() => {
+    const chargerReferentiel = async () => {
+      console.log('🔄 Chargement du référentiel ITM8...');
+      const result = await chargerReferentielITM8('/Data/liste des produits BVP treville.xlsx');
+      if (result) {
+        setReferentielCharge(true);
+        console.log('✅ Référentiel ITM8 chargé avec succès');
+      } else {
+        console.warn('⚠️ Référentiel ITM8 non disponible, classification par mots-clés utilisée');
+      }
+    };
+    chargerReferentiel();
+  }, []);
 
   // Handler pour l'upload de fréquentation avec choix de pondération
   const handleFrequentationUpload = (e, newPonderationType = null) => {
@@ -94,8 +111,30 @@ function App() {
   };
 
   // Créer un produit à partir des données de ventes
-  const creerProduitDepuisVentes = (libelle, ventesParJour, idCounter) => {
-    const famille = classerProduit(libelle);
+  const creerProduitDepuisVentes = (libelle, ventesParJour, itm8, idCounter) => {
+    let rayon = null;
+    let programme = null;
+    let famille = null;
+    let reconnu = false;
+
+    // Tentative de reconnaissance par ITM8
+    if (itm8 && isReferentielCharge()) {
+      const infosProduit = rechercherParITM8(itm8);
+      if (infosProduit) {
+        rayon = infosProduit.rayon;
+        programme = infosProduit.programme;
+        famille = mapRayonVersFamille(rayon);
+        reconnu = true;
+        console.log(`✅ Produit reconnu par ITM8 ${itm8}: ${libelle} → ${rayon} / ${programme}`);
+      }
+    }
+
+    // Fallback: classification par mots-clés
+    if (!reconnu) {
+      famille = classerProduit(libelle);
+      console.log(`⚠️ Produit non reconnu par ITM8: ${libelle} → Classification: ${famille}`);
+    }
+
     const totalVentes = Object.values(ventesParJour).reduce((sum, val) => sum + val, 0);
     const { venteMax, dateVenteMax } = trouverVenteMax(ventesParJour);
     const potentielCalcule = calculerPotentielDepuisVenteMax(venteMax, dateVenteMax, libelle);
@@ -104,12 +143,16 @@ function App() {
       id: idCounter,
       libelle,
       libellePersonnalise: libelle,
+      itm8,
+      rayon,
+      programme,
       famille,
       ventesParJour,
       totalVentes,
       potentielHebdo: potentielCalcule,
       actif: true,
-      custom: false
+      custom: false,
+      reconnu
     };
   };
 
@@ -136,8 +179,13 @@ function App() {
         const nouveauxProduits = [];
         let idCounter = 0;
 
-        for (const [libelle, ventesParJour] of parsed.produits) {
-          nouveauxProduits.push(creerProduitDepuisVentes(libelle, ventesParJour, idCounter++));
+        for (const [libelle, produitData] of parsed.produits) {
+          nouveauxProduits.push(creerProduitDepuisVentes(
+            libelle,
+            produitData.ventesParJour,
+            produitData.itm8,
+            idCounter++
+          ));
         }
 
         setProduits(nouveauxProduits);
@@ -245,6 +293,24 @@ function App() {
         copie.sort((a, b) => a.libellePersonnalise.localeCompare(b.libellePersonnalise));
       } else if (type === 'volume') {
         copie.sort((a, b) => b.totalVentes - a.totalVentes);
+      } else if (type === 'rayon-programme') {
+        // Tri par : rayon → programme → volume décroissant
+        copie.sort((a, b) => {
+          // D'abord par rayon
+          const rayonA = a.rayon || 'ZZZ'; // Les produits sans rayon à la fin
+          const rayonB = b.rayon || 'ZZZ';
+          const compareRayon = rayonA.localeCompare(rayonB);
+          if (compareRayon !== 0) return compareRayon;
+
+          // Ensuite par programme
+          const progA = a.programme || 'ZZZ';
+          const progB = b.programme || 'ZZZ';
+          const compareProg = progA.localeCompare(progB);
+          if (compareProg !== 0) return compareProg;
+
+          // Enfin par volume décroissant
+          return b.totalVentes - a.totalVentes;
+        });
       }
       return copie;
     });
