@@ -384,23 +384,24 @@ export default function EtapePersonnalisation({
         />
       )}
 
-      {/* Boutons navigation */}
-      <div className="mt-6 flex justify-between">
-        <button
-          onClick={onRetour}
-          className="flex items-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
-        >
-          <ChevronLeft size={20} />
-          Retour
-        </button>
-        <button
-          onClick={onCalculerPlanning}
-          className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-        >
-          Calculer le planning
-          <ChevronRight size={20} />
-        </button>
+        {/* Boutons navigation */}
+        <div className="mt-6 flex justify-between">
+          <button
+            onClick={onRetour}
+            className="flex items-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
+          >
+            <ChevronLeft size={20} />
+            Retour
+          </button>
+          <button
+            onClick={onCalculerPlanning}
+            className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+          >
+            Calculer le planning
+            <ChevronRight size={20} />
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
