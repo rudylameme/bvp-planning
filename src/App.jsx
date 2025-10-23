@@ -31,10 +31,10 @@ function App() {
 
     const typePonderation = newPonderationType || ponderationType;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
+    const loadFile = async () => {
       try {
-        const parsed = parseFrequentationExcel(event.target.result, typePonderation);
+        const arrayBuffer = await file.arrayBuffer();
+        const parsed = parseFrequentationExcel(arrayBuffer, typePonderation);
         if (parsed) {
           setFrequentationData(parsed);
           setPonderationType(typePonderation);
@@ -44,7 +44,7 @@ function App() {
         alert('Erreur lors de la lecture du fichier. Vérifiez le format.');
       }
     };
-    reader.readAsArrayBuffer(file);
+    loadFile();
   };
 
   // Changer le type de pondération et recalculer
@@ -63,6 +63,56 @@ function App() {
     }
   };
 
+  // Trouver la vente maximale et sa date
+  const trouverVenteMax = (ventesParJour) => {
+    let venteMax = 0;
+    let dateVenteMax = null;
+
+    for (const [date, quantite] of Object.entries(ventesParJour)) {
+      if (quantite > venteMax) {
+        venteMax = quantite;
+        dateVenteMax = date;
+      }
+    }
+
+    return { venteMax, dateVenteMax };
+  };
+
+  // Calculer le potentiel à partir de la vente max
+  const calculerPotentielDepuisVenteMax = (venteMax, dateVenteMax, libelle) => {
+    if (venteMax === 0) return 0;
+
+    const jourVenteMax = getJourSemaine(dateVenteMax);
+    const poidsJour = (jourVenteMax && frequentationData.poidsJours[jourVenteMax])
+      ? frequentationData.poidsJours[jourVenteMax]
+      : Math.max(...Object.values(frequentationData.poidsJours));
+
+    const potentiel = Math.ceil(venteMax / poidsJour);
+    console.log(`  ${libelle}: Vente max=${venteMax} (${jourVenteMax || '?'}) ÷ ${(poidsJour * 100).toFixed(1)}% → Potentiel=${potentiel}`);
+
+    return potentiel;
+  };
+
+  // Créer un produit à partir des données de ventes
+  const creerProduitDepuisVentes = (libelle, ventesParJour, idCounter) => {
+    const famille = classerProduit(libelle);
+    const totalVentes = Object.values(ventesParJour).reduce((sum, val) => sum + val, 0);
+    const { venteMax, dateVenteMax } = trouverVenteMax(ventesParJour);
+    const potentielCalcule = calculerPotentielDepuisVenteMax(venteMax, dateVenteMax, libelle);
+
+    return {
+      id: idCounter,
+      libelle,
+      libellePersonnalise: libelle,
+      famille,
+      ventesParJour,
+      totalVentes,
+      potentielHebdo: potentielCalcule,
+      actif: true,
+      custom: false
+    };
+  };
+
   // Handler pour l'upload de ventes
   const handleVentesUpload = (e) => {
     const file = e.target.files[0];
@@ -71,68 +121,24 @@ function App() {
     // Vérifier que la fréquentation a été uploadée
     if (!frequentationData) {
       alert('⚠️ Veuillez d\'abord importer le fichier de FRÉQUENTATION avant les ventes.');
-      e.target.value = ''; // Reset le input
+      e.target.value = '';
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
+    const loadFile = async () => {
       try {
-        const parsed = parseVentesExcel(event.target.result);
+        const arrayBuffer = await file.arrayBuffer();
+        const parsed = parseVentesExcel(arrayBuffer);
         if (!parsed) return;
 
         console.log('📊 Calcul des potentiels avec la fréquentation...');
 
-        // Créer la liste des produits avec calcul immédiat des potentiels
         const nouveauxProduits = [];
         let idCounter = 0;
 
-        parsed.produits.forEach((ventesParJour, libelle) => {
-          const famille = classerProduit(libelle);
-
-          // Calculer le total des ventes pour le tri
-          const totalVentes = Object.values(ventesParJour).reduce((sum, val) => sum + val, 0);
-
-          // 🎯 CALCUL IMMÉDIAT DU POTENTIEL avec la fréquentation
-          let venteMax = 0;
-          let dateVenteMax = null;
-
-          Object.entries(ventesParJour).forEach(([date, quantite]) => {
-            if (quantite > venteMax) {
-              venteMax = quantite;
-              dateVenteMax = date;
-            }
-          });
-
-          let potentielCalcule = 0;
-
-          if (venteMax > 0) {
-            const jourVenteMax = getJourSemaine(dateVenteMax);
-            let poidsJour = 0.14;
-
-            if (jourVenteMax && frequentationData.poidsJours[jourVenteMax]) {
-              poidsJour = frequentationData.poidsJours[jourVenteMax];
-            } else {
-              poidsJour = Math.max(...Object.values(frequentationData.poidsJours));
-            }
-
-            potentielCalcule = Math.ceil(venteMax / poidsJour);
-
-            console.log(`  ${libelle}: Vente max=${venteMax} (${jourVenteMax || '?'}) ÷ ${(poidsJour * 100).toFixed(1)}% → Potentiel=${potentielCalcule}`);
-          }
-
-          nouveauxProduits.push({
-            id: idCounter++,
-            libelle,
-            libellePersonnalise: libelle,
-            famille,
-            ventesParJour,
-            totalVentes,
-            potentielHebdo: potentielCalcule, // ✅ Calculé immédiatement avec la bonne formule
-            actif: true,
-            custom: false
-          });
-        });
+        for (const [libelle, ventesParJour] of parsed.produits) {
+          nouveauxProduits.push(creerProduitDepuisVentes(libelle, ventesParJour, idCounter++));
+        }
 
         setProduits(nouveauxProduits);
         setVentesData(parsed);
@@ -146,7 +152,7 @@ function App() {
         alert('Erreur lors de la lecture du fichier. Vérifiez le format.');
       }
     };
-    reader.readAsArrayBuffer(file);
+    loadFile();
   };
 
   // Déterminer le jour de la semaine depuis une date
@@ -155,15 +161,16 @@ function App() {
     let date;
 
     // Si c'est un nombre (format Excel)
-    if (!isNaN(dateStr)) {
+    const numValue = Number(dateStr);
+    if (Number.isFinite(numValue)) {
       const excelEpoch = new Date(1899, 11, 30);
-      date = new Date(excelEpoch.getTime() + dateStr * 86400000);
+      date = new Date(excelEpoch.getTime() + numValue * 86400000);
     } else {
       // Essayer de parser comme string
       date = new Date(dateStr);
     }
 
-    if (isNaN(date.getTime())) {
+    if (!Number.isFinite(date.getTime())) {
       return null; // Date invalide
     }
 
@@ -196,7 +203,7 @@ function App() {
   // Changer le potentiel hebdomadaire
   const changerPotentiel = (id, nouveauPotentiel) => {
     setProduits(prev => prev.map(p =>
-      p.id === id ? { ...p, potentielHebdo: parseFloat(nouveauPotentiel) || 0 } : p
+      p.id === id ? { ...p, potentielHebdo: Number.parseFloat(nouveauPotentiel) || 0 } : p
     ));
   };
 

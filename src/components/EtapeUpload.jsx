@@ -29,7 +29,7 @@ export default function EtapeUpload({
                 : 'bg-white text-gray-700 hover:bg-gray-100'
             }`}
           >
-            Standard
+            Standard{' '}
             <span className="text-xs block mt-1">S-1: 40% | AS-1: 30% | S-2: 30%</span>
           </button>
           <button
@@ -40,7 +40,7 @@ export default function EtapeUpload({
                 : 'bg-white text-gray-700 hover:bg-gray-100'
             }`}
           >
-            Saisonnier
+            Saisonnier{' '}
             <span className="text-xs block mt-1">S-1: 30% | AS-1: 50% | S-2: 20%</span>
           </button>
           <button
@@ -51,7 +51,7 @@ export default function EtapeUpload({
                 : 'bg-white text-gray-700 hover:bg-gray-100'
             }`}
           >
-            Forte Promo
+            Forte Promo{' '}
             <span className="text-xs block mt-1">S-1: 60% | AS-1: 20% | S-2: 20%</span>
           </button>
         </div>
@@ -142,7 +142,7 @@ export default function EtapeUpload({
                 ? 'bg-green-600 text-white hover:bg-green-700 cursor-pointer'
                 : 'bg-gray-400 text-gray-200 cursor-not-allowed'
             }`}
-            title={!frequentationData ? 'Importez d\'abord la fréquentation' : 'Choisir un fichier'}
+            title={frequentationData ? 'Choisir un fichier' : 'Importez d\'abord la fréquentation'}
           >
             <Upload size={20} />
             Choisir un fichier

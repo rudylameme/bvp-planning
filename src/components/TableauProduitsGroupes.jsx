@@ -13,7 +13,7 @@ export default function TableauProduitsGroupes({
   const [famillesOuvertes, setFamillesOuvertes] = useState({
     BOULANGERIE: true,
     VIENNOISERIE: true,
-    PÂTISSERIE: true,
+    PATISSERIE: true,
     AUTRE: true
   });
 
@@ -23,7 +23,7 @@ export default function TableauProduitsGroupes({
   const produitsParFamille = {
     BOULANGERIE: produits.filter(p => p.famille === 'BOULANGERIE'),
     VIENNOISERIE: produits.filter(p => p.famille === 'VIENNOISERIE'),
-    PÂTISSERIE: produits.filter(p => p.famille === 'PÂTISSERIE'),
+    PATISSERIE: produits.filter(p => p.famille === 'PATISSERIE'),
     AUTRE: produits.filter(p => p.famille === 'AUTRE')
   };
 
@@ -31,7 +31,7 @@ export default function TableauProduitsGroupes({
   const couleursFamille = {
     BOULANGERIE: 'bg-amber-100 border-amber-300 text-amber-800',
     VIENNOISERIE: 'bg-orange-100 border-orange-300 text-orange-800',
-    PÂTISSERIE: 'bg-pink-100 border-pink-300 text-pink-800',
+    PATISSERIE: 'bg-pink-100 border-pink-300 text-pink-800',
     AUTRE: 'bg-gray-100 border-gray-300 text-gray-800'
   };
 
@@ -288,7 +288,7 @@ export default function TableauProduitsGroupes({
     <div>
       {renderFamille('BOULANGERIE')}
       {renderFamille('VIENNOISERIE')}
-      {renderFamille('PÂTISSERIE')}
+      {renderFamille('PATISSERIE')}
       {renderFamille('AUTRE')}
     </div>
   );

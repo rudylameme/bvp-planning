@@ -27,7 +27,7 @@ export default function TableauProduits({
             const aPotentielModifie = produit.potentielHebdo > 0;
 
             return (
-              <tr key={produit.id} className={`border-b ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${!produit.actif ? 'opacity-50' : ''}`}>
+              <tr key={produit.id} className={`border-b ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${produit.actif ? '' : 'opacity-50'}`}>
                 <td className="px-4 py-2">
                   <div className="flex items-center gap-2">
                     <input
@@ -58,7 +58,7 @@ export default function TableauProduits({
                   >
                     <option value="BOULANGERIE">BOULANGERIE</option>
                     <option value="VIENNOISERIE">VIENNOISERIE</option>
-                    <option value="PÂTISSERIE">PÂTISSERIE</option>
+                    <option value="PATISSERIE">PATISSERIE</option>
                     <option value="AUTRE">AUTRE</option>
                   </select>
                 </td>

@@ -25,7 +25,7 @@ export default function ImpressionPanel({
   };
 
   const handlePrint = () => {
-    window.print();
+    globalThis.print();
   };
 
   const handleDownloadPDF = () => {
@@ -33,38 +33,43 @@ export default function ImpressionPanel({
     const title = selectedJour ? `Planning_${selectedJour}` : 'Planning_Hebdomadaire';
     const nextWeek = getNextWeekDates();
 
-    const pdfWindow = window.open('', '_blank');
-    if (pdfWindow) {
-      pdfWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>${title}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; margin: 0; background: white; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-            th, td { border: 1px solid #333; padding: 8px 4px; text-align: center; font-size: 11px; }
-            th { background-color: #f5f5f5; font-weight: bold; }
-            .product-name { text-align: left; font-weight: 500; max-width: 200px; font-size: 10px; }
-            .family-header { background-color: #e9e9e9; font-weight: bold; font-size: 14px; padding: 8px; margin: 15px 0 5px 0; border: 2px solid #333; text-align: center; }
-            @media print { @page { size: A4; margin: 15mm; } body { -webkit-print-color-adjust: exact; } }
-          </style>
-        </head>
-        <body>
-          <div style="border-bottom: 2px solid #333; margin-bottom: 15px; padding-bottom: 10px;">
-            <h1>Planning de Production Optimisé ${selectedJour ? `- ${selectedJour}` : ''}</h1>
-            <p>${pdvInfo ? `PDV ${pdvInfo.numero} - ${pdvInfo.nom} | ` : ''}Date: ${new Date().toLocaleDateString('fr-FR')} | Semaine du ${nextWeek.start} au ${nextWeek.end}</p>
-            ${planningData?.stats?.ponderationType ? `<p style="color: #666;">Pondération: ${planningData.stats.ponderationType}</p>` : ''}
-          </div>
-          ${content}
-        </body>
-        </html>
-      `);
-      pdfWindow.document.close();
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${title}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; margin: 0; background: white; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          th, td { border: 1px solid #333; padding: 8px 4px; text-align: center; font-size: 11px; }
+          th { background-color: #f5f5f5; font-weight: bold; }
+          .product-name { text-align: left; font-weight: 500; max-width: 200px; font-size: 10px; }
+          .family-header { background-color: #e9e9e9; font-weight: bold; font-size: 14px; padding: 8px; margin: 15px 0 5px 0; border: 2px solid #333; text-align: center; }
+          @media print { @page { size: A4; margin: 15mm; } body { -webkit-print-color-adjust: exact; } }
+        </style>
+      </head>
+      <body>
+        <div style="border-bottom: 2px solid #333; margin-bottom: 15px; padding-bottom: 10px;">
+          <h1>Planning de Production Optimisé ${selectedJour ? `- ${selectedJour}` : ''}</h1>
+          <p>${pdvInfo ? `PDV ${pdvInfo.numero} - ${pdvInfo.nom} | ` : ''}Date: ${new Date().toLocaleDateString('fr-FR')} | Semaine du ${nextWeek.start} au ${nextWeek.end}</p>
+          ${planningData?.stats?.ponderationType ? `<p style="color: #666;">Pondération: ${planningData.stats.ponderationType}</p>` : ''}
+        </div>
+        ${content}
+      </body>
+      </html>
+    `;
 
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const pdfWindow = globalThis.open(url, '_blank');
+
+    if (pdfWindow) {
       setTimeout(() => {
         alert('Fenêtre PDF ouverte ! Utilisez Cmd+P / Ctrl+P puis "Enregistrer au format PDF".');
+        URL.revokeObjectURL(url);
       }, 500);
+    } else {
+      URL.revokeObjectURL(url);
     }
   };
 
@@ -96,7 +101,7 @@ export default function ImpressionPanel({
               <div className="flex items-center gap-2 text-sm text-gray-600 bg-blue-50 px-3 py-2 rounded border">
                 <span className="font-medium">💡 Astuce :</span>
                 <span>
-                  {navigator.platform.includes('Mac') ? 'Cmd+P' : 'Ctrl+P'} pour imprimer
+                  {(navigator.userAgentData?.platform || navigator.userAgent).includes('Mac') ? 'Cmd+P' : 'Ctrl+P'} pour imprimer
                 </span>
               </div>
               <button
@@ -212,8 +217,50 @@ function PlanningJour({ selectedJour, planningData }) {
   );
 }
 
+// Calculer le total d'articles pour un jour donné
+function calculerTotalJour(planningData, jour) {
+  let total = 0;
+  if (planningData?.jours[jour]) {
+    for (const famille of Object.values(planningData.jours[jour])) {
+      for (const creneaux of famille.values()) {
+        total += creneaux.total;
+      }
+    }
+  }
+  return total;
+}
+
+// Récupérer tous les produits uniques pour une famille donnée
+function recupererProduitsParFamille(planningData, famille) {
+  const produitsSet = new Set();
+  const jours = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+  for (const jour of jours) {
+    if (planningData?.jours[jour]?.[famille]) {
+      for (const [produit] of planningData.jours[jour][famille]) {
+        produitsSet.add(produit);
+      }
+    }
+  }
+  return Array.from(produitsSet);
+}
+
+// Calculer les quantités par jour pour un produit
+function calculerQuantitesParJour(planningData, famille, produit) {
+  const jours = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+  let totalSemaine = 0;
+  const joursData = jours.map(jour => {
+    const qte = planningData?.jours[jour]?.[famille]?.get(produit)?.total || 0;
+    totalSemaine += qte;
+    return { jour, qte };
+  });
+  return { joursData, totalSemaine };
+}
+
 // Composant pour le planning hebdomadaire
 function PlanningHebdo({ planningData }) {
+  const jours = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+  const familles = ['BOULANGERIE', 'VIENNOISERIE', 'PATISSERIE'];
+
   return (
     <div>
       <h2 className="text-lg font-bold text-center bg-gray-200 p-2 mb-4 border-2 border-gray-800">
@@ -221,16 +268,8 @@ function PlanningHebdo({ planningData }) {
       </h2>
 
       <div className="grid grid-cols-7 gap-2 mb-6">
-        {['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].map(jour => {
-          let total = 0;
-          if (planningData?.jours[jour]) {
-            Object.values(planningData.jours[jour]).forEach(famille => {
-              famille.forEach(creneaux => {
-                total += creneaux.total;
-              });
-            });
-          }
-
+        {jours.map(jour => {
+          const total = calculerTotalJour(planningData, jour);
           return (
             <div key={jour} className="border border-gray-800 p-2 text-center bg-gray-50">
               <div className="font-bold text-xs mb-1">{jour}</div>
@@ -241,12 +280,14 @@ function PlanningHebdo({ planningData }) {
         })}
       </div>
 
-      {['BOULANGERIE', 'VIENNOISERIE', 'PATISSERIE'].map(famille => {
-        const hasProducts = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].some(jour =>
+      {familles.map(famille => {
+        const hasProducts = jours.some(jour =>
           planningData?.jours[jour]?.[famille]?.size > 0
         );
 
         if (!hasProducts) return null;
+
+        const produits = recupererProduitsParFamille(planningData, famille);
 
         return (
           <div key={famille} className="mb-6">
@@ -269,35 +310,18 @@ function PlanningHebdo({ planningData }) {
                 </tr>
               </thead>
               <tbody>
-                {(() => {
-                  const produitsSet = new Set();
-                  ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].forEach(jour => {
-                    if (planningData?.jours[jour]?.[famille]) {
-                      planningData.jours[jour][famille].forEach((_, produit) => {
-                        produitsSet.add(produit);
-                      });
-                    }
-                  });
-
-                  return Array.from(produitsSet).map(produit => {
-                    let totalSemaine = 0;
-                    const quantitesJours = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].map(jour => {
-                      const qte = planningData?.jours[jour]?.[famille]?.get(produit)?.total || 0;
-                      totalSemaine += qte;
-                      return qte;
-                    });
-
-                    return (
-                      <tr key={produit}>
-                        <td className="border border-gray-800 p-1 text-xs font-medium">{produit}</td>
-                        {quantitesJours.map((qte, index) => (
-                          <td key={index} className="border border-gray-800 p-1 text-center">{qte || 0}</td>
-                        ))}
-                        <td className="border border-gray-800 p-1 text-center font-bold">{totalSemaine}</td>
-                      </tr>
-                    );
-                  });
-                })()}
+                {produits.map(produit => {
+                  const { joursData, totalSemaine } = calculerQuantitesParJour(planningData, famille, produit);
+                  return (
+                    <tr key={produit}>
+                      <td className="border border-gray-800 p-1 text-xs font-medium">{produit}</td>
+                      {joursData.map(({ jour, qte }) => (
+                        <td key={`${produit}-${jour}`} className="border border-gray-800 p-1 text-center">{qte || 0}</td>
+                      ))}
+                      <td className="border border-gray-800 p-1 text-center font-bold">{totalSemaine}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -78,20 +78,28 @@ export default function EtapePlanning({ planning, pdvInfo, onRetour, onPersonnal
                 {['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].map(jour => {
                   let total = 0;
                   if (planning.jours[jour]) {
-                    Object.values(planning.jours[jour]).forEach(famille => {
-                      famille.forEach(creneaux => {
+                    for (const famille of Object.values(planning.jours[jour])) {
+                      for (const creneaux of famille.values()) {
                         total += creneaux.total;
-                      });
-                    });
+                      }
+                    }
                   }
 
                   const poids = planning.stats.poidsJours[jour] || 0;
 
                   return (
-                    <div
+                    <button
                       key={jour}
                       onClick={() => setSelectedJour(jour)}
-                      className="bg-gray-50 p-4 rounded-lg cursor-pointer hover:bg-blue-50 transition relative"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setSelectedJour(jour);
+                        }
+                      }}
+                      className="bg-gray-50 p-4 rounded-lg cursor-pointer hover:bg-blue-50 transition relative focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      type="button"
+                      aria-label={`Voir le planning du ${jour}`}
                     >
                       <div className="absolute top-2 right-2 text-xs text-gray-500">
                         {(poids * 100).toFixed(0)}%
@@ -101,7 +109,7 @@ export default function EtapePlanning({ planning, pdvInfo, onRetour, onPersonnal
                         {total}
                       </p>
                       <p className="text-xs text-center text-gray-500">articles</p>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -111,10 +119,12 @@ export default function EtapePlanning({ planning, pdvInfo, onRetour, onPersonnal
                 {['BOULANGERIE', 'VIENNOISERIE', 'PATISSERIE'].map(famille => {
                   let total = 0;
                   let nbProduits = 0;
-                  planning.semaine[famille]?.forEach(qte => {
-                    total += qte;
-                    nbProduits++;
-                  });
+                  if (planning.semaine[famille]) {
+                    for (const qte of planning.semaine[famille].values()) {
+                      total += qte;
+                      nbProduits++;
+                    }
+                  }
 
                   return (
                     <div key={famille} className="bg-gray-50 p-4 rounded-lg">

@@ -24,14 +24,22 @@ export default function EtapePersonnalisation({
 
   // Déterminer le jour de la semaine depuis une date
   const getJourSemaine = (dateStr) => {
+    const numValue = Number(dateStr);
     let date;
-    if (!isNaN(dateStr)) {
+
+    if (Number.isFinite(numValue)) {
+      // C'est un nombre (format Excel)
       const excelEpoch = new Date(1899, 11, 30);
-      date = new Date(excelEpoch.getTime() + dateStr * 86400000);
+      date = new Date(excelEpoch.getTime() + numValue * 86400000);
     } else {
+      // C'est une chaîne de caractères
       date = new Date(dateStr);
     }
-    if (isNaN(date.getTime())) return null;
+
+    if (!Number.isFinite(date.getTime())) {
+      return null;
+    }
+
     const jours = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
     return jours[date.getDay()];
   };
@@ -53,12 +61,12 @@ export default function EtapePersonnalisation({
       let venteMax = 0;
       let dateVenteMax = null;
 
-      Object.entries(p.ventesParJour).forEach(([date, quantite]) => {
+      for (const [date, quantite] of Object.entries(p.ventesParJour)) {
         if (quantite > venteMax) {
           venteMax = quantite;
           dateVenteMax = date;
         }
-      });
+      }
 
       if (venteMax === 0) {
         return { ...p, potentielHebdo: 0 };
@@ -68,12 +76,10 @@ export default function EtapePersonnalisation({
       const jourVenteMax = getJourSemaine(dateVenteMax);
       let poidsJour = 0.14;
 
-      if (frequentationData && frequentationData.poidsJours) {
-        if (jourVenteMax && frequentationData.poidsJours[jourVenteMax]) {
-          poidsJour = frequentationData.poidsJours[jourVenteMax];
-        } else {
-          poidsJour = Math.max(...Object.values(frequentationData.poidsJours));
-        }
+      const poidsJours = frequentationData?.poidsJours;
+      if (poidsJours) {
+        const poidsJourSpecifique = jourVenteMax ? poidsJours[jourVenteMax] : null;
+        poidsJour = poidsJourSpecifique ?? Math.max(...Object.values(poidsJours));
       }
 
       // Formule : Potentiel = Vente MAX ÷ Poids du jour
@@ -106,71 +112,93 @@ export default function EtapePersonnalisation({
     URL.revokeObjectURL(url);
   };
 
+  // Créer un map des réglages depuis les données CSV
+  const creerReglagesMap = (csvData) => {
+    const reglagesMap = new Map();
+    for (const row of csvData) {
+      const libelle = row?.Libelle;
+      if (libelle) {
+        reglagesMap.set(libelle, {
+          libellePersonnalise: row?.LibellePersonnalise ?? '',
+          famille: row?.Famille ?? 'AUTRE',
+          potentielHebdo: Number.parseFloat(row?.PotentielHebdo ?? '0') || 0,
+          actif: row?.Actif === 'true',
+          custom: row?.Custom === 'true'
+        });
+      }
+    }
+    return reglagesMap;
+  };
+
+  // Appliquer les réglages importés aux produits existants
+  const appliquerReglages = (produits, reglagesMap) => {
+    return produits.map(p => {
+      const libelle = p?.libelle;
+      if (libelle && reglagesMap.has(libelle)) {
+        const reglage = reglagesMap.get(libelle);
+        return { ...p, ...reglage };
+      }
+      return p;
+    });
+  };
+
+  // Identifier les produits custom manquants
+  const trouverProduitsCustomManquants = (produits, reglagesMap) => {
+    const libellesExistants = new Set(produits.map(p => p?.libelle).filter(Boolean));
+    const produitsCustomManquants = [];
+    for (const [libelle, reglage] of reglagesMap.entries()) {
+      if (reglage?.custom && !libellesExistants.has(libelle)) {
+        produitsCustomManquants.push(libelle);
+      }
+    }
+    return produitsCustomManquants;
+  };
+
+  // Ajouter les produits custom manquants
+  const ajouterProduitsCustom = (produitsAvecReglages, produitsCustomManquants, reglagesMap) => {
+    const nouveauxId = Math.max(...produitsAvecReglages.map(p => p?.id ?? 0), -1);
+    for (const [index, libelle] of produitsCustomManquants.entries()) {
+      const reglage = reglagesMap.get(libelle);
+      if (reglage) {
+        produitsAvecReglages.push({
+          id: nouveauxId + index + 1,
+          libelle,
+          libellePersonnalise: reglage.libellePersonnalise ?? libelle,
+          famille: reglage.famille ?? 'AUTRE',
+          ventesParJour: {},
+          totalVentes: 0,
+          potentielHebdo: reglage.potentielHebdo ?? 0,
+          actif: reglage.actif ?? true,
+          custom: true
+        });
+      }
+    }
+  };
+
   // Importer les réglages depuis CSV
-  const importerReglages = (e, setProduits) => {
+  const importerReglages = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const parsed = parseCSV(event.target.result);
+    try {
+      const text = await file.text();
+      const parsed = parseCSV(text);
+      const reglagesMap = creerReglagesMap(parsed.data);
+      const produitsAvecReglages = appliquerReglages(produits, reglagesMap);
+      const produitsCustomManquants = trouverProduitsCustomManquants(produits, reglagesMap);
 
-      // Créer un map des réglages importés
-      const reglagesMap = new Map();
-      parsed.data.forEach(row => {
-        reglagesMap.set(row.Libelle, {
-          libellePersonnalise: row.LibellePersonnalise,
-          famille: row.Famille,
-          potentielHebdo: parseFloat(row.PotentielHebdo) || 0,
-          actif: row.Actif === 'true',
-          custom: row.Custom === 'true'
-        });
-      });
-
-      // Appliquer les réglages aux produits existants
-      const produitsAvecReglages = produits.map(p => {
-        if (reglagesMap.has(p.libelle)) {
-          const reglage = reglagesMap.get(p.libelle);
-          return { ...p, ...reglage };
-        }
-        return p;
-      });
-
-      // Identifier les produits custom qui ne sont pas dans les ventes actuelles
-      const libellesExistants = new Set(produits.map(p => p.libelle));
-      const produitsCustomManquants = [];
-      reglagesMap.forEach((reglage, libelle) => {
-        if (reglage.custom && !libellesExistants.has(libelle)) {
-          produitsCustomManquants.push(libelle);
-        }
-      });
-
-      // Si des produits custom manquants, demander à l'utilisateur
       if (produitsCustomManquants.length > 0) {
         const message = `Les produits suivants sont dans vos réglages mais pas dans vos ventes actuelles:\n${produitsCustomManquants.join(', ')}\n\nVoulez-vous les conserver comme produits custom ?`;
         if (confirm(message)) {
-          // Ajouter les produits custom manquants
-          const nouveauxId = Math.max(...produitsAvecReglages.map(p => p.id), -1);
-          produitsCustomManquants.forEach((libelle, index) => {
-            const reglage = reglagesMap.get(libelle);
-            produitsAvecReglages.push({
-              id: nouveauxId + index + 1,
-              libelle,
-              libellePersonnalise: reglage.libellePersonnalise,
-              famille: reglage.famille,
-              ventesParJour: {},
-              totalVentes: 0,
-              potentielHebdo: reglage.potentielHebdo,
-              actif: reglage.actif,
-              custom: true
-            });
-          });
+          ajouterProduitsCustom(produitsAvecReglages, produitsCustomManquants, reglagesMap);
         }
       }
 
       setProduits(produitsAvecReglages);
-    };
-    reader.readAsText(file);
+    } catch (error) {
+      console.error('Erreur lors de l\'import des réglages:', error);
+      alert('Erreur lors de la lecture du fichier de réglages.');
+    }
   };
 
   // Vérifier combien de produits ont des potentiels > 0
@@ -308,10 +336,7 @@ export default function EtapePersonnalisation({
           Retour
         </button>
         <button
-          onClick={() => {
-            console.log('🖱️ Clic sur "Calculer le planning"');
-            onCalculerPlanning();
-          }}
+          onClick={onCalculerPlanning}
           className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
         >
           Calculer le planning
