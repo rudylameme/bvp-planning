@@ -4,11 +4,16 @@ import TableauProduits from './TableauProduits';
 import TableauProduitsGroupes from './TableauProduitsGroupes';
 import AttributionManuelle from './AttributionManuelle';
 import { parseCSV } from '../utils/parsers';
+import { getListeRayons, getListeProgrammes } from '../services/referentielITM8';
+import { calculerPotentielsPourTous } from '../services/potentielCalculator';
 
 export default function EtapePersonnalisation({
   produits,
   sortType,
   onChangerFamille,
+  onChangerRayon,
+  onChangerProgramme,
+  onChangerUnitesParPlaque,
   onChangerLibelle,
   onChangerPotentiel,
   onToggleActif,
@@ -23,89 +28,34 @@ export default function EtapePersonnalisation({
   const refReglages = useRef(null);
   const [modeAffichage, setModeAffichage] = useState('groupes'); // 'groupes' ou 'liste'
   const [showAttributionManuelle, setShowAttributionManuelle] = useState(false);
+  const [modeCalculPotentiel, setModeCalculPotentiel] = useState('mathematique'); // 'mathematique' | 'forte-progression' | 'prudent'
 
   // Identifier les produits non reconnus
   const produitsNonReconnus = produits.filter(p => !p.reconnu && !p.custom);
   const nbProduitsNonReconnus = produitsNonReconnus.length;
 
-  // Déterminer le jour de la semaine depuis une date
-  const getJourSemaine = (dateStr) => {
-    const numValue = Number(dateStr);
-    let date;
-
-    if (Number.isFinite(numValue)) {
-      // C'est un nombre (format Excel)
-      const excelEpoch = new Date(1899, 11, 30);
-      date = new Date(excelEpoch.getTime() + numValue * 86400000);
-    } else {
-      // C'est une chaîne de caractères
-      date = new Date(dateStr);
-    }
-
-    if (!Number.isFinite(date.getTime())) {
-      return null;
-    }
-
-    const jours = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
-    return jours[date.getDay()];
-  };
-
   // Calculer automatiquement les potentiels à partir des ventes
-  const calculerPotentielsAuto = () => {
-    if (!confirm('Voulez-vous calculer automatiquement les potentiels hebdomadaires ?\n\nFormule : Vente MAX ÷ Poids du jour de cette vente\n\nCela écrasera les potentiels actuels.')) {
+  const calculerPotentielsAuto = (mode = modeCalculPotentiel) => {
+    const messages = {
+      'mathematique': 'Mode Mathématique : Calcul brut sans limite\nFormule : Vente MAX ÷ Poids du jour',
+      'forte-progression': 'Mode Forte Progression : Limite à +20% de progression\n• Si progression > 20% → limité à +20%\n• Si baisse → garde le volume actuel',
+      'prudent': 'Mode Prudent : Limite à +10% de progression\n• Si progression > 10% → limité à +10%\n• Si baisse → garde le volume actuel'
+    };
+
+    if (!confirm(`Voulez-vous calculer automatiquement les potentiels hebdomadaires ?\n\n${messages[mode]}\n\nCela écrasera les potentiels actuels.`)) {
       return;
     }
 
-    console.log('🤖 Calcul automatique des potentiels avec formule précise...');
-
-    const produitsAvecPotentielCalcule = produits.map(p => {
-      if (p.custom || !p.ventesParJour) {
-        return p;
-      }
-
-      // Trouver la vente MAX et sa date
-      let venteMax = 0;
-      let dateVenteMax = null;
-
-      for (const [date, quantite] of Object.entries(p.ventesParJour)) {
-        if (quantite > venteMax) {
-          venteMax = quantite;
-          dateVenteMax = date;
-        }
-      }
-
-      if (venteMax === 0) {
-        return { ...p, potentielHebdo: 0 };
-      }
-
-      // Déterminer le jour et son poids
-      const jourVenteMax = getJourSemaine(dateVenteMax);
-      let poidsJour = 0.14;
-
-      const poidsJours = frequentationData?.poidsJours;
-      if (poidsJours) {
-        const poidsJourSpecifique = jourVenteMax ? poidsJours[jourVenteMax] : null;
-        poidsJour = poidsJourSpecifique ?? Math.max(...Object.values(poidsJours));
-      }
-
-      // Formule : Potentiel = Vente MAX ÷ Poids du jour
-      const potentielCalcule = Math.ceil(venteMax / poidsJour);
-
-      return {
-        ...p,
-        potentielHebdo: potentielCalcule
-      };
-    });
-
+    const produitsAvecPotentielCalcule = calculerPotentielsPourTous(produits, frequentationData, mode);
     setProduits(produitsAvecPotentielCalcule);
-    alert('✅ Potentiels calculés avec la formule : Vente MAX ÷ Poids du jour !');
+    alert('✅ Potentiels calculés !');
   };
 
   // Exporter les réglages en CSV
   const exporterReglages = () => {
-    const headers = 'Libelle,LibellePersonnalise,Famille,PotentielHebdo,Actif,Custom\n';
+    const headers = 'Libelle,LibellePersonnalise,Rayon,Programme,UnitesParPlaque,Famille,PotentielHebdo,Actif,Custom\n';
     const rows = produits.map(p =>
-      `${p.libelle},${p.libellePersonnalise},${p.famille},${p.potentielHebdo},${p.actif},${p.custom}`
+      `${p.libelle},${p.libellePersonnalise},${p.rayon || ''},${p.programme || ''},${p.unitesParPlaque ?? 0},${p.famille},${p.potentielHebdo},${p.actif},${p.custom}`
     ).join('\n');
 
     const csvContent = headers + rows;
@@ -126,6 +76,9 @@ export default function EtapePersonnalisation({
       if (libelle) {
         reglagesMap.set(libelle, {
           libellePersonnalise: row?.LibellePersonnalise ?? '',
+          rayon: row?.Rayon || null,
+          programme: row?.Programme || null,
+          unitesParPlaque: Number.parseInt(row?.UnitesParPlaque ?? '0') || 0,
           famille: row?.Famille ?? 'AUTRE',
           potentielHebdo: Number.parseFloat(row?.PotentielHebdo ?? '0') || 0,
           actif: row?.Actif === 'true',
@@ -240,16 +193,16 @@ export default function EtapePersonnalisation({
       <div className="bg-white rounded-lg shadow-lg p-6">
       {/* Message pour les produits non reconnus */}
       {nbProduitsNonReconnus > 0 && (
-        <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-orange-800">
-              ⚠️ <strong>{nbProduitsNonReconnus} produit(s) non reconnu(s)</strong> par le référentiel ITM8. Veuillez attribuer manuellement le rayon et le programme de cuisson.
+            <p className="text-sm text-blue-800">
+              ℹ️ <strong>{nbProduitsNonReconnus} produit(s) non reconnu(s)</strong> par le référentiel ITM8. Vous pouvez continuer ou les attribuer manuellement pour plus de précision.
             </p>
             <button
               onClick={() => setShowAttributionManuelle(true)}
-              className="ml-4 px-3 py-1 bg-orange-600 text-white text-sm rounded hover:bg-orange-700 transition whitespace-nowrap"
+              className="ml-4 px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition whitespace-nowrap"
             >
-              Attribuer
+              Attribuer (optionnel)
             </button>
           </div>
         </div>
@@ -257,7 +210,7 @@ export default function EtapePersonnalisation({
 
       {/* Message d'information sur les potentiels */}
       {nbProduitsAvecPotentiel === nbProduitsTotal && nbProduitsTotal > 0 && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+        <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
           <p className="text-sm text-green-800">
             ✅ <strong>Potentiels calculés automatiquement</strong> pour {nbProduitsTotal} produits à partir des ventes historiques. Vous pouvez les ajuster manuellement si besoin.
           </p>
@@ -297,9 +250,19 @@ export default function EtapePersonnalisation({
           {modeAffichage === 'liste' && (
             <>
               <button
+                onClick={() => onTrier('rayon-volume')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
+                  sortType === 'rayon-volume' ? 'bg-amber-700 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+                title="Tri par défaut : rayon puis volume décroissant"
+              >
+                <LayoutGrid size={20} />
+                Tri Rayon
+              </button>
+              <button
                 onClick={() => onTrier('nom')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
-                  sortType === 'nom' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  sortType === 'nom' ? 'bg-amber-700 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
               >
                 <ArrowUpAZ size={20} />
@@ -308,7 +271,7 @@ export default function EtapePersonnalisation({
               <button
                 onClick={() => onTrier('volume')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
-                  sortType === 'volume' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  sortType === 'volume' ? 'bg-amber-700 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
               >
                 <ArrowDownWideNarrow size={20} />
@@ -317,7 +280,7 @@ export default function EtapePersonnalisation({
               <button
                 onClick={() => onTrier('rayon-programme')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
-                  sortType === 'rayon-programme' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  sortType === 'rayon-programme' ? 'bg-amber-700 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
                 title="Trier par rayon, puis programme, puis volume"
               >
@@ -326,16 +289,44 @@ export default function EtapePersonnalisation({
               </button>
             </>
           )}
-          <button
-            onClick={calculerPotentielsAuto}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
-            title="Calculer automatiquement les potentiels à partir des ventes"
-          >
-            🤖 Auto-Potentiels
-          </button>
+          {/* Menu Auto-Potentiels avec choix du mode */}
+          <div className="relative group">
+            <button
+              onClick={() => calculerPotentielsAuto()}
+              className="flex items-center gap-2 px-4 py-2 bg-amber-700 text-white rounded-lg hover:bg-amber-800 transition"
+              title="Calculer automatiquement les potentiels à partir des ventes"
+            >
+              🤖 Auto-Potentiels
+              <span className="text-xs opacity-75">({modeCalculPotentiel === 'mathematique' ? 'Math' : modeCalculPotentiel === 'forte-progression' ? '+20%' : '+10%'})</span>
+            </button>
+            {/* Dropdown pour choisir le mode */}
+            <div className="absolute hidden group-hover:block top-full mt-1 right-0 bg-white border border-gray-300 rounded-lg shadow-lg z-10 min-w-[200px]">
+              <button
+                onClick={() => { setModeCalculPotentiel('mathematique'); calculerPotentielsAuto('mathematique'); }}
+                className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 rounded-t-lg ${modeCalculPotentiel === 'mathematique' ? 'bg-amber-50 text-amber-800 font-semibold' : 'text-gray-700'}`}
+              >
+                📊 Mathématique
+                <div className="text-xs text-gray-500">Calcul brut sans limite</div>
+              </button>
+              <button
+                onClick={() => { setModeCalculPotentiel('forte-progression'); calculerPotentielsAuto('forte-progression'); }}
+                className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 border-t ${modeCalculPotentiel === 'forte-progression' ? 'bg-amber-50 text-amber-800 font-semibold' : 'text-gray-700'}`}
+              >
+                🚀 Forte progression
+                <div className="text-xs text-gray-500">Limite +20% max</div>
+              </button>
+              <button
+                onClick={() => { setModeCalculPotentiel('prudent'); calculerPotentielsAuto('prudent'); }}
+                className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 rounded-b-lg border-t ${modeCalculPotentiel === 'prudent' ? 'bg-amber-50 text-amber-800 font-semibold' : 'text-gray-700'}`}
+              >
+                🛡️ Prudent
+                <div className="text-xs text-gray-500">Limite +10% max</div>
+              </button>
+            </div>
+          </div>
           <button
             onClick={onAjouterProduitCustom}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
           >
             + Ajouter
           </button>
@@ -368,19 +359,29 @@ export default function EtapePersonnalisation({
         <TableauProduits
           produits={produits}
           onChangerFamille={onChangerFamille}
+          onChangerRayon={onChangerRayon}
+          onChangerProgramme={onChangerProgramme}
+          onChangerUnitesParPlaque={onChangerUnitesParPlaque}
           onChangerLibelle={onChangerLibelle}
           onChangerPotentiel={onChangerPotentiel}
           onToggleActif={onToggleActif}
           onSupprimerProduit={onSupprimerProduit}
+          rayonsDisponibles={getListeRayons()}
+          programmesDisponibles={getListeProgrammes()}
         />
       ) : (
         <TableauProduitsGroupes
           produits={produits}
           onChangerFamille={onChangerFamille}
+          onChangerRayon={onChangerRayon}
+          onChangerProgramme={onChangerProgramme}
+          onChangerUnitesParPlaque={onChangerUnitesParPlaque}
           onChangerLibelle={onChangerLibelle}
           onChangerPotentiel={onChangerPotentiel}
           onToggleActif={onToggleActif}
           onSupprimerProduit={onSupprimerProduit}
+          rayonsDisponibles={getListeRayons()}
+          programmesDisponibles={getListeProgrammes()}
         />
       )}
 
@@ -395,7 +396,7 @@ export default function EtapePersonnalisation({
           </button>
           <button
             onClick={onCalculerPlanning}
-            className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+            className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
           >
             Calculer le planning
             <ChevronRight size={20} />

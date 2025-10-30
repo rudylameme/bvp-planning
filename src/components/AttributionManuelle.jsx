@@ -25,7 +25,7 @@ export default function AttributionManuelle({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="bg-orange-100 border-b border-orange-200 p-4">
+        <div className="bg-amber-100 border-b border-amber-200 p-4">
           <div className="flex items-center gap-3">
             <AlertCircle className="text-orange-600" size={24} />
             <div>

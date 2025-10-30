@@ -7,6 +7,7 @@ import { parseVentesExcel, parseFrequentationExcel } from './utils/parsers';
 import { classerProduit } from './utils/classification';
 import { calculerPlanning } from './services/planningCalculator';
 import { chargerReferentielITM8, rechercherParITM8, mapRayonVersFamille, isReferentielCharge } from './services/referentielITM8';
+import { trouverVenteMax, calculerPotentielDepuisVenteMax } from './services/potentielCalculator';
 
 function App() {
   // État principal
@@ -15,7 +16,7 @@ function App() {
   const [ventesData, setVentesData] = useState(null);
   const [produits, setProduits] = useState([]);
   const [planning, setPlanning] = useState(null);
-  const [sortType, setSortType] = useState('nom'); // 'nom' ou 'volume'
+  const [sortType, setSortType] = useState('rayon-volume'); // 'nom', 'volume', 'rayon-volume', 'rayon-programme'
   const [pdvInfo, setPdvInfo] = useState(null);
   const [ponderationType, setPonderationType] = useState('standard'); // 'standard', 'saisonnier', 'fortePromo'
   const [frequentationFile, setFrequentationFile] = useState(null);
@@ -38,12 +39,13 @@ function App() {
 
   // Handler pour l'upload de fréquentation avec choix de pondération
   const handleFrequentationUpload = (e, newPonderationType = null) => {
-    const file = e.target?.files?.[0] || frequentationFile;
+    const newFile = e?.target?.files?.[0];
+    const file = newFile || frequentationFile;
     if (!file) return;
 
     // Sauvegarder le fichier pour un éventuel recalcul
-    if (e.target?.files?.[0]) {
-      setFrequentationFile(e.target.files[0]);
+    if (newFile) {
+      setFrequentationFile(newFile);
     }
 
     const typePonderation = newPonderationType || ponderationType;
@@ -56,59 +58,34 @@ function App() {
           setFrequentationData(parsed);
           setPonderationType(typePonderation);
         }
+        return parsed;
       } catch (error) {
         console.error('Erreur lors du parsing:', error);
         alert('Erreur lors de la lecture du fichier. Vérifiez le format.');
+        return null;
       }
     };
-    loadFile();
+    return loadFile();
   };
 
   // Changer le type de pondération et recalculer
   const changerPonderation = (newType) => {
     if (frequentationFile) {
-      handleFrequentationUpload(null, newType);
-      // Recalculer le planning si déjà généré
-      if (planning && produits.length > 0) {
-        setTimeout(() => {
-          const nouveauPlanning = calculerPlanning(frequentationData, produits);
-          if (nouveauPlanning) {
-            setPlanning(nouveauPlanning);
+      const resultat = handleFrequentationUpload(null, newType);
+      if (resultat?.then) {
+        resultat.then((parsedFrequentation) => {
+          if (parsedFrequentation && planning && produits.length > 0) {
+            const nouveauPlanning = calculerPlanning(parsedFrequentation, produits);
+            if (nouveauPlanning) {
+              setPlanning(nouveauPlanning);
+            }
           }
-        }, 100);
+        });
       }
     }
   };
 
-  // Trouver la vente maximale et sa date
-  const trouverVenteMax = (ventesParJour) => {
-    let venteMax = 0;
-    let dateVenteMax = null;
-
-    for (const [date, quantite] of Object.entries(ventesParJour)) {
-      if (quantite > venteMax) {
-        venteMax = quantite;
-        dateVenteMax = date;
-      }
-    }
-
-    return { venteMax, dateVenteMax };
-  };
-
-  // Calculer le potentiel à partir de la vente max
-  const calculerPotentielDepuisVenteMax = (venteMax, dateVenteMax, libelle) => {
-    if (venteMax === 0) return 0;
-
-    const jourVenteMax = getJourSemaine(dateVenteMax);
-    const poidsJour = (jourVenteMax && frequentationData.poidsJours[jourVenteMax])
-      ? frequentationData.poidsJours[jourVenteMax]
-      : Math.max(...Object.values(frequentationData.poidsJours));
-
-    const potentiel = Math.ceil(venteMax / poidsJour);
-    console.log(`  ${libelle}: Vente max=${venteMax} (${jourVenteMax || '?'}) ÷ ${(poidsJour * 100).toFixed(1)}% → Potentiel=${potentiel}`);
-
-    return potentiel;
-  };
+  // Note: trouverVenteMax et calculerPotentielDepuisVenteMax sont maintenant importés depuis potentielCalculator
 
   // Créer un produit à partir des données de ventes
   const creerProduitDepuisVentes = (libelle, ventesParJour, itm8, idCounter) => {
@@ -116,6 +93,8 @@ function App() {
     let programme = null;
     let famille = null;
     let reconnu = false;
+    let unitesParVente = 1;
+    let unitesParPlaque = 0;
 
     // Tentative de reconnaissance par ITM8
     if (itm8 && isReferentielCharge()) {
@@ -124,20 +103,23 @@ function App() {
         rayon = infosProduit.rayon;
         programme = infosProduit.programme;
         famille = mapRayonVersFamille(rayon);
+        unitesParVente = infosProduit.unitesParVente || 1;
+        unitesParPlaque = infosProduit.unitesParPlaque || 0;
         reconnu = true;
-        console.log(`✅ Produit reconnu par ITM8 ${itm8}: ${libelle} → ${rayon} / ${programme}`);
+        console.log(`✅ Produit reconnu par ITM8 ${itm8}: ${libelle} → ${rayon} / ${programme} (${unitesParVente} unités/vente, ${unitesParPlaque} unités/plaque)`);
       }
     }
 
     // Fallback: classification par mots-clés
     if (!reconnu) {
       famille = classerProduit(libelle);
-      console.log(`⚠️ Produit non reconnu par ITM8: ${libelle} → Classification: ${famille}`);
+      rayon = famille; // Utiliser la famille comme rayon par défaut
+      console.log(`⚠️ Produit non reconnu par ITM8: ${libelle} → Classification: ${famille} (rayon auto-assigné)`);
     }
 
     const totalVentes = Object.values(ventesParJour).reduce((sum, val) => sum + val, 0);
     const { venteMax, dateVenteMax } = trouverVenteMax(ventesParJour);
-    const potentielCalcule = calculerPotentielDepuisVenteMax(venteMax, dateVenteMax, libelle);
+    const potentielCalcule = calculerPotentielDepuisVenteMax(venteMax, dateVenteMax, frequentationData, libelle);
 
     return {
       id: idCounter,
@@ -147,6 +129,8 @@ function App() {
       rayon,
       programme,
       famille,
+      unitesParVente,
+      unitesParPlaque,
       ventesParJour,
       totalVentes,
       potentielHebdo: potentielCalcule,
@@ -188,7 +172,24 @@ function App() {
           ));
         }
 
-        setProduits(nouveauxProduits);
+        // Trier les produits par défaut (rayon puis volume)
+        const produitsTries = nouveauxProduits.sort((a, b) => {
+          const ordreRayons = {
+            'BOULANGERIE': 1,
+            'VIENNOISERIE': 2,
+            'PATISSERIE': 3,
+            'SNACKING': 4,
+            'AUTRE': 5
+          };
+          const rayonA = a.rayon || 'AUTRE';
+          const rayonB = b.rayon || 'AUTRE';
+          const ordreA = ordreRayons[rayonA] || 99;
+          const ordreB = ordreRayons[rayonB] || 99;
+          if (ordreA !== ordreB) return ordreA - ordreB;
+          return b.totalVentes - a.totalVentes;
+        });
+
+        setProduits(produitsTries);
         setVentesData(parsed);
         if (parsed.pdvInfo) {
           setPdvInfo(parsed.pdvInfo);
@@ -203,29 +204,6 @@ function App() {
     loadFile();
   };
 
-  // Déterminer le jour de la semaine depuis une date
-  const getJourSemaine = (dateStr) => {
-    // Essayer de parser la date (formats possibles: "DD/MM/YYYY", "YYYY-MM-DD", nombre Excel, etc.)
-    let date;
-
-    // Si c'est un nombre (format Excel)
-    const numValue = Number(dateStr);
-    if (Number.isFinite(numValue)) {
-      const excelEpoch = new Date(1899, 11, 30);
-      date = new Date(excelEpoch.getTime() + numValue * 86400000);
-    } else {
-      // Essayer de parser comme string
-      date = new Date(dateStr);
-    }
-
-    if (!Number.isFinite(date.getTime())) {
-      return null; // Date invalide
-    }
-
-    const jours = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
-    return jours[date.getDay()];
-  };
-
   // Passer à l'étape de personnalisation
   const allerAPersonnalisation = () => {
     if (frequentationData && ventesData) {
@@ -238,6 +216,27 @@ function App() {
   const changerFamille = (id, nouvelleFamille) => {
     setProduits(prev => prev.map(p =>
       p.id === id ? { ...p, famille: nouvelleFamille } : p
+    ));
+  };
+
+  // Changer le rayon d'un produit
+  const changerRayon = (id, nouveauRayon) => {
+    setProduits(prev => prev.map(p =>
+      p.id === id ? { ...p, rayon: nouveauRayon } : p
+    ));
+  };
+
+  // Changer le programme de cuisson d'un produit
+  const changerProgramme = (id, nouveauProgramme) => {
+    setProduits(prev => prev.map(p =>
+      p.id === id ? { ...p, programme: nouveauProgramme } : p
+    ));
+  };
+
+  // Changer le nombre d'unités par plaque d'un produit
+  const changerUnitesParPlaque = (id, nouvelleValeur) => {
+    setProduits(prev => prev.map(p =>
+      p.id === id ? { ...p, unitesParPlaque: Number.parseInt(nouvelleValeur) || 0 } : p
     ));
   };
 
@@ -293,6 +292,29 @@ function App() {
         copie.sort((a, b) => a.libellePersonnalise.localeCompare(b.libellePersonnalise));
       } else if (type === 'volume') {
         copie.sort((a, b) => b.totalVentes - a.totalVentes);
+      } else if (type === 'rayon-volume') {
+        // Tri par : rayon → volume décroissant (TRI PAR DÉFAUT)
+        // Ordre des rayons : BOULANGERIE, VIENNOISERIE, PATISSERIE, SNACKING, AUTRE
+        const ordreRayons = {
+          'BOULANGERIE': 1,
+          'VIENNOISERIE': 2,
+          'PATISSERIE': 3,
+          'SNACKING': 4,
+          'AUTRE': 5
+        };
+
+        copie.sort((a, b) => {
+          // D'abord par rayon (ordre logique)
+          const rayonA = a.rayon || 'AUTRE';
+          const rayonB = b.rayon || 'AUTRE';
+          const ordreA = ordreRayons[rayonA] || 99;
+          const ordreB = ordreRayons[rayonB] || 99;
+
+          if (ordreA !== ordreB) return ordreA - ordreB;
+
+          // Ensuite par volume décroissant
+          return b.totalVentes - a.totalVentes;
+        });
       } else if (type === 'rayon-programme') {
         // Tri par : rayon → programme → volume décroissant
         copie.sort((a, b) => {
@@ -400,17 +422,17 @@ function App() {
 
           {/* Indicateur d'étapes */}
           <div className="flex items-center justify-center mt-6 gap-4">
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${etape === 'upload' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${etape === 'upload' ? 'bg-amber-700 text-white' : 'bg-gray-200 text-gray-600'}`}>
               <Upload size={20} />
               <span>1. Upload</span>
             </div>
             <ChevronRight className="text-gray-400" />
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${etape === 'personnalisation' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${etape === 'personnalisation' ? 'bg-amber-700 text-white' : 'bg-gray-200 text-gray-600'}`}>
               <FileUp size={20} />
               <span>2. Personnalisation</span>
             </div>
             <ChevronRight className="text-gray-400" />
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${etape === 'planning' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${etape === 'planning' ? 'bg-amber-700 text-white' : 'bg-gray-200 text-gray-600'}`}>
               <Download size={20} />
               <span>3. Planning</span>
             </div>
@@ -435,6 +457,9 @@ function App() {
             produits={produits}
             sortType={sortType}
             onChangerFamille={changerFamille}
+            onChangerRayon={changerRayon}
+            onChangerProgramme={changerProgramme}
+            onChangerUnitesParPlaque={changerUnitesParPlaque}
             onChangerLibelle={changerLibelle}
             onChangerPotentiel={changerPotentiel}
             onToggleActif={toggleActif}

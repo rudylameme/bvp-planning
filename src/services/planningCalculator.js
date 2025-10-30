@@ -30,59 +30,94 @@ export const calculerPlanning = (frequentationData, produits) => {
       planning.stats.poidsJours[jour] = poidsJours[jourLower] || 0;
     }
 
-    // Classifier les produits par famille
-    const familles = {
-      BOULANGERIE: [],
-      VIENNOISERIE: [],
-      PATISSERIE: []
-    };
+    // Classifier les produits par programme de cuisson ET par rayon
+    const programmesParRayon = {};
 
-    const produitsActifs = produits.filter(p => p.actif);
+    const produitsActifs = produits.filter(p => p.actif && p.potentielHebdo > 0);
 
     for (const produit of produitsActifs) {
-      const famille = produit.famille;
-      if (!familles[famille]) {
-        console.warn(`⚠️ Famille "${famille}" non reconnue pour le produit "${produit.libellePersonnalise}"`);
-        continue;
+      // Utiliser le programme de cuisson s'il existe, sinon créer un programme par défaut
+      const programme = produit.programme || `Autres ${produit.rayon}`;
+      const rayon = produit.rayon || 'AUTRE'; // rayon est maintenant toujours défini à la création
+
+      // Créer la structure rayon -> programme
+      if (!programmesParRayon[rayon]) {
+        programmesParRayon[rayon] = {};
       }
-      familles[famille].push({
+
+      if (!programmesParRayon[rayon][programme]) {
+        programmesParRayon[rayon][programme] = [];
+      }
+
+      programmesParRayon[rayon][programme].push({
         libelle: produit.libellePersonnalise,
+        itm8: produit.itm8,
         potentielHebdo: produit.potentielHebdo,
+        totalVentes: produit.totalVentes || 0,
         jourMax: 'lundi',
         quantiteMax: produit.potentielHebdo / 7,
-        poidsJour: 0.14
+        poidsJour: 0.14,
+        unitesParVente: produit.unitesParVente ?? 1,
+        unitesParPlaque: produit.unitesParPlaque ?? 0
       });
     }
 
-    // Pour chaque famille, générer le planning
-    for (const nomFamille of ['BOULANGERIE', 'VIENNOISERIE', 'PATISSERIE']) {
-      planning.semaine[nomFamille] = new Map();
+    // Trier les produits par volume décroissant dans chaque programme
+    for (const rayon in programmesParRayon) {
+      for (const programme in programmesParRayon[rayon]) {
+        programmesParRayon[rayon][programme].sort((a, b) => b.totalVentes - a.totalVentes);
+      }
+    }
 
-      for (const produit of familles[nomFamille]) {
-        const qteHebdo = Math.ceil(produit.potentielHebdo * 1.1);
-        planning.semaine[nomFamille].set(produit.libelle, qteHebdo);
+    // Générer le planning par rayon et programme
+    planning.programmesParRayon = programmesParRayon;
 
-        for (const jour of joursCapitalized) {
-          if (!planning.jours[jour]) {
-            planning.jours[jour] = {
-              BOULANGERIE: new Map(),
-              VIENNOISERIE: new Map(),
-              PATISSERIE: new Map()
+    // Pour chaque jour, créer la structure par rayon -> programme -> produits
+    for (const jour of joursCapitalized) {
+      planning.jours[jour] = {};
+
+      for (const rayon in programmesParRayon) {
+        planning.jours[jour][rayon] = {};
+
+        for (const programme in programmesParRayon[rayon]) {
+          const produitsDuProgramme = programmesParRayon[rayon][programme];
+          planning.jours[jour][rayon][programme] = {
+            produits: new Map(),
+            capacite: { matin: 0, midi: 0, soir: 0, total: 0 }
+          };
+
+          for (const produit of produitsDuProgramme) {
+            const qteHebdo = Math.ceil(produit.potentielHebdo * 1.1);
+            const poids = planning.stats.poidsJours[jour];
+            const qteJour = Math.ceil(qteHebdo * poids);
+
+            const jourLower = jour.toLowerCase();
+            const poidsTranchesJour = poidsTranchesParJour[jourLower] || { matin: 0.6, midi: 0.3, soir: 0.1 };
+
+            const qteMatin = Math.ceil(qteJour * poidsTranchesJour.matin);
+            const qteMidi = Math.ceil(qteJour * poidsTranchesJour.midi);
+            const qteSoir = Math.ceil(qteJour * poidsTranchesJour.soir);
+
+            const creneauxData = {
+              matin: qteMatin,
+              midi: qteMidi,
+              soir: qteSoir,
+              total: qteJour,
+              unitesParVente: produit.unitesParVente ?? 1,
+              unitesParPlaque: produit.unitesParPlaque ?? 0,
+              itm8: produit.itm8
             };
+
+            console.log(`📦 Planning ${jour} - ${produit.libelle}:`, creneauxData);
+
+            planning.jours[jour][rayon][programme].produits.set(produit.libelle, creneauxData);
+
+            // Accumuler dans la capacité
+            planning.jours[jour][rayon][programme].capacite.matin += qteMatin;
+            planning.jours[jour][rayon][programme].capacite.midi += qteMidi;
+            planning.jours[jour][rayon][programme].capacite.soir += qteSoir;
+            planning.jours[jour][rayon][programme].capacite.total += qteJour;
           }
-
-          const poids = planning.stats.poidsJours[jour];
-          const qteJour = Math.ceil(qteHebdo * poids);
-
-          const jourLower = jour.toLowerCase();
-          const poidsTranchesJour = poidsTranchesParJour[jourLower] || { matin: 0.6, midi: 0.3, soir: 0.1 };
-
-          planning.jours[jour][nomFamille].set(produit.libelle, {
-            matin: Math.ceil(qteJour * poidsTranchesJour.matin),
-            midi: Math.ceil(qteJour * poidsTranchesJour.midi),
-            soir: Math.ceil(qteJour * poidsTranchesJour.soir),
-            total: qteJour
-          });
         }
       }
     }

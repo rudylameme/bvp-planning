@@ -4,16 +4,21 @@ import { useState } from 'react';
 export default function TableauProduitsGroupes({
   produits,
   onChangerFamille,
+  onChangerRayon,
+  onChangerProgramme,
+  onChangerUnitesParPlaque,
   onChangerLibelle,
   onChangerPotentiel,
   onToggleActif,
   onSupprimerProduit,
-  onChangementsBatch
+  rayonsDisponibles = [],
+  programmesDisponibles = []
 }) {
   const [famillesOuvertes, setFamillesOuvertes] = useState({
     BOULANGERIE: true,
     VIENNOISERIE: true,
     PATISSERIE: true,
+    SNACKING: true,
     AUTRE: true
   });
 
@@ -24,15 +29,17 @@ export default function TableauProduitsGroupes({
     BOULANGERIE: produits.filter(p => p.famille === 'BOULANGERIE'),
     VIENNOISERIE: produits.filter(p => p.famille === 'VIENNOISERIE'),
     PATISSERIE: produits.filter(p => p.famille === 'PATISSERIE'),
+    SNACKING: produits.filter(p => p.famille === 'SNACKING'),
     AUTRE: produits.filter(p => p.famille === 'AUTRE')
   };
 
-  // Couleurs par famille
+  // Couleurs par famille - Palette Chaleureuse Boulangerie
   const couleursFamille = {
-    BOULANGERIE: 'bg-amber-100 border-amber-300 text-amber-800',
-    VIENNOISERIE: 'bg-orange-100 border-orange-300 text-orange-800',
-    PATISSERIE: 'bg-pink-100 border-pink-300 text-pink-800',
-    AUTRE: 'bg-gray-100 border-gray-300 text-gray-800'
+    BOULANGERIE: 'bg-stone-100 border-stone-300 text-stone-800',
+    VIENNOISERIE: 'bg-amber-100 border-amber-300 text-amber-800',
+    PATISSERIE: 'bg-rose-100 border-rose-300 text-rose-800',
+    SNACKING: 'bg-emerald-100 border-emerald-300 text-emerald-800',
+    AUTRE: 'bg-slate-100 border-slate-300 text-slate-800'
   };
 
   const toggleFamille = (famille) => {
@@ -162,7 +169,7 @@ export default function TableauProduitsGroupes({
                 </button>
                 <button
                   onClick={() => toggleActifBatch(nomFamille, true)}
-                  className="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium"
+                  className="px-3 py-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition text-sm font-medium"
                 >
                   Activer
                 </button>
@@ -222,7 +229,7 @@ export default function TableauProduitsGroupes({
                             type="text"
                             value={produit.libellePersonnalise}
                             onChange={(e) => onChangerLibelle(produit.id, e.target.value)}
-                            className="flex-1 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                            className="flex-1 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm"
                           />
                           {estModifie && (
                             <span className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full whitespace-nowrap">
@@ -244,11 +251,11 @@ export default function TableauProduitsGroupes({
                             type="number"
                             value={produit.potentielHebdo}
                             onChange={(e) => onChangerPotentiel(produit.id, e.target.value)}
-                            className={`w-24 px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm ${aPotentielModifie ? 'border-green-500 bg-green-50' : 'border-gray-300'}`}
+                            className={`w-24 px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm ${aPotentielModifie ? 'border-emerald-500 bg-emerald-50' : 'border-gray-300'}`}
                             min="0"
                           />
                           {aPotentielModifie && (
-                            <span className="text-green-600 text-xs whitespace-nowrap">✓</span>
+                            <span className="text-emerald-600 text-xs whitespace-nowrap">✓</span>
                           )}
                         </div>
                       </td>
@@ -260,7 +267,7 @@ export default function TableauProduitsGroupes({
                           type="checkbox"
                           checked={produit.actif}
                           onChange={() => onToggleActif(produit.id)}
-                          className="w-5 h-5 text-indigo-600 focus:ring-indigo-500 rounded"
+                          className="w-5 h-5 text-amber-600 focus:ring-amber-500 rounded"
                         />
                       </td>
                       <td className="px-4 py-2 text-center">
@@ -289,6 +296,7 @@ export default function TableauProduitsGroupes({
       {renderFamille('BOULANGERIE')}
       {renderFamille('VIENNOISERIE')}
       {renderFamille('PATISSERIE')}
+      {renderFamille('SNACKING')}
       {renderFamille('AUTRE')}
     </div>
   );

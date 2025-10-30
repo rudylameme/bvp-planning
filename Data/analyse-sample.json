@@ -2,6 +2,7 @@
   {
     "Libellé produit": "BAGUETTE BLANCHE CRU 250G",
     "unit / lot": 1,
+    "Nombre d'unit par plaque": 6,
     "Poids (produit fini)": 0.25,
     "Poids unit": 0.25,
     "Programme de cuisson": "Cuisson Baguette",
@@ -17,6 +18,7 @@
   {
     "Libellé produit": "PALETTE BAGUETTE BL. CRU 250G",
     "unit / lot": 1,
+    "Nombre d'unit par plaque": 6,
     "Poids (produit fini)": 0.25,
     "Poids unit": 0.25,
     "Programme de cuisson": "Cuisson Baguette",
@@ -32,6 +34,7 @@
   {
     "Libellé produit": "1/2 BAGUETTE BLANCHE PAC 125G",
     "unit / lot": 1,
+    "Nombre d'unit par plaque": 12,
     "Poids (produit fini)": 0.125,
     "Poids unit": 0.125,
     "Programme de cuisson": "Precuisson Baguette",
@@ -47,6 +50,7 @@
   {
     "Libellé produit": "BAGUETTE BLANCHE PAC 250G",
     "unit / lot": 1,
+    "Nombre d'unit par plaque": 6,
     "Poids (produit fini)": 0.25,
     "Poids unit": 0.25,
     "Programme de cuisson": "Precuisson Baguette",
@@ -62,6 +66,7 @@
   {
     "Libellé produit": "LA GENEREUSE PAC 300G",
     "unit / lot": 1,
+    "Nombre d'unit par plaque": 5,
     "Poids (produit fini)": 0.3,
     "Poids unit": 0.3,
     "Programme de cuisson": "Precuisson Baguette",
@@ -77,6 +82,7 @@
   {
     "Libellé produit": "PALETTE BAGUETTE BL. PAC 250G",
     "unit / lot": 1,
+    "Nombre d'unit par plaque": 6,
     "Poids (produit fini)": 0.25,
     "Poids unit": 0.25,
     "Programme de cuisson": "Precuisson Baguette",
@@ -92,6 +98,7 @@
   {
     "Libellé produit": "BOULE DE CAMPAGNE CRU 400G",
     "unit / lot": 1,
+    "Nombre d'unit par plaque": 3,
     "Poids (produit fini)": 0.4,
     "Poids unit": 0.4,
     "Programme de cuisson": "Cuisson Spécieaux",
@@ -107,6 +114,7 @@
   {
     "Libellé produit": "PAIN CAMPAGNE CRU 350G",
     "unit / lot": 1,
+    "Nombre d'unit par plaque": 3,
     "Poids (produit fini)": 0.35,
     "Poids unit": 0.35,
     "Programme de cuisson": "Cuisson Spécieaux",
@@ -122,6 +130,7 @@
   {
     "Libellé produit": "PAIN CAMPAGNARD PAC 400G",
     "unit / lot": 1,
+    "Nombre d'unit par plaque": 3,
     "Poids (produit fini)": 0.4,
     "Poids unit": 0.4,
     "Programme de cuisson": "Precuisson Spécieaux",
@@ -137,6 +146,7 @@
   {
     "Libellé produit": "PAIN CAMPAGNE PAC 350G",
     "unit / lot": 1,
+    "Nombre d'unit par plaque": 3,
     "Poids (produit fini)": 0.35,
     "Poids unit": 0.35,
     "Programme de cuisson": "Precuisson Spécieaux",
@@ -152,6 +162,7 @@
   {
     "Libellé produit": "FALUCHE CRU 105G",
     "unit / lot": 1,
+    "Nombre d'unit par plaque": 6,
     "Poids (produit fini)": 0.105,
     "Poids unit": 0.105,
     "Programme de cuisson": "Cuisson Baguette",
@@ -167,6 +178,7 @@
   {
     "Libellé produit": "PAIN AU SEIGLE CRU 300G",
     "unit / lot": 1,
+    "Nombre d'unit par plaque": 4,
     "Poids (produit fini)": 0.3,
     "Poids unit": 0.3,
     "Programme de cuisson": "Cuisson Spécieaux",
@@ -182,6 +194,7 @@
   {
     "Libellé produit": "PAIN AUX CEREALES CRU 300G",
     "unit / lot": 1,
+    "Nombre d'unit par plaque": 4,
     "Poids (produit fini)": 0.3,
     "Poids unit": 0.3,
     "Programme de cuisson": "Cuisson Spécieaux",
@@ -197,6 +210,7 @@
   {
     "Libellé produit": "PAIN AUX NOIX CRU 300G",
     "unit / lot": 1,
+    "Nombre d'unit par plaque": 4,
     "Poids (produit fini)": 0.3,
     "Poids unit": 0.3,
     "Programme de cuisson": "Cuisson Spécieaux",
@@ -212,6 +226,7 @@
   {
     "Libellé produit": "PAIN MAIS TOURNESOL CRU 300G",
     "unit / lot": 1,
+    "Nombre d'unit par plaque": 4,
     "Poids (produit fini)": 0.3,
     "Poids unit": 0.3,
     "Programme de cuisson": "Cuisson Spécieaux",
@@ -227,6 +242,7 @@
   {
     "Libellé produit": "BAG 1/2 CONSTANCE CER PAC 125G",
     "unit / lot": 1,
+    "Nombre d'unit par plaque": 10,
     "Poids (produit fini)": 0.125,
     "Poids unit": 0.125,
     "Programme de cuisson": "Precuisson Baguette",
@@ -242,6 +258,7 @@
   {
     "Libellé produit": "BAG 1/2 CONSTANCE PAC 125G",
     "unit / lot": 1,
+    "Nombre d'unit par plaque": 10,
     "Poids (produit fini)": 0.125,
     "Poids unit": 0.125,
     "Programme de cuisson": "Precuisson Baguette",
@@ -257,6 +274,7 @@
   {
     "Libellé produit": "BAG A BASE FARINE LR PAC 250G",
     "unit / lot": 1,
+    "Nombre d'unit par plaque": 5,
     "Poids (produit fini)": 0.25,
     "Poids unit": 0.25,
     "Programme de cuisson": "Precuisson Baguette",
@@ -272,6 +290,7 @@
   {
     "Libellé produit": "BAG CONSTANCE 3+1 PAC 1K",
     "unit / lot": 4,
+    "Nombre d'unit par plaque": 5,
     "Poids (produit fini)": 1,
     "Poids unit": 0.25,
     "Programme de cuisson": "Precuisson Baguette",
@@ -287,6 +306,7 @@
   {
     "Libellé produit": "BAG CONSTANCE CER. 3+1 PAC 1K",
     "unit / lot": 4,
+    "Nombre d'unit par plaque": 5,
     "Poids (produit fini)": 1,
     "Poids unit": 0.25,
     "Programme de cuisson": "Precuisson Baguette",
