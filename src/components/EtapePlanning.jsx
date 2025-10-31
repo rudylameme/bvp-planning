@@ -111,7 +111,7 @@ export default function EtapePlanning({ planning, pdvInfo, onRetour, onPersonnal
         pdvInfo={pdvInfo}
       />
 
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 print:hidden">
         {/* Header */}
         <div className="bg-white shadow-sm">
           <div className="max-w-7xl mx-auto px-4 py-4">

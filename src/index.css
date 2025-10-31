@@ -1,3 +1,86 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Styles d'impression optimisés pour économie d'encre */
+@media print {
+  /* Forcer le format A4 paysage avec marges minimales */
+  @page {
+    size: A4 landscape;
+    margin: 3mm;
+  }
+
+  /* Supprimer toutes les marges et padding du body */
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 7px !important;
+  }
+
+  /* Désactiver les couleurs de fond pour économiser l'encre */
+  * {
+    background: transparent !important;
+    -webkit-print-color-adjust: economy !important;
+    print-color-adjust: economy !important;
+    color-adjust: economy !important;
+  }
+
+  /* Forcer le texte en noir */
+  body, p, div, span, td, th {
+    color: black !important;
+  }
+
+  /* Permettre les sauts de page dans les tableaux pour minimiser le nombre de pages */
+  table {
+    page-break-inside: auto;
+    width: 100% !important;
+  }
+
+  /* Permettre les sauts de page entre les lignes */
+  tbody tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  /* Répéter les en-têtes sur chaque page */
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  /* Éviter les sauts de page dans les en-têtes */
+  thead tr {
+    page-break-inside: avoid;
+    page-break-after: avoid;
+  }
+
+  /* Styles compacts pour impression */
+  table {
+    font-size: 7px !important;
+  }
+
+  th, td {
+    padding: 1px 2px !important;
+    font-size: 7px !important;
+  }
+
+  /* Bordures fines pour économiser l'encre */
+  table, th, td {
+    border-width: 1px !important;
+    border-color: black !important;
+  }
+
+  /* Gris léger pour les en-têtes (économie d'encre) */
+  .bg-gray-100, .bg-gray-200 {
+    background: #f5f5f5 !important;
+  }
+
+  /* Supprimer les marges et padding des conteneurs */
+  .print-content {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}

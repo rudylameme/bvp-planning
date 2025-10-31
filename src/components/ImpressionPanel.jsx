@@ -77,58 +77,87 @@ export default function ImpressionPanel({
   };
 
   const handleDownloadPDF = () => {
-    const content = document.querySelector('.print-content')?.innerHTML || '';
-    const title = selectedJour ? `Planning_${selectedJour}` : 'Planning_Hebdomadaire';
-    const nextWeek = getNextWeekDates();
-
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>${title}</title>
-        <style>
-          body { font-family: Arial, sans-serif; padding: 10px; margin: 0; background: white; font-size: 9px; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 5px; font-size: 9px; }
-          th, td { border: 1px solid #000; padding: 2px 4px; text-align: center; }
-          th { background-color: #e5e5e5; font-weight: bold; }
-          @media print {
-            @page { size: A4 landscape; margin: 10mm; }
-            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          }
-        </style>
-      </head>
-      <body>
-        <div style="border-bottom: 2px solid #333; margin-bottom: 15px; padding-bottom: 10px;">
-          <h1>Planning de Production Optimisé ${selectedJour ? `- ${selectedJour}` : ''}</h1>
-          <p>${pdvInfo ? `PDV ${pdvInfo.numero} - ${pdvInfo.nom} | ` : ''}Date: ${new Date().toLocaleDateString('fr-FR')} | Semaine du ${nextWeek.start} au ${nextWeek.end}</p>
-          ${planningData?.stats?.ponderationType ? `<p style="color: #666;">Pondération: ${planningData.stats.ponderationType}</p>` : ''}
-        </div>
-        ${content}
-      </body>
-      </html>
-    `;
-
-    const blob = new Blob([htmlContent], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const pdfWindow = globalThis.open(url, '_blank');
-
-    if (pdfWindow) {
-      setTimeout(() => {
-        alert('Fenêtre PDF ouverte ! Utilisez Cmd+P / Ctrl+P puis "Enregistrer au format PDF".');
-        URL.revokeObjectURL(url);
-      }, 500);
-    } else {
-      URL.revokeObjectURL(url);
-    }
+    // Utiliser directement window.print() au lieu de créer une nouvelle fenêtre
+    // Cela évite les problèmes de duplication de contenu
+    handlePrint();
   };
 
   const nextWeek = getNextWeekDates();
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
-      <div className="absolute inset-4 bg-white rounded-lg shadow-xl flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 print:block print:static print:bg-transparent">
+      <style>{`
+        .product-name {
+          font-size: 21px;
+          line-height: 1.2;
+        }
+        .quantity-number {
+          font-size: 21px;
+          line-height: 1.2;
+        }
+        .quantity-unit {
+          font-size: 7px;
+          line-height: 1.2;
+        }
+        .product-row {
+          height: 28px;
+          min-height: 28px;
+          max-height: 28px;
+        }
+        .capacity-row {
+          height: 14px !important;
+          min-height: 14px !important;
+          max-height: 14px !important;
+          font-size: 0 !important;
+        }
+        .capacity-row td {
+          padding: 0 !important;
+          height: 14px !important;
+          max-height: 14px !important;
+          font-size: 7px !important;
+          line-height: 14px !important;
+          vertical-align: middle !important;
+          overflow: hidden !important;
+        }
+
+        @media print {
+          .product-name {
+            font-size: 21px !important;
+            line-height: 1.2 !important;
+          }
+          .quantity-number {
+            font-size: 21px !important;
+            line-height: 1.2 !important;
+          }
+          .quantity-unit {
+            font-size: 7px !important;
+            line-height: 1.2 !important;
+          }
+          .product-row {
+            height: 28px !important;
+            min-height: 28px !important;
+            max-height: 28px !important;
+          }
+          .capacity-row {
+            height: 14px !important;
+            min-height: 14px !important;
+            max-height: 14px !important;
+            font-size: 0 !important;
+          }
+          .capacity-row td {
+            padding: 0 !important;
+            height: 14px !important;
+            max-height: 14px !important;
+            font-size: 7px !important;
+            line-height: 14px !important;
+            vertical-align: middle !important;
+            overflow: hidden !important;
+          }
+        }
+      `}</style>
+      <div className="absolute inset-4 bg-white rounded-lg shadow-xl flex flex-col print:static print:shadow-none print:rounded-none">
         {/* Header */}
-        <div className="flex-shrink-0 bg-white border-b border-gray-300 p-4 rounded-t-lg z-10 shadow-sm">
+        <div className="flex-shrink-0 bg-white border-b border-gray-300 p-4 rounded-t-lg z-10 shadow-sm print:hidden">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">
               Aperçu avant impression - {selectedJour ? `Planning du ${selectedJour}` : 'Planning Hebdomadaire'}
@@ -165,27 +194,11 @@ export default function ImpressionPanel({
         </div>
 
         {/* Content */}
-        <div className="flex-1 min-h-0">
-          <div className="h-full overflow-y-auto p-6 bg-gray-50">
-            <div className="bg-white rounded shadow-sm p-6 print-content">
-              {/* Header du document */}
-              <div className="border-b-2 border-gray-800 mb-6 pb-4">
-                <h1 className="text-xl font-bold mb-2">
-                  Planning de Production Optimisé
-                  {selectedJour && ` - ${selectedJour}`}
-                </h1>
-                <div className="text-sm text-gray-600">
-                  {pdvInfo && `PDV ${pdvInfo.numero} - ${pdvInfo.nom} | `}
-                  Date d'impression : {new Date().toLocaleDateString('fr-FR')} |
-                  Semaine du {nextWeek.start} au {nextWeek.end}
-                  {planningData?.stats?.ponderationType && (
-                    <span className="ml-2">| Pondération : {planningData.stats.ponderationType}</span>
-                  )}
-                </div>
-              </div>
-
+        <div className="flex-1 min-h-0 print:flex-none print:min-h-full">
+          <div className="h-full overflow-y-auto p-6 bg-gray-50 print:h-auto print:overflow-visible print:p-0 print:bg-white">
+            <div className="bg-white rounded shadow-sm p-6 print-content print:p-0 print:shadow-none print:rounded-none">
               {selectedJour ? (
-                <PlanningJour selectedJour={selectedJour} planningData={planningData} />
+                <PlanningJour selectedJour={selectedJour} planningData={planningData} pdvInfo={pdvInfo} nextWeek={nextWeek} />
               ) : (
                 <PlanningHebdo planningData={planningData} />
               )}
@@ -198,13 +211,13 @@ export default function ImpressionPanel({
 }
 
 // Composant pour le planning d'un jour (format compact A4 paysage)
-function PlanningJour({ selectedJour, planningData }) {
+function PlanningJour({ selectedJour, planningData, pdvInfo, nextWeek }) {
   // Préparer les données pour affichage en tableau unique compact
   const rayonsData = [];
 
   if (planningData?.jours[selectedJour]) {
-    Object.entries(planningData.jours[selectedJour]).forEach(([rayon, programmes]) => {
-      Object.entries(programmes).forEach(([programme, data]) => {
+    for (const [rayon, programmes] of Object.entries(planningData.jours[selectedJour])) {
+      for (const [programme, data] of Object.entries(programmes)) {
         if (data.produits && data.produits.size > 0) {
           rayonsData.push({
             rayon,
@@ -213,117 +226,134 @@ function PlanningJour({ selectedJour, planningData }) {
             data
           });
         }
-      });
-    });
+      }
+    }
   }
 
   return (
     <div className="text-xs">
-      {/* Header très compact */}
-      <div className="text-center mb-1">
-        <h2 className="text-sm font-bold inline-block border border-black px-3 py-0.5">
-          Plans de cuisson 2.0 - {selectedJour}
-        </h2>
+      {/* En-tête ultra compact sur une seule ligne */}
+      <div className="text-[8px] mb-1 pb-0.5 border-b border-black">
+        <strong>Planning {selectedJour}</strong> |
+        {pdvInfo && ` PDV ${pdvInfo.numero} - ${pdvInfo.nom} | `}
+        Impression: {new Date().toLocaleDateString('fr-FR')} |
+        Semaine du {nextWeek.start} au {nextWeek.end}
+        {planningData?.stats?.ponderationType && ` | Pondération: ${planningData.stats.ponderationType}`}
       </div>
 
-      {/* Note discrète sur fond jaune pâle */}
-      <div className="text-[9px] bg-yellow-50 border-l-2 border-yellow-400 px-2 py-0.5 mb-2 italic text-gray-600">
-        Soir : Quantité à ajuster selon stock rayon. Ex: Soir 4 proposés, Stock 2 → À cuire: 2
-      </div>
-
-      {/* Tableau unique compact */}
-      <table className="w-full border-collapse border border-black" style={{ fontSize: '9px' }}>
+      {/* Tableau unique compact - optimisé noir et blanc */}
+      <table className="w-full border-collapse border border-black" style={{ fontSize: '8px' }}>
         <thead>
-          <tr className="bg-gray-200">
-            <th className="border border-black px-1 py-0.5 w-8 text-center">Rayon</th>
-            <th className="border border-black px-1 py-0.5 w-8 text-center">Prog</th>
-            <th className="border border-black px-1 py-0.5 w-12 text-center">ITM8</th>
-            <th className="border border-black px-1 py-0.5 text-left">Article</th>
-            <th className="border border-black px-1 py-0.5 w-16 text-center">Remarque</th>
-            <th className="border border-black px-1 py-0.5 w-10 text-center bg-blue-50">Matin<br/>9h-12h</th>
-            <th className="border border-black px-1 py-0.5 w-10 text-center bg-emerald-50">Midi<br/>12h-16h</th>
-            <th className="border border-black px-1 py-0.5 w-10 text-center bg-yellow-50">Soir<br/>16h-23h</th>
-            <th className="border border-black px-1 py-0.5 w-16 text-center">Stock rayon</th>
-            <th className="border border-black px-1 py-0.5 w-16 text-center">A cuire</th>
-            <th className="border border-black px-1 py-0.5 text-left" style={{ width: '120px' }}>Pertes du jour</th>
+          <tr className="bg-gray-100">
+            <th className="border border-black px-0.5 py-0.5 w-4 text-center text-[7px]">Rayon</th>
+            <th className="border border-black px-0.5 py-0.5 w-4 text-center text-[7px]">Prog</th>
+            <th className="border border-black px-1 py-0.5 w-9 text-center text-[7px]">Code PLU</th>
+            <th className="border border-black px-1 py-0.5 text-left text-[7px]" style={{ width: '420px' }}>Article</th>
+            <th className="border border-black px-1 py-0.5 w-16 text-center text-[7px]">Remarque</th>
+            <th className="border border-black px-1 py-0.5 text-center text-[7px]" style={{ width: '60px' }}>Matin<br/>9h-12h</th>
+            <th className="border border-black px-1 py-0.5 text-center text-[7px]" style={{ width: '60px' }}>Midi<br/>12h-16h</th>
+            <th className="border border-black px-1 py-0.5 text-center text-[7px]" style={{ width: '60px' }}>Soir<br/>16h-23h</th>
+            <th className="border border-black px-1 py-0.5 w-16 text-center text-[7px]">Stock<br/>rayon</th>
+            <th className="border border-black px-1 py-0.5 w-16 text-center text-[7px]">A cuire</th>
+            <th className="border border-black px-1 py-0.5 text-left text-[7px]" style={{ width: '100px' }}>Pertes</th>
           </tr>
         </thead>
         <tbody>
-          {rayonsData.map(({ rayon, programme, produits, data }, rayonIndex) => {
-            const programmeNumero = rayonIndex + 1;
-
-            return (
-              <React.Fragment key={`${rayon}-${programme}`}>
-                {/* Lignes des produits */}
-                {produits.map(([produit, creneaux], prodIndex) => (
-                  <tr key={produit} className={prodIndex === 0 ? 'border-t-2 border-black' : ''}>
-                    {prodIndex === 0 && (
-                      <>
-                        <td className="border border-black px-0.5 py-0.5 text-center font-bold bg-gray-100 text-[8px]" rowSpan={produits.length + 1} style={{ writingMode: 'vertical-lr', transform: 'rotate(180deg)' }}>
-                          {rayon}
-                        </td>
-                        <td className="border border-black px-0.5 py-0.5 text-center font-bold bg-gray-100 text-[7px]" rowSpan={produits.length + 1} style={{ writingMode: 'vertical-lr', transform: 'rotate(180deg)' }}>
-                          {programme}
-                        </td>
-                      </>
-                    )}
-                    <td className="border border-black px-1 py-0.5 text-center text-gray-600 text-[8px]">{creneaux.itm8 || ''}</td>
-                    <td className="border border-black px-1 py-0.5">{produit}</td>
-                    <td className="border border-black px-1 py-0.5"></td>
-                    <td className="border border-black px-1 py-0.5 text-center font-bold bg-blue-50">
-                      {convertirEnPlaques(creneaux.matin, creneaux.unitesParVente, creneaux.unitesParPlaque)}
-                    </td>
-                    <td className="border border-black px-1 py-0.5 text-center font-bold bg-emerald-50">
-                      {convertirEnPlaques(creneaux.midi, creneaux.unitesParVente, creneaux.unitesParPlaque)}
-                    </td>
-                    <td className="border border-black px-1 py-0.5 text-center font-bold bg-yellow-50">
-                      {convertirEnPlaques(creneaux.soir, creneaux.unitesParVente, creneaux.unitesParPlaque)}
-                    </td>
-                    <td className="border border-black px-1 py-0.5 text-right pr-1">Pl</td>
-                    <td className="border border-black px-1 py-0.5 text-right pr-1">Pl</td>
-                    <td className="border border-black px-1 py-0.5"></td>
-                  </tr>
-                ))}
-
-                {/* Ligne de capacité */}
-                <tr className="bg-gray-100 font-bold">
-                  <td className="border border-black px-1 py-0.5 text-center">Capacité</td>
-                  <td colSpan="2" className="border border-black px-1 py-0.5"></td>
-                  <td className="border border-black px-1 py-0.5 text-center bg-blue-100">
+          {rayonsData.map(({ rayon, programme, produits, data }) => (
+            <React.Fragment key={`${rayon}-${programme}`}>
+              {/* Lignes des produits - Rayon et Programme répétés sur chaque ligne pour pagination */}
+              {produits.map(([produit, creneaux], prodIndex) => (
+                <tr key={produit} className={`product-row ${prodIndex === 0 ? 'border-t-2 border-black' : ''}`} style={{ height: '28px' }}>
+                  <td className="border border-black px-0.5 py-0.5 text-center font-bold bg-gray-100 text-[6px]">
+                    {rayon}
+                  </td>
+                  <td className="border border-black px-0.5 py-0.5 text-center font-bold bg-gray-100 text-[5px]">
+                    {programme}
+                  </td>
+                  <td className="border border-black px-1 py-0.5 text-center text-[10px]">{creneaux.codePLU || ''}</td>
+                  <td className="border border-black px-1 py-0.5 text-[21px]"><span className="product-name">{produit}</span></td>
+                  <td className="border border-black px-1 py-0.5"></td>
+                  <td className="border border-black px-1 py-0.5 text-center font-semibold">
                     {(() => {
-                      const val = calculerTotalPlaques(data.produits, 'matin');
-                      if (val === 'NC') return '-';
-                      const formatted = val % 1 === 0 ? val : val.toFixed(1);
-                      return `${formatted} Pl.`;
+                      const texte = convertirEnPlaques(creneaux.matin, creneaux.unitesParVente, creneaux.unitesParPlaque);
+                      if (texte.includes('Pl.')) {
+                        const [nombre, unite] = texte.split(' ');
+                        return <span><span className="quantity-number">{nombre}</span> <span className="quantity-unit">{unite}</span></span>;
+                      }
+                      return <span className="quantity-number">{texte}</span>;
                     })()}
                   </td>
-                  <td className="border border-black px-1 py-0.5 text-center bg-emerald-100">
+                  <td className="border border-black px-1 py-0.5 text-center font-semibold">
                     {(() => {
-                      const val = calculerTotalPlaques(data.produits, 'midi');
-                      if (val === 'NC') return '-';
-                      const formatted = val % 1 === 0 ? val : val.toFixed(1);
-                      return `${formatted} Pl.`;
+                      const texte = convertirEnPlaques(creneaux.midi, creneaux.unitesParVente, creneaux.unitesParPlaque);
+                      if (texte.includes('Pl.')) {
+                        const [nombre, unite] = texte.split(' ');
+                        return <span><span className="quantity-number">{nombre}</span> <span className="quantity-unit">{unite}</span></span>;
+                      }
+                      return <span className="quantity-number">{texte}</span>;
                     })()}
                   </td>
-                  <td className="border border-black px-1 py-0.5 text-center bg-yellow-100">
+                  <td className="border border-black px-1 py-0.5 text-center font-semibold">
                     {(() => {
-                      const val = calculerTotalPlaques(data.produits, 'soir');
-                      if (val === 'NC') return '-';
-                      const formatted = val % 1 === 0 ? val : val.toFixed(1);
-                      return `${formatted} Pl.`;
+                      const texte = convertirEnPlaques(creneaux.soir, creneaux.unitesParVente, creneaux.unitesParPlaque);
+                      if (texte.includes('Pl.')) {
+                        const [nombre, unite] = texte.split(' ');
+                        return <span><span className="quantity-number">{nombre}</span> <span className="quantity-unit">{unite}</span></span>;
+                      }
+                      return <span className="quantity-number">{texte}</span>;
                     })()}
                   </td>
-                  <td colSpan="2" className="border border-black px-1 py-0.5 text-center bg-blue-100">
-                    {(() => {
-                      const val = calculerTotalJournalier(data.produits);
-                      return val === 'NC' ? '-' : `${val} Pl.`;
-                    })()}
-                  </td>
+                  <td className="border border-black px-1 py-0.5 text-right pr-1 text-[7px]"></td>
+                  <td className="border border-black px-1 py-0.5 text-right pr-1 text-[7px]"></td>
                   <td className="border border-black px-1 py-0.5"></td>
                 </tr>
-              </React.Fragment>
-            );
-          })}
+              ))}
+
+              {/* Ligne de capacité - gris clair pour économie d'encre */}
+              <tr className="bg-gray-200 font-bold capacity-row">
+                <td className="border border-black text-center font-bold bg-gray-100">
+                  {rayon}
+                </td>
+                <td className="border border-black text-center font-bold bg-gray-100">
+                  {programme}
+                </td>
+                <td className="border border-black text-center">Capacité</td>
+                <td className="border border-black"></td>
+                <td className="border border-black"></td>
+                <td className="border border-black text-center">
+                  {(() => {
+                    const val = calculerTotalPlaques(data.produits, 'matin');
+                    if (val === 'NC') return '-';
+                    const formatted = val % 1 === 0 ? val : val.toFixed(1);
+                    return `${formatted} Pl.`;
+                  })()}
+                </td>
+                <td className="border border-black text-center">
+                  {(() => {
+                    const val = calculerTotalPlaques(data.produits, 'midi');
+                    if (val === 'NC') return '-';
+                    const formatted = val % 1 === 0 ? val : val.toFixed(1);
+                    return `${formatted} Pl.`;
+                  })()}
+                </td>
+                <td className="border border-black text-center">
+                  {(() => {
+                    const val = calculerTotalPlaques(data.produits, 'soir');
+                    if (val === 'NC') return '-';
+                    const formatted = val % 1 === 0 ? val : val.toFixed(1);
+                    return `${formatted} Pl.`;
+                  })()}
+                </td>
+                <td colSpan="2" className="border border-black text-center">
+                  {(() => {
+                    const val = calculerTotalJournalier(data.produits);
+                    return val === 'NC' ? '-' : `Total: ${val} Pl.`;
+                  })()}
+                </td>
+                <td className="border border-black"></td>
+              </tr>
+            </React.Fragment>
+          ))}
         </tbody>
       </table>
     </div>

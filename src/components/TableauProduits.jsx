@@ -10,6 +10,7 @@ export default function TableauProduits({
   onChangerRayon,
   onChangerProgramme,
   onChangerUnitesParPlaque,
+  onChangerCodePLU,
   rayonsDisponibles = [],
   programmesDisponibles = []
 }) {
@@ -21,6 +22,7 @@ export default function TableauProduits({
             <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Libellé</th>
             <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700">Rayon</th>
             <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700">Programme</th>
+            <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700">Code PLU</th>
             <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700">Unités/Plaque</th>
             <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700">Potentiel Hebdo</th>
             <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700">Volume</th>
@@ -80,6 +82,15 @@ export default function TableauProduits({
                       <option key={programme} value={programme}>{programme}</option>
                     ))}
                   </select>
+                </td>
+                <td className="px-2 py-2">
+                  <input
+                    type="text"
+                    value={produit.codePLU || ''}
+                    onChange={(e) => onChangerCodePLU && onChangerCodePLU(produit.id, e.target.value)}
+                    className={`w-20 px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-amber-500 text-xs ${produit.reconnu ? 'border-emerald-500 bg-emerald-50' : 'border-gray-300'}`}
+                    placeholder="PLU"
+                  />
                 </td>
                 <td className="px-2 py-2">
                   <div className="flex items-center gap-1">

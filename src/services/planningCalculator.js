@@ -52,6 +52,7 @@ export const calculerPlanning = (frequentationData, produits) => {
       programmesParRayon[rayon][programme].push({
         libelle: produit.libellePersonnalise,
         itm8: produit.itm8,
+        codePLU: produit.codePLU,
         potentielHebdo: produit.potentielHebdo,
         totalVentes: produit.totalVentes || 0,
         jourMax: 'lundi',
@@ -105,7 +106,8 @@ export const calculerPlanning = (frequentationData, produits) => {
               total: qteJour,
               unitesParVente: produit.unitesParVente ?? 1,
               unitesParPlaque: produit.unitesParPlaque ?? 0,
-              itm8: produit.itm8
+              itm8: produit.itm8,
+              codePLU: produit.codePLU
             };
 
             console.log(`📦 Planning ${jour} - ${produit.libelle}:`, creneauxData);

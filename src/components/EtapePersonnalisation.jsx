@@ -14,6 +14,7 @@ export default function EtapePersonnalisation({
   onChangerRayon,
   onChangerProgramme,
   onChangerUnitesParPlaque,
+  onChangerCodePLU,
   onChangerLibelle,
   onChangerPotentiel,
   onToggleActif,
@@ -53,9 +54,9 @@ export default function EtapePersonnalisation({
 
   // Exporter les réglages en CSV
   const exporterReglages = () => {
-    const headers = 'Libelle,LibellePersonnalise,Rayon,Programme,UnitesParPlaque,Famille,PotentielHebdo,Actif,Custom\n';
+    const headers = 'Libelle,LibellePersonnalise,Rayon,Programme,CodePLU,UnitesParPlaque,Famille,PotentielHebdo,Actif,Custom\n';
     const rows = produits.map(p =>
-      `${p.libelle},${p.libellePersonnalise},${p.rayon || ''},${p.programme || ''},${p.unitesParPlaque ?? 0},${p.famille},${p.potentielHebdo},${p.actif},${p.custom}`
+      `${p.libelle},${p.libellePersonnalise},${p.rayon || ''},${p.programme || ''},${p.codePLU || ''},${p.unitesParPlaque ?? 0},${p.famille},${p.potentielHebdo},${p.actif},${p.custom}`
     ).join('\n');
 
     const csvContent = headers + rows;
@@ -78,6 +79,7 @@ export default function EtapePersonnalisation({
           libellePersonnalise: row?.LibellePersonnalise ?? '',
           rayon: row?.Rayon || null,
           programme: row?.Programme || null,
+          codePLU: row?.CodePLU || '',
           unitesParPlaque: Number.parseInt(row?.UnitesParPlaque ?? '0') || 0,
           famille: row?.Famille ?? 'AUTRE',
           potentielHebdo: Number.parseFloat(row?.PotentielHebdo ?? '0') || 0,
@@ -123,6 +125,10 @@ export default function EtapePersonnalisation({
           id: nouveauxId + index + 1,
           libelle,
           libellePersonnalise: reglage.libellePersonnalise ?? libelle,
+          rayon: reglage.rayon ?? null,
+          programme: reglage.programme ?? null,
+          codePLU: reglage.codePLU ?? '',
+          unitesParPlaque: reglage.unitesParPlaque ?? 0,
           famille: reglage.famille ?? 'AUTRE',
           ventesParJour: {},
           totalVentes: 0,
@@ -362,6 +368,7 @@ export default function EtapePersonnalisation({
           onChangerRayon={onChangerRayon}
           onChangerProgramme={onChangerProgramme}
           onChangerUnitesParPlaque={onChangerUnitesParPlaque}
+          onChangerCodePLU={onChangerCodePLU}
           onChangerLibelle={onChangerLibelle}
           onChangerPotentiel={onChangerPotentiel}
           onToggleActif={onToggleActif}
@@ -376,6 +383,7 @@ export default function EtapePersonnalisation({
           onChangerRayon={onChangerRayon}
           onChangerProgramme={onChangerProgramme}
           onChangerUnitesParPlaque={onChangerUnitesParPlaque}
+          onChangerCodePLU={onChangerCodePLU}
           onChangerLibelle={onChangerLibelle}
           onChangerPotentiel={onChangerPotentiel}
           onToggleActif={onToggleActif}

@@ -97,6 +97,7 @@ function App() {
     let unitesParPlaque = 0;
 
     // Tentative de reconnaissance par ITM8
+    let codePLU = '';
     if (itm8 && isReferentielCharge()) {
       const infosProduit = rechercherParITM8(itm8);
       if (infosProduit) {
@@ -105,8 +106,9 @@ function App() {
         famille = mapRayonVersFamille(rayon);
         unitesParVente = infosProduit.unitesParVente || 1;
         unitesParPlaque = infosProduit.unitesParPlaque || 0;
+        codePLU = infosProduit.codePLU || '';
         reconnu = true;
-        console.log(`✅ Produit reconnu par ITM8 ${itm8}: ${libelle} → ${rayon} / ${programme} (${unitesParVente} unités/vente, ${unitesParPlaque} unités/plaque)`);
+        console.log(`✅ Produit reconnu par ITM8 ${itm8}: ${libelle} → ${rayon} / ${programme} (${unitesParVente} unités/vente, ${unitesParPlaque} unités/plaque, PLU: ${codePLU})`);
       }
     }
 
@@ -126,6 +128,7 @@ function App() {
       libelle,
       libellePersonnalise: libelle,
       itm8,
+      codePLU,
       rayon,
       programme,
       famille,
@@ -240,6 +243,13 @@ function App() {
     ));
   };
 
+  // Changer le code PLU d'un produit
+  const changerCodePLU = (id, nouveauCodePLU) => {
+    setProduits(prev => prev.map(p =>
+      p.id === id ? { ...p, codePLU: nouveauCodePLU } : p
+    ));
+  };
+
   // Changer le libellé personnalisé
   const changerLibelle = (id, nouveauLibelle) => {
     setProduits(prev => prev.map(p =>
@@ -269,6 +279,10 @@ function App() {
       libelle: 'Nouveau produit',
       libellePersonnalise: 'Nouveau produit',
       famille: 'AUTRE',
+      rayon: null,
+      programme: null,
+      codePLU: '',
+      unitesParPlaque: 0,
       ventesParJour: {},
       totalVentes: 0,
       potentielHebdo: 0,
@@ -397,10 +411,10 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8 print:p-0 print:bg-white">
+      <div className="max-w-7xl mx-auto print:max-w-none print:mx-0">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6 print:hidden">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-800">Planning BVP</h1>
@@ -460,6 +474,7 @@ function App() {
             onChangerRayon={changerRayon}
             onChangerProgramme={changerProgramme}
             onChangerUnitesParPlaque={changerUnitesParPlaque}
+            onChangerCodePLU={changerCodePLU}
             onChangerLibelle={changerLibelle}
             onChangerPotentiel={changerPotentiel}
             onToggleActif={toggleActif}

@@ -24,7 +24,8 @@ let referentielCache = null;
  *   sousFamille: string,
  *   poids: number,
  *   unitesParVente: number (nombre d'unités dans 1 vente, ex: Constance x3+1 = 4),
- *   unitesParPlaque: number (nombre d'unités dans 1 plaque de cuisson)
+ *   unitesParPlaque: number (nombre d'unités dans 1 plaque de cuisson),
+ *   codePLU: string (code PLU pour les étiquettes)
  * }
  */
 
@@ -94,11 +95,15 @@ export const chargerReferentielITM8 = async (filePath) => {
       const unitesParPlaqueRaw = row["Nombre d'unit par plaque"];
       const unitesParPlaque = Number(unitesParPlaqueRaw) || 0;
 
+      // Code PLU pour les étiquettes
+      const codePLU = (row['Code PLU'] || '').toString().trim();
+
       // DEBUG: Afficher les 3 premiers produits avec leurs valeurs
       if (index < 3) {
         console.log(`🔍 Produit ${index + 1}: "${row['Libellé produit']}"`);
         console.log(`   - unit / lot (raw): "${unitesParVenteRaw}" → ${unitesParVente}`);
         console.log(`   - Nombre d'unit par plaque (raw): "${unitesParPlaqueRaw}" → ${unitesParPlaque}`);
+        console.log(`   - Code PLU: "${codePLU}"`);
 
         // DEBUG SUPPLÉMENTAIRE: afficher TOUTES les colonnes pour le produit 1
         if (index === 0) {
@@ -119,7 +124,8 @@ export const chargerReferentielITM8 = async (filePath) => {
           sousFamille: row['Libellé SFam'] || '',
           poids: row['Poids (produit fini)'] || 0,
           unitesParVente: Number(unitesParVente) || 1,
-          unitesParPlaque: Number(unitesParPlaque) || 0
+          unitesParPlaque: Number(unitesParPlaque) || 0,
+          codePLU: codePLU
         });
 
         rayonsSet.add(rayon);

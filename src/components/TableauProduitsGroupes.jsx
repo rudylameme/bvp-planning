@@ -7,6 +7,7 @@ export default function TableauProduitsGroupes({
   onChangerRayon,
   onChangerProgramme,
   onChangerUnitesParPlaque,
+  onChangerCodePLU,
   onChangerLibelle,
   onChangerPotentiel,
   onToggleActif,
