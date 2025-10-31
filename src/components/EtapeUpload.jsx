@@ -29,7 +29,7 @@ export default function EtapeUpload({
                 : 'bg-white text-gray-700 hover:bg-gray-100'
             }`}
           >
-            Standard
+            Standard{' '}
             <span className="text-xs block mt-1">S-1: 40% | AS-1: 30% | S-2: 30%</span>
           </button>
           <button
@@ -40,7 +40,7 @@ export default function EtapeUpload({
                 : 'bg-white text-gray-700 hover:bg-gray-100'
             }`}
           >
-            Saisonnier
+            Saisonnier{' '}
             <span className="text-xs block mt-1">S-1: 30% | AS-1: 50% | S-2: 20%</span>
           </button>
           <button
@@ -51,7 +51,7 @@ export default function EtapeUpload({
                 : 'bg-white text-gray-700 hover:bg-gray-100'
             }`}
           >
-            Forte Promo
+            Forte Promo{' '}
             <span className="text-xs block mt-1">S-1: 60% | AS-1: 20% | S-2: 20%</span>
           </button>
         </div>
@@ -69,9 +69,9 @@ export default function EtapeUpload({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Upload Fréquentation */}
-        <div className="border-2 border-dashed border-indigo-400 rounded-lg p-6 hover:border-indigo-600 transition bg-indigo-50">
+        <div className="border-2 border-dashed border-amber-400 rounded-lg p-6 hover:border-amber-600 transition bg-amber-50">
           <div className="flex items-center gap-2 mb-4">
-            <span className="flex items-center justify-center w-8 h-8 bg-indigo-600 text-white rounded-full font-bold">1</span>
+            <span className="flex items-center justify-center w-8 h-8 bg-amber-700 text-white rounded-full font-bold">1</span>
             <h3 className="text-lg font-semibold text-gray-700">Fréquentation</h3>
           </div>
           <div className="text-sm text-gray-600 mb-4 space-y-1">
@@ -92,7 +92,7 @@ export default function EtapeUpload({
           />
           <button
             onClick={() => refFrequentation.current.click()}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-700 text-white rounded-lg hover:bg-amber-800 transition"
           >
             <Upload size={20} />
             Choisir un fichier
@@ -112,7 +112,7 @@ export default function EtapeUpload({
         }`}>
           <div className="flex items-center gap-2 mb-4">
             <span className={`flex items-center justify-center w-8 h-8 rounded-full font-bold ${
-              frequentationData ? 'bg-green-600 text-white' : 'bg-gray-400 text-white'
+              frequentationData ? 'bg-emerald-600 text-white' : 'bg-gray-400 text-white'
             }`}>2</span>
             <h3 className="text-lg font-semibold text-gray-700">Ventes</h3>
             {!frequentationData && (
@@ -139,10 +139,10 @@ export default function EtapeUpload({
             disabled={!frequentationData}
             className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition ${
               frequentationData
-                ? 'bg-green-600 text-white hover:bg-green-700 cursor-pointer'
+                ? 'bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer'
                 : 'bg-gray-400 text-gray-200 cursor-not-allowed'
             }`}
-            title={!frequentationData ? 'Importez d\'abord la fréquentation' : 'Choisir un fichier'}
+            title={frequentationData ? 'Choisir un fichier' : 'Importez d\'abord la fréquentation'}
           >
             <Upload size={20} />
             Choisir un fichier
@@ -167,7 +167,7 @@ export default function EtapeUpload({
         <div className="mt-6 flex justify-end">
           <button
             onClick={onSuivant}
-            className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+            className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
           >
             Suivant
             <ChevronRight size={20} />

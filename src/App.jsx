@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Upload, ChevronRight, Download, FileUp, RotateCcw } from 'lucide-react';
 import EtapeUpload from './components/EtapeUpload';
 import EtapePersonnalisation from './components/EtapePersonnalisation';
@@ -6,6 +6,8 @@ import EtapePlanning from './components/EtapePlanning';
 import { parseVentesExcel, parseFrequentationExcel } from './utils/parsers';
 import { classerProduit } from './utils/classification';
 import { calculerPlanning } from './services/planningCalculator';
+import { chargerReferentielITM8, rechercherParITM8, mapRayonVersFamille, isReferentielCharge } from './services/referentielITM8';
+import { trouverVenteMax, calculerPotentielDepuisVenteMax } from './services/potentielCalculator';
 
 function App() {
   // État principal
@@ -14,53 +16,131 @@ function App() {
   const [ventesData, setVentesData] = useState(null);
   const [produits, setProduits] = useState([]);
   const [planning, setPlanning] = useState(null);
-  const [sortType, setSortType] = useState('nom'); // 'nom' ou 'volume'
+  const [sortType, setSortType] = useState('rayon-volume'); // 'nom', 'volume', 'rayon-volume', 'rayon-programme'
   const [pdvInfo, setPdvInfo] = useState(null);
   const [ponderationType, setPonderationType] = useState('standard'); // 'standard', 'saisonnier', 'fortePromo'
   const [frequentationFile, setFrequentationFile] = useState(null);
+  const [referentielCharge, setReferentielCharge] = useState(false);
+
+  // Charger le référentiel ITM8 au démarrage
+  useEffect(() => {
+    const chargerReferentiel = async () => {
+      console.log('🔄 Chargement du référentiel ITM8...');
+      const result = await chargerReferentielITM8('/Data/liste des produits BVP treville.xlsx');
+      if (result) {
+        setReferentielCharge(true);
+        console.log('✅ Référentiel ITM8 chargé avec succès');
+      } else {
+        console.warn('⚠️ Référentiel ITM8 non disponible, classification par mots-clés utilisée');
+      }
+    };
+    chargerReferentiel();
+  }, []);
 
   // Handler pour l'upload de fréquentation avec choix de pondération
   const handleFrequentationUpload = (e, newPonderationType = null) => {
-    const file = e.target?.files?.[0] || frequentationFile;
+    const newFile = e?.target?.files?.[0];
+    const file = newFile || frequentationFile;
     if (!file) return;
 
     // Sauvegarder le fichier pour un éventuel recalcul
-    if (e.target?.files?.[0]) {
-      setFrequentationFile(e.target.files[0]);
+    if (newFile) {
+      setFrequentationFile(newFile);
     }
 
     const typePonderation = newPonderationType || ponderationType;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
+    const loadFile = async () => {
       try {
-        const parsed = parseFrequentationExcel(event.target.result, typePonderation);
+        const arrayBuffer = await file.arrayBuffer();
+        const parsed = parseFrequentationExcel(arrayBuffer, typePonderation);
         if (parsed) {
           setFrequentationData(parsed);
           setPonderationType(typePonderation);
         }
+        return parsed;
       } catch (error) {
         console.error('Erreur lors du parsing:', error);
         alert('Erreur lors de la lecture du fichier. Vérifiez le format.');
+        return null;
       }
     };
-    reader.readAsArrayBuffer(file);
+    return loadFile();
   };
 
   // Changer le type de pondération et recalculer
   const changerPonderation = (newType) => {
     if (frequentationFile) {
-      handleFrequentationUpload(null, newType);
-      // Recalculer le planning si déjà généré
-      if (planning && produits.length > 0) {
-        setTimeout(() => {
-          const nouveauPlanning = calculerPlanning(frequentationData, produits);
-          if (nouveauPlanning) {
-            setPlanning(nouveauPlanning);
+      const resultat = handleFrequentationUpload(null, newType);
+      if (resultat?.then) {
+        resultat.then((parsedFrequentation) => {
+          if (parsedFrequentation && planning && produits.length > 0) {
+            const nouveauPlanning = calculerPlanning(parsedFrequentation, produits);
+            if (nouveauPlanning) {
+              setPlanning(nouveauPlanning);
+            }
           }
-        }, 100);
+        });
       }
     }
+  };
+
+  // Note: trouverVenteMax et calculerPotentielDepuisVenteMax sont maintenant importés depuis potentielCalculator
+
+  // Créer un produit à partir des données de ventes
+  const creerProduitDepuisVentes = (libelle, ventesParJour, itm8, idCounter) => {
+    let rayon = null;
+    let programme = null;
+    let famille = null;
+    let reconnu = false;
+    let unitesParVente = 1;
+    let unitesParPlaque = 0;
+
+    // Tentative de reconnaissance par ITM8
+    let codePLU = '';
+    if (itm8 && isReferentielCharge()) {
+      const infosProduit = rechercherParITM8(itm8);
+      if (infosProduit) {
+        rayon = infosProduit.rayon;
+        programme = infosProduit.programme;
+        famille = mapRayonVersFamille(rayon);
+        unitesParVente = infosProduit.unitesParVente || 1;
+        unitesParPlaque = infosProduit.unitesParPlaque || 0;
+        codePLU = infosProduit.codePLU || '';
+        reconnu = true;
+        console.log(`✅ Produit reconnu par ITM8 ${itm8}: ${libelle} → ${rayon} / ${programme} (${unitesParVente} unités/vente, ${unitesParPlaque} unités/plaque, PLU: ${codePLU})`);
+      }
+    }
+
+    // Fallback: classification par mots-clés
+    if (!reconnu) {
+      famille = classerProduit(libelle);
+      rayon = famille; // Utiliser la famille comme rayon par défaut
+      console.log(`⚠️ Produit non reconnu par ITM8: ${libelle} → Classification: ${famille} (rayon auto-assigné)`);
+    }
+
+    const totalVentes = Object.values(ventesParJour).reduce((sum, val) => sum + val, 0);
+    const { venteMax, dateVenteMax } = trouverVenteMax(ventesParJour);
+    const potentielCalcule = calculerPotentielDepuisVenteMax(venteMax, dateVenteMax, frequentationData, libelle);
+
+    return {
+      id: idCounter,
+      libelle,
+      libellePersonnalise: libelle,
+      itm8,
+      codePLU,
+      rayon,
+      programme,
+      famille,
+      unitesParVente,
+      unitesParPlaque,
+      ventesParJour,
+      totalVentes,
+      potentielHebdo: potentielCalcule,
+      actif: true,
+      custom: false,
+      reconnu
+    };
   };
 
   // Handler pour l'upload de ventes
@@ -71,70 +151,48 @@ function App() {
     // Vérifier que la fréquentation a été uploadée
     if (!frequentationData) {
       alert('⚠️ Veuillez d\'abord importer le fichier de FRÉQUENTATION avant les ventes.');
-      e.target.value = ''; // Reset le input
+      e.target.value = '';
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
+    const loadFile = async () => {
       try {
-        const parsed = parseVentesExcel(event.target.result);
+        const arrayBuffer = await file.arrayBuffer();
+        const parsed = parseVentesExcel(arrayBuffer);
         if (!parsed) return;
 
         console.log('📊 Calcul des potentiels avec la fréquentation...');
 
-        // Créer la liste des produits avec calcul immédiat des potentiels
         const nouveauxProduits = [];
         let idCounter = 0;
 
-        parsed.produits.forEach((ventesParJour, libelle) => {
-          const famille = classerProduit(libelle);
-
-          // Calculer le total des ventes pour le tri
-          const totalVentes = Object.values(ventesParJour).reduce((sum, val) => sum + val, 0);
-
-          // 🎯 CALCUL IMMÉDIAT DU POTENTIEL avec la fréquentation
-          let venteMax = 0;
-          let dateVenteMax = null;
-
-          Object.entries(ventesParJour).forEach(([date, quantite]) => {
-            if (quantite > venteMax) {
-              venteMax = quantite;
-              dateVenteMax = date;
-            }
-          });
-
-          let potentielCalcule = 0;
-
-          if (venteMax > 0) {
-            const jourVenteMax = getJourSemaine(dateVenteMax);
-            let poidsJour = 0.14;
-
-            if (jourVenteMax && frequentationData.poidsJours[jourVenteMax]) {
-              poidsJour = frequentationData.poidsJours[jourVenteMax];
-            } else {
-              poidsJour = Math.max(...Object.values(frequentationData.poidsJours));
-            }
-
-            potentielCalcule = Math.ceil(venteMax / poidsJour);
-
-            console.log(`  ${libelle}: Vente max=${venteMax} (${jourVenteMax || '?'}) ÷ ${(poidsJour * 100).toFixed(1)}% → Potentiel=${potentielCalcule}`);
-          }
-
-          nouveauxProduits.push({
-            id: idCounter++,
+        for (const [libelle, produitData] of parsed.produits) {
+          nouveauxProduits.push(creerProduitDepuisVentes(
             libelle,
-            libellePersonnalise: libelle,
-            famille,
-            ventesParJour,
-            totalVentes,
-            potentielHebdo: potentielCalcule, // ✅ Calculé immédiatement avec la bonne formule
-            actif: true,
-            custom: false
-          });
+            produitData.ventesParJour,
+            produitData.itm8,
+            idCounter++
+          ));
+        }
+
+        // Trier les produits par défaut (rayon puis volume)
+        const produitsTries = nouveauxProduits.sort((a, b) => {
+          const ordreRayons = {
+            'BOULANGERIE': 1,
+            'VIENNOISERIE': 2,
+            'PATISSERIE': 3,
+            'SNACKING': 4,
+            'AUTRE': 5
+          };
+          const rayonA = a.rayon || 'AUTRE';
+          const rayonB = b.rayon || 'AUTRE';
+          const ordreA = ordreRayons[rayonA] || 99;
+          const ordreB = ordreRayons[rayonB] || 99;
+          if (ordreA !== ordreB) return ordreA - ordreB;
+          return b.totalVentes - a.totalVentes;
         });
 
-        setProduits(nouveauxProduits);
+        setProduits(produitsTries);
         setVentesData(parsed);
         if (parsed.pdvInfo) {
           setPdvInfo(parsed.pdvInfo);
@@ -146,29 +204,7 @@ function App() {
         alert('Erreur lors de la lecture du fichier. Vérifiez le format.');
       }
     };
-    reader.readAsArrayBuffer(file);
-  };
-
-  // Déterminer le jour de la semaine depuis une date
-  const getJourSemaine = (dateStr) => {
-    // Essayer de parser la date (formats possibles: "DD/MM/YYYY", "YYYY-MM-DD", nombre Excel, etc.)
-    let date;
-
-    // Si c'est un nombre (format Excel)
-    if (!isNaN(dateStr)) {
-      const excelEpoch = new Date(1899, 11, 30);
-      date = new Date(excelEpoch.getTime() + dateStr * 86400000);
-    } else {
-      // Essayer de parser comme string
-      date = new Date(dateStr);
-    }
-
-    if (isNaN(date.getTime())) {
-      return null; // Date invalide
-    }
-
-    const jours = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
-    return jours[date.getDay()];
+    loadFile();
   };
 
   // Passer à l'étape de personnalisation
@@ -186,6 +222,34 @@ function App() {
     ));
   };
 
+  // Changer le rayon d'un produit
+  const changerRayon = (id, nouveauRayon) => {
+    setProduits(prev => prev.map(p =>
+      p.id === id ? { ...p, rayon: nouveauRayon } : p
+    ));
+  };
+
+  // Changer le programme de cuisson d'un produit
+  const changerProgramme = (id, nouveauProgramme) => {
+    setProduits(prev => prev.map(p =>
+      p.id === id ? { ...p, programme: nouveauProgramme } : p
+    ));
+  };
+
+  // Changer le nombre d'unités par plaque d'un produit
+  const changerUnitesParPlaque = (id, nouvelleValeur) => {
+    setProduits(prev => prev.map(p =>
+      p.id === id ? { ...p, unitesParPlaque: Number.parseInt(nouvelleValeur) || 0 } : p
+    ));
+  };
+
+  // Changer le code PLU d'un produit
+  const changerCodePLU = (id, nouveauCodePLU) => {
+    setProduits(prev => prev.map(p =>
+      p.id === id ? { ...p, codePLU: nouveauCodePLU } : p
+    ));
+  };
+
   // Changer le libellé personnalisé
   const changerLibelle = (id, nouveauLibelle) => {
     setProduits(prev => prev.map(p =>
@@ -196,7 +260,7 @@ function App() {
   // Changer le potentiel hebdomadaire
   const changerPotentiel = (id, nouveauPotentiel) => {
     setProduits(prev => prev.map(p =>
-      p.id === id ? { ...p, potentielHebdo: parseFloat(nouveauPotentiel) || 0 } : p
+      p.id === id ? { ...p, potentielHebdo: Number.parseFloat(nouveauPotentiel) || 0 } : p
     ));
   };
 
@@ -215,6 +279,10 @@ function App() {
       libelle: 'Nouveau produit',
       libellePersonnalise: 'Nouveau produit',
       famille: 'AUTRE',
+      rayon: null,
+      programme: null,
+      codePLU: '',
+      unitesParPlaque: 0,
       ventesParJour: {},
       totalVentes: 0,
       potentielHebdo: 0,
@@ -238,6 +306,47 @@ function App() {
         copie.sort((a, b) => a.libellePersonnalise.localeCompare(b.libellePersonnalise));
       } else if (type === 'volume') {
         copie.sort((a, b) => b.totalVentes - a.totalVentes);
+      } else if (type === 'rayon-volume') {
+        // Tri par : rayon → volume décroissant (TRI PAR DÉFAUT)
+        // Ordre des rayons : BOULANGERIE, VIENNOISERIE, PATISSERIE, SNACKING, AUTRE
+        const ordreRayons = {
+          'BOULANGERIE': 1,
+          'VIENNOISERIE': 2,
+          'PATISSERIE': 3,
+          'SNACKING': 4,
+          'AUTRE': 5
+        };
+
+        copie.sort((a, b) => {
+          // D'abord par rayon (ordre logique)
+          const rayonA = a.rayon || 'AUTRE';
+          const rayonB = b.rayon || 'AUTRE';
+          const ordreA = ordreRayons[rayonA] || 99;
+          const ordreB = ordreRayons[rayonB] || 99;
+
+          if (ordreA !== ordreB) return ordreA - ordreB;
+
+          // Ensuite par volume décroissant
+          return b.totalVentes - a.totalVentes;
+        });
+      } else if (type === 'rayon-programme') {
+        // Tri par : rayon → programme → volume décroissant
+        copie.sort((a, b) => {
+          // D'abord par rayon
+          const rayonA = a.rayon || 'ZZZ'; // Les produits sans rayon à la fin
+          const rayonB = b.rayon || 'ZZZ';
+          const compareRayon = rayonA.localeCompare(rayonB);
+          if (compareRayon !== 0) return compareRayon;
+
+          // Ensuite par programme
+          const progA = a.programme || 'ZZZ';
+          const progB = b.programme || 'ZZZ';
+          const compareProg = progA.localeCompare(progB);
+          if (compareProg !== 0) return compareProg;
+
+          // Enfin par volume décroissant
+          return b.totalVentes - a.totalVentes;
+        });
       }
       return copie;
     });
@@ -302,10 +411,10 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8 print:p-0 print:bg-white">
+      <div className="max-w-7xl mx-auto print:max-w-none print:mx-0">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6 print:hidden">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-800">Planning BVP</h1>
@@ -327,17 +436,17 @@ function App() {
 
           {/* Indicateur d'étapes */}
           <div className="flex items-center justify-center mt-6 gap-4">
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${etape === 'upload' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${etape === 'upload' ? 'bg-amber-700 text-white' : 'bg-gray-200 text-gray-600'}`}>
               <Upload size={20} />
               <span>1. Upload</span>
             </div>
             <ChevronRight className="text-gray-400" />
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${etape === 'personnalisation' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${etape === 'personnalisation' ? 'bg-amber-700 text-white' : 'bg-gray-200 text-gray-600'}`}>
               <FileUp size={20} />
               <span>2. Personnalisation</span>
             </div>
             <ChevronRight className="text-gray-400" />
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${etape === 'planning' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${etape === 'planning' ? 'bg-amber-700 text-white' : 'bg-gray-200 text-gray-600'}`}>
               <Download size={20} />
               <span>3. Planning</span>
             </div>
@@ -362,6 +471,10 @@ function App() {
             produits={produits}
             sortType={sortType}
             onChangerFamille={changerFamille}
+            onChangerRayon={changerRayon}
+            onChangerProgramme={changerProgramme}
+            onChangerUnitesParPlaque={changerUnitesParPlaque}
+            onChangerCodePLU={changerCodePLU}
             onChangerLibelle={changerLibelle}
             onChangerPotentiel={changerPotentiel}
             onToggleActif={toggleActif}

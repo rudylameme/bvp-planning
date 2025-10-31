@@ -1,13 +1,20 @@
 import { useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Download, Upload, ArrowUpAZ, ArrowDownWideNarrow, LayoutGrid, List } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Upload, ArrowUpAZ, ArrowDownWideNarrow, LayoutGrid, List, Layers } from 'lucide-react';
 import TableauProduits from './TableauProduits';
 import TableauProduitsGroupes from './TableauProduitsGroupes';
+import AttributionManuelle from './AttributionManuelle';
 import { parseCSV } from '../utils/parsers';
+import { getListeRayons, getListeProgrammes } from '../services/referentielITM8';
+import { calculerPotentielsPourTous } from '../services/potentielCalculator';
 
 export default function EtapePersonnalisation({
   produits,
   sortType,
   onChangerFamille,
+  onChangerRayon,
+  onChangerProgramme,
+  onChangerUnitesParPlaque,
+  onChangerCodePLU,
   onChangerLibelle,
   onChangerPotentiel,
   onToggleActif,
@@ -21,79 +28,35 @@ export default function EtapePersonnalisation({
 }) {
   const refReglages = useRef(null);
   const [modeAffichage, setModeAffichage] = useState('groupes'); // 'groupes' ou 'liste'
+  const [showAttributionManuelle, setShowAttributionManuelle] = useState(false);
+  const [modeCalculPotentiel, setModeCalculPotentiel] = useState('mathematique'); // 'mathematique' | 'forte-progression' | 'prudent'
 
-  // Déterminer le jour de la semaine depuis une date
-  const getJourSemaine = (dateStr) => {
-    let date;
-    if (!isNaN(dateStr)) {
-      const excelEpoch = new Date(1899, 11, 30);
-      date = new Date(excelEpoch.getTime() + dateStr * 86400000);
-    } else {
-      date = new Date(dateStr);
-    }
-    if (isNaN(date.getTime())) return null;
-    const jours = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
-    return jours[date.getDay()];
-  };
+  // Identifier les produits non reconnus
+  const produitsNonReconnus = produits.filter(p => !p.reconnu && !p.custom);
+  const nbProduitsNonReconnus = produitsNonReconnus.length;
 
   // Calculer automatiquement les potentiels à partir des ventes
-  const calculerPotentielsAuto = () => {
-    if (!confirm('Voulez-vous calculer automatiquement les potentiels hebdomadaires ?\n\nFormule : Vente MAX ÷ Poids du jour de cette vente\n\nCela écrasera les potentiels actuels.')) {
+  const calculerPotentielsAuto = (mode = modeCalculPotentiel) => {
+    const messages = {
+      'mathematique': 'Mode Mathématique : Calcul brut sans limite\nFormule : Vente MAX ÷ Poids du jour',
+      'forte-progression': 'Mode Forte Progression : Limite à +20% de progression\n• Si progression > 20% → limité à +20%\n• Si baisse → garde le volume actuel',
+      'prudent': 'Mode Prudent : Limite à +10% de progression\n• Si progression > 10% → limité à +10%\n• Si baisse → garde le volume actuel'
+    };
+
+    if (!confirm(`Voulez-vous calculer automatiquement les potentiels hebdomadaires ?\n\n${messages[mode]}\n\nCela écrasera les potentiels actuels.`)) {
       return;
     }
 
-    console.log('🤖 Calcul automatique des potentiels avec formule précise...');
-
-    const produitsAvecPotentielCalcule = produits.map(p => {
-      if (p.custom || !p.ventesParJour) {
-        return p;
-      }
-
-      // Trouver la vente MAX et sa date
-      let venteMax = 0;
-      let dateVenteMax = null;
-
-      Object.entries(p.ventesParJour).forEach(([date, quantite]) => {
-        if (quantite > venteMax) {
-          venteMax = quantite;
-          dateVenteMax = date;
-        }
-      });
-
-      if (venteMax === 0) {
-        return { ...p, potentielHebdo: 0 };
-      }
-
-      // Déterminer le jour et son poids
-      const jourVenteMax = getJourSemaine(dateVenteMax);
-      let poidsJour = 0.14;
-
-      if (frequentationData && frequentationData.poidsJours) {
-        if (jourVenteMax && frequentationData.poidsJours[jourVenteMax]) {
-          poidsJour = frequentationData.poidsJours[jourVenteMax];
-        } else {
-          poidsJour = Math.max(...Object.values(frequentationData.poidsJours));
-        }
-      }
-
-      // Formule : Potentiel = Vente MAX ÷ Poids du jour
-      const potentielCalcule = Math.ceil(venteMax / poidsJour);
-
-      return {
-        ...p,
-        potentielHebdo: potentielCalcule
-      };
-    });
-
+    const produitsAvecPotentielCalcule = calculerPotentielsPourTous(produits, frequentationData, mode);
     setProduits(produitsAvecPotentielCalcule);
-    alert('✅ Potentiels calculés avec la formule : Vente MAX ÷ Poids du jour !');
+    alert('✅ Potentiels calculés !');
   };
 
   // Exporter les réglages en CSV
   const exporterReglages = () => {
-    const headers = 'Libelle,LibellePersonnalise,Famille,PotentielHebdo,Actif,Custom\n';
+    const headers = 'Libelle,LibellePersonnalise,Rayon,Programme,CodePLU,UnitesParPlaque,Famille,PotentielHebdo,Actif,Custom\n';
     const rows = produits.map(p =>
-      `${p.libelle},${p.libellePersonnalise},${p.famille},${p.potentielHebdo},${p.actif},${p.custom}`
+      `${p.libelle},${p.libellePersonnalise},${p.rayon || ''},${p.programme || ''},${p.codePLU || ''},${p.unitesParPlaque ?? 0},${p.famille},${p.potentielHebdo},${p.actif},${p.custom}`
     ).join('\n');
 
     const csvContent = headers + rows;
@@ -106,71 +69,116 @@ export default function EtapePersonnalisation({
     URL.revokeObjectURL(url);
   };
 
+  // Créer un map des réglages depuis les données CSV
+  const creerReglagesMap = (csvData) => {
+    const reglagesMap = new Map();
+    for (const row of csvData) {
+      const libelle = row?.Libelle;
+      if (libelle) {
+        reglagesMap.set(libelle, {
+          libellePersonnalise: row?.LibellePersonnalise ?? '',
+          rayon: row?.Rayon || null,
+          programme: row?.Programme || null,
+          codePLU: row?.CodePLU || '',
+          unitesParPlaque: Number.parseInt(row?.UnitesParPlaque ?? '0') || 0,
+          famille: row?.Famille ?? 'AUTRE',
+          potentielHebdo: Number.parseFloat(row?.PotentielHebdo ?? '0') || 0,
+          actif: row?.Actif === 'true',
+          custom: row?.Custom === 'true'
+        });
+      }
+    }
+    return reglagesMap;
+  };
+
+  // Appliquer les réglages importés aux produits existants
+  const appliquerReglages = (produits, reglagesMap) => {
+    return produits.map(p => {
+      const libelle = p?.libelle;
+      if (libelle && reglagesMap.has(libelle)) {
+        const reglage = reglagesMap.get(libelle);
+        return { ...p, ...reglage };
+      }
+      return p;
+    });
+  };
+
+  // Identifier les produits custom manquants
+  const trouverProduitsCustomManquants = (produits, reglagesMap) => {
+    const libellesExistants = new Set(produits.map(p => p?.libelle).filter(Boolean));
+    const produitsCustomManquants = [];
+    for (const [libelle, reglage] of reglagesMap.entries()) {
+      if (reglage?.custom && !libellesExistants.has(libelle)) {
+        produitsCustomManquants.push(libelle);
+      }
+    }
+    return produitsCustomManquants;
+  };
+
+  // Ajouter les produits custom manquants
+  const ajouterProduitsCustom = (produitsAvecReglages, produitsCustomManquants, reglagesMap) => {
+    const nouveauxId = Math.max(...produitsAvecReglages.map(p => p?.id ?? 0), -1);
+    for (const [index, libelle] of produitsCustomManquants.entries()) {
+      const reglage = reglagesMap.get(libelle);
+      if (reglage) {
+        produitsAvecReglages.push({
+          id: nouveauxId + index + 1,
+          libelle,
+          libellePersonnalise: reglage.libellePersonnalise ?? libelle,
+          rayon: reglage.rayon ?? null,
+          programme: reglage.programme ?? null,
+          codePLU: reglage.codePLU ?? '',
+          unitesParPlaque: reglage.unitesParPlaque ?? 0,
+          famille: reglage.famille ?? 'AUTRE',
+          ventesParJour: {},
+          totalVentes: 0,
+          potentielHebdo: reglage.potentielHebdo ?? 0,
+          actif: reglage.actif ?? true,
+          custom: true
+        });
+      }
+    }
+  };
+
   // Importer les réglages depuis CSV
-  const importerReglages = (e, setProduits) => {
+  const importerReglages = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const parsed = parseCSV(event.target.result);
+    try {
+      const text = await file.text();
+      const parsed = parseCSV(text);
+      const reglagesMap = creerReglagesMap(parsed.data);
+      const produitsAvecReglages = appliquerReglages(produits, reglagesMap);
+      const produitsCustomManquants = trouverProduitsCustomManquants(produits, reglagesMap);
 
-      // Créer un map des réglages importés
-      const reglagesMap = new Map();
-      parsed.data.forEach(row => {
-        reglagesMap.set(row.Libelle, {
-          libellePersonnalise: row.LibellePersonnalise,
-          famille: row.Famille,
-          potentielHebdo: parseFloat(row.PotentielHebdo) || 0,
-          actif: row.Actif === 'true',
-          custom: row.Custom === 'true'
-        });
-      });
-
-      // Appliquer les réglages aux produits existants
-      const produitsAvecReglages = produits.map(p => {
-        if (reglagesMap.has(p.libelle)) {
-          const reglage = reglagesMap.get(p.libelle);
-          return { ...p, ...reglage };
-        }
-        return p;
-      });
-
-      // Identifier les produits custom qui ne sont pas dans les ventes actuelles
-      const libellesExistants = new Set(produits.map(p => p.libelle));
-      const produitsCustomManquants = [];
-      reglagesMap.forEach((reglage, libelle) => {
-        if (reglage.custom && !libellesExistants.has(libelle)) {
-          produitsCustomManquants.push(libelle);
-        }
-      });
-
-      // Si des produits custom manquants, demander à l'utilisateur
       if (produitsCustomManquants.length > 0) {
         const message = `Les produits suivants sont dans vos réglages mais pas dans vos ventes actuelles:\n${produitsCustomManquants.join(', ')}\n\nVoulez-vous les conserver comme produits custom ?`;
         if (confirm(message)) {
-          // Ajouter les produits custom manquants
-          const nouveauxId = Math.max(...produitsAvecReglages.map(p => p.id), -1);
-          produitsCustomManquants.forEach((libelle, index) => {
-            const reglage = reglagesMap.get(libelle);
-            produitsAvecReglages.push({
-              id: nouveauxId + index + 1,
-              libelle,
-              libellePersonnalise: reglage.libellePersonnalise,
-              famille: reglage.famille,
-              ventesParJour: {},
-              totalVentes: 0,
-              potentielHebdo: reglage.potentielHebdo,
-              actif: reglage.actif,
-              custom: true
-            });
-          });
+          ajouterProduitsCustom(produitsAvecReglages, produitsCustomManquants, reglagesMap);
         }
       }
 
       setProduits(produitsAvecReglages);
-    };
-    reader.readAsText(file);
+    } catch (error) {
+      console.error('Erreur lors de l\'import des réglages:', error);
+      alert('Erreur lors de la lecture du fichier de réglages.');
+    }
+  };
+
+  // Handler pour l'attribution manuelle
+  const handleAttribuer = (produitId, attributs) => {
+    setProduits(prev => prev.map(p => {
+      if (p.id === produitId) {
+        const updated = { ...p, ...attributs };
+        // Si rayon et programme sont définis, marquer comme reconnu
+        if (updated.rayon && updated.programme) {
+          updated.reconnu = true;
+        }
+        return updated;
+      }
+      return p;
+    }));
   };
 
   // Vérifier combien de produits ont des potentiels > 0
@@ -178,10 +186,37 @@ export default function EtapePersonnalisation({
   const nbProduitsTotal = produits.length;
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
+    <>
+      {/* Modal d'attribution manuelle */}
+      {showAttributionManuelle && (
+        <AttributionManuelle
+          produitsNonReconnus={produitsNonReconnus}
+          onAttribuer={handleAttribuer}
+          onFermer={() => setShowAttributionManuelle(false)}
+        />
+      )}
+
+      <div className="bg-white rounded-lg shadow-lg p-6">
+      {/* Message pour les produits non reconnus */}
+      {nbProduitsNonReconnus > 0 && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-blue-800">
+              ℹ️ <strong>{nbProduitsNonReconnus} produit(s) non reconnu(s)</strong> par le référentiel ITM8. Vous pouvez continuer ou les attribuer manuellement pour plus de précision.
+            </p>
+            <button
+              onClick={() => setShowAttributionManuelle(true)}
+              className="ml-4 px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition whitespace-nowrap"
+            >
+              Attribuer (optionnel)
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Message d'information sur les potentiels */}
       {nbProduitsAvecPotentiel === nbProduitsTotal && nbProduitsTotal > 0 && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+        <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
           <p className="text-sm text-green-800">
             ✅ <strong>Potentiels calculés automatiquement</strong> pour {nbProduitsTotal} produits à partir des ventes historiques. Vous pouvez les ajuster manuellement si besoin.
           </p>
@@ -221,9 +256,19 @@ export default function EtapePersonnalisation({
           {modeAffichage === 'liste' && (
             <>
               <button
+                onClick={() => onTrier('rayon-volume')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
+                  sortType === 'rayon-volume' ? 'bg-amber-700 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+                title="Tri par défaut : rayon puis volume décroissant"
+              >
+                <LayoutGrid size={20} />
+                Tri Rayon
+              </button>
+              <button
                 onClick={() => onTrier('nom')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
-                  sortType === 'nom' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  sortType === 'nom' ? 'bg-amber-700 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
               >
                 <ArrowUpAZ size={20} />
@@ -232,24 +277,62 @@ export default function EtapePersonnalisation({
               <button
                 onClick={() => onTrier('volume')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
-                  sortType === 'volume' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  sortType === 'volume' ? 'bg-amber-700 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
               >
                 <ArrowDownWideNarrow size={20} />
                 Tri Volume
               </button>
+              <button
+                onClick={() => onTrier('rayon-programme')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
+                  sortType === 'rayon-programme' ? 'bg-amber-700 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+                title="Trier par rayon, puis programme, puis volume"
+              >
+                <Layers size={20} />
+                Tri Rayon/Prog
+              </button>
             </>
           )}
-          <button
-            onClick={calculerPotentielsAuto}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
-            title="Calculer automatiquement les potentiels à partir des ventes"
-          >
-            🤖 Auto-Potentiels
-          </button>
+          {/* Menu Auto-Potentiels avec choix du mode */}
+          <div className="relative group">
+            <button
+              onClick={() => calculerPotentielsAuto()}
+              className="flex items-center gap-2 px-4 py-2 bg-amber-700 text-white rounded-lg hover:bg-amber-800 transition"
+              title="Calculer automatiquement les potentiels à partir des ventes"
+            >
+              🤖 Auto-Potentiels
+              <span className="text-xs opacity-75">({modeCalculPotentiel === 'mathematique' ? 'Math' : modeCalculPotentiel === 'forte-progression' ? '+20%' : '+10%'})</span>
+            </button>
+            {/* Dropdown pour choisir le mode */}
+            <div className="absolute hidden group-hover:block top-full mt-1 right-0 bg-white border border-gray-300 rounded-lg shadow-lg z-10 min-w-[200px]">
+              <button
+                onClick={() => { setModeCalculPotentiel('mathematique'); calculerPotentielsAuto('mathematique'); }}
+                className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 rounded-t-lg ${modeCalculPotentiel === 'mathematique' ? 'bg-amber-50 text-amber-800 font-semibold' : 'text-gray-700'}`}
+              >
+                📊 Mathématique
+                <div className="text-xs text-gray-500">Calcul brut sans limite</div>
+              </button>
+              <button
+                onClick={() => { setModeCalculPotentiel('forte-progression'); calculerPotentielsAuto('forte-progression'); }}
+                className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 border-t ${modeCalculPotentiel === 'forte-progression' ? 'bg-amber-50 text-amber-800 font-semibold' : 'text-gray-700'}`}
+              >
+                🚀 Forte progression
+                <div className="text-xs text-gray-500">Limite +20% max</div>
+              </button>
+              <button
+                onClick={() => { setModeCalculPotentiel('prudent'); calculerPotentielsAuto('prudent'); }}
+                className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 rounded-b-lg border-t ${modeCalculPotentiel === 'prudent' ? 'bg-amber-50 text-amber-800 font-semibold' : 'text-gray-700'}`}
+              >
+                🛡️ Prudent
+                <div className="text-xs text-gray-500">Limite +10% max</div>
+              </button>
+            </div>
+          </div>
           <button
             onClick={onAjouterProduitCustom}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
           >
             + Ajouter
           </button>
@@ -282,42 +365,52 @@ export default function EtapePersonnalisation({
         <TableauProduits
           produits={produits}
           onChangerFamille={onChangerFamille}
+          onChangerRayon={onChangerRayon}
+          onChangerProgramme={onChangerProgramme}
+          onChangerUnitesParPlaque={onChangerUnitesParPlaque}
+          onChangerCodePLU={onChangerCodePLU}
           onChangerLibelle={onChangerLibelle}
           onChangerPotentiel={onChangerPotentiel}
           onToggleActif={onToggleActif}
           onSupprimerProduit={onSupprimerProduit}
+          rayonsDisponibles={getListeRayons()}
+          programmesDisponibles={getListeProgrammes()}
         />
       ) : (
         <TableauProduitsGroupes
           produits={produits}
           onChangerFamille={onChangerFamille}
+          onChangerRayon={onChangerRayon}
+          onChangerProgramme={onChangerProgramme}
+          onChangerUnitesParPlaque={onChangerUnitesParPlaque}
+          onChangerCodePLU={onChangerCodePLU}
           onChangerLibelle={onChangerLibelle}
           onChangerPotentiel={onChangerPotentiel}
           onToggleActif={onToggleActif}
           onSupprimerProduit={onSupprimerProduit}
+          rayonsDisponibles={getListeRayons()}
+          programmesDisponibles={getListeProgrammes()}
         />
       )}
 
-      {/* Boutons navigation */}
-      <div className="mt-6 flex justify-between">
-        <button
-          onClick={onRetour}
-          className="flex items-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
-        >
-          <ChevronLeft size={20} />
-          Retour
-        </button>
-        <button
-          onClick={() => {
-            console.log('🖱️ Clic sur "Calculer le planning"');
-            onCalculerPlanning();
-          }}
-          className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-        >
-          Calculer le planning
-          <ChevronRight size={20} />
-        </button>
+        {/* Boutons navigation */}
+        <div className="mt-6 flex justify-between">
+          <button
+            onClick={onRetour}
+            className="flex items-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
+          >
+            <ChevronLeft size={20} />
+            Retour
+          </button>
+          <button
+            onClick={onCalculerPlanning}
+            className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
+          >
+            Calculer le planning
+            <ChevronRight size={20} />
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

@@ -1,4 +1,67 @@
+import React from 'react';
 import { Printer, X } from 'lucide-react';
+import { convertirEnPlaques } from '../utils/conversionUtils';
+import { getNextWeekDates } from '../utils/dateUtils';
+
+/**
+ * Calcule le total de plaques pour un programme de cuisson (par créneau)
+ * Additionne les plaques ARRONDIES de chaque produit (ce que l'opérateur va cuire réellement)
+ * EXCLUT les produits sans plaque (unitesParPlaque = 0) car ils ne passent pas en cuisson
+ * Retourne 'NC' si TOUS les produits n'ont pas de plaques (programme sans cuisson)
+ */
+const calculerTotalPlaques = (produits, creneau) => {
+  let totalPlaques = 0;
+  let aucunProduitAvecPlaques = true;
+
+  for (const [_, creneaux] of produits) {
+    const unitesParVente = creneaux.unitesParVente || 1;
+    const unitesParPlaque = creneaux.unitesParPlaque || 0;
+    const ventes = creneaux[creneau];
+
+    if (unitesParPlaque > 0) {
+      aucunProduitAvecPlaques = false; // Au moins un produit a des plaques
+      // Calculer les plaques pour ce produit ET l'arrondir au 0.5
+      const unitesProduction = ventes * unitesParVente;
+      const nombrePlaquesBrut = unitesProduction / unitesParPlaque;
+      const nombrePlaquesArrondies = Math.ceil(nombrePlaquesBrut * 2) / 2; // Arrondi 0.5
+      totalPlaques += nombrePlaquesArrondies;
+    }
+    // Si unitesParPlaque = 0, on ne compte pas (produit ne passe pas en cuisson)
+  }
+
+  // Si aucun produit n'a de plaques, c'est un programme sans cuisson
+  if (aucunProduitAvecPlaques) {
+    return 'NC';
+  }
+
+  return totalPlaques;
+};
+
+/**
+ * Calcule le total journalier (matin + midi + soir) en plaques
+ */
+const calculerTotalJournalier = (produits) => {
+  const matin = calculerTotalPlaques(produits, 'matin');
+  const midi = calculerTotalPlaques(produits, 'midi');
+  const soir = calculerTotalPlaques(produits, 'soir');
+
+  // Si tous les créneaux sont NC, retourner NC
+  if (matin === 'NC' && midi === 'NC' && soir === 'NC') {
+    return 'NC';
+  }
+
+  // Sinon calculer le total (en ignorant les NC)
+  const matinNum = matin === 'NC' ? 0 : matin;
+  const midiNum = midi === 'NC' ? 0 : midi;
+  const soirNum = soir === 'NC' ? 0 : soir;
+  const total = matinNum + midiNum + soirNum;
+
+  if (total % 1 === 0) {
+    return total;
+  } else {
+    return total.toFixed(1);
+  }
+};
 
 export default function ImpressionPanel({
   isVisible,
@@ -9,72 +72,92 @@ export default function ImpressionPanel({
 }) {
   if (!isVisible) return null;
 
-  const getNextWeekDates = () => {
-    const today = new Date();
-    const currentDay = today.getDay();
-    let daysUntilNextMonday = currentDay === 0 ? 1 : 8 - currentDay;
-    const nextMonday = new Date(today);
-    nextMonday.setDate(today.getDate() + daysUntilNextMonday);
-    const nextSunday = new Date(nextMonday);
-    nextSunday.setDate(nextMonday.getDate() + 6);
-
-    return {
-      start: nextMonday.toLocaleDateString('fr-FR'),
-      end: nextSunday.toLocaleDateString('fr-FR')
-    };
-  };
-
   const handlePrint = () => {
-    window.print();
+    globalThis.print();
   };
 
   const handleDownloadPDF = () => {
-    const content = document.querySelector('.print-content')?.innerHTML || '';
-    const title = selectedJour ? `Planning_${selectedJour}` : 'Planning_Hebdomadaire';
-    const nextWeek = getNextWeekDates();
-
-    const pdfWindow = window.open('', '_blank');
-    if (pdfWindow) {
-      pdfWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>${title}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; margin: 0; background: white; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-            th, td { border: 1px solid #333; padding: 8px 4px; text-align: center; font-size: 11px; }
-            th { background-color: #f5f5f5; font-weight: bold; }
-            .product-name { text-align: left; font-weight: 500; max-width: 200px; font-size: 10px; }
-            .family-header { background-color: #e9e9e9; font-weight: bold; font-size: 14px; padding: 8px; margin: 15px 0 5px 0; border: 2px solid #333; text-align: center; }
-            @media print { @page { size: A4; margin: 15mm; } body { -webkit-print-color-adjust: exact; } }
-          </style>
-        </head>
-        <body>
-          <div style="border-bottom: 2px solid #333; margin-bottom: 15px; padding-bottom: 10px;">
-            <h1>Planning de Production Optimisé ${selectedJour ? `- ${selectedJour}` : ''}</h1>
-            <p>${pdvInfo ? `PDV ${pdvInfo.numero} - ${pdvInfo.nom} | ` : ''}Date: ${new Date().toLocaleDateString('fr-FR')} | Semaine du ${nextWeek.start} au ${nextWeek.end}</p>
-            ${planningData?.stats?.ponderationType ? `<p style="color: #666;">Pondération: ${planningData.stats.ponderationType}</p>` : ''}
-          </div>
-          ${content}
-        </body>
-        </html>
-      `);
-      pdfWindow.document.close();
-
-      setTimeout(() => {
-        alert('Fenêtre PDF ouverte ! Utilisez Cmd+P / Ctrl+P puis "Enregistrer au format PDF".');
-      }, 500);
-    }
+    // Utiliser directement window.print() au lieu de créer une nouvelle fenêtre
+    // Cela évite les problèmes de duplication de contenu
+    handlePrint();
   };
 
   const nextWeek = getNextWeekDates();
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
-      <div className="absolute inset-4 bg-white rounded-lg shadow-xl flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 print:block print:static print:bg-transparent">
+      <style>{`
+        .product-name {
+          font-size: 21px;
+          line-height: 1.2;
+        }
+        .quantity-number {
+          font-size: 21px;
+          line-height: 1.2;
+        }
+        .quantity-unit {
+          font-size: 7px;
+          line-height: 1.2;
+        }
+        .product-row {
+          height: 28px;
+          min-height: 28px;
+          max-height: 28px;
+        }
+        .capacity-row {
+          height: 14px !important;
+          min-height: 14px !important;
+          max-height: 14px !important;
+          font-size: 0 !important;
+        }
+        .capacity-row td {
+          padding: 0 !important;
+          height: 14px !important;
+          max-height: 14px !important;
+          font-size: 7px !important;
+          line-height: 14px !important;
+          vertical-align: middle !important;
+          overflow: hidden !important;
+        }
+
+        @media print {
+          .product-name {
+            font-size: 21px !important;
+            line-height: 1.2 !important;
+          }
+          .quantity-number {
+            font-size: 21px !important;
+            line-height: 1.2 !important;
+          }
+          .quantity-unit {
+            font-size: 7px !important;
+            line-height: 1.2 !important;
+          }
+          .product-row {
+            height: 28px !important;
+            min-height: 28px !important;
+            max-height: 28px !important;
+          }
+          .capacity-row {
+            height: 14px !important;
+            min-height: 14px !important;
+            max-height: 14px !important;
+            font-size: 0 !important;
+          }
+          .capacity-row td {
+            padding: 0 !important;
+            height: 14px !important;
+            max-height: 14px !important;
+            font-size: 7px !important;
+            line-height: 14px !important;
+            vertical-align: middle !important;
+            overflow: hidden !important;
+          }
+        }
+      `}</style>
+      <div className="absolute inset-4 bg-white rounded-lg shadow-xl flex flex-col print:static print:shadow-none print:rounded-none">
         {/* Header */}
-        <div className="flex-shrink-0 bg-white border-b border-gray-300 p-4 rounded-t-lg z-10 shadow-sm">
+        <div className="flex-shrink-0 bg-white border-b border-gray-300 p-4 rounded-t-lg z-10 shadow-sm print:hidden">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">
               Aperçu avant impression - {selectedJour ? `Planning du ${selectedJour}` : 'Planning Hebdomadaire'}
@@ -89,14 +172,14 @@ export default function ImpressionPanel({
               </button>
               <button
                 onClick={handleDownloadPDF}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-2 shadow-sm"
+                className="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 flex items-center gap-2 shadow-sm"
               >
                 📄 PDF
               </button>
               <div className="flex items-center gap-2 text-sm text-gray-600 bg-blue-50 px-3 py-2 rounded border">
                 <span className="font-medium">💡 Astuce :</span>
                 <span>
-                  {navigator.platform.includes('Mac') ? 'Cmd+P' : 'Ctrl+P'} pour imprimer
+                  {(navigator.userAgentData?.platform || navigator.userAgent).includes('Mac') ? 'Cmd+P' : 'Ctrl+P'} pour imprimer
                 </span>
               </div>
               <button
@@ -111,27 +194,11 @@ export default function ImpressionPanel({
         </div>
 
         {/* Content */}
-        <div className="flex-1 min-h-0">
-          <div className="h-full overflow-y-auto p-6 bg-gray-50">
-            <div className="bg-white rounded shadow-sm p-6 print-content">
-              {/* Header du document */}
-              <div className="border-b-2 border-gray-800 mb-6 pb-4">
-                <h1 className="text-xl font-bold mb-2">
-                  Planning de Production Optimisé
-                  {selectedJour && ` - ${selectedJour}`}
-                </h1>
-                <div className="text-sm text-gray-600">
-                  {pdvInfo && `PDV ${pdvInfo.numero} - ${pdvInfo.nom} | `}
-                  Date d'impression : {new Date().toLocaleDateString('fr-FR')} |
-                  Semaine du {nextWeek.start} au {nextWeek.end}
-                  {planningData?.stats?.ponderationType && (
-                    <span className="ml-2">| Pondération : {planningData.stats.ponderationType}</span>
-                  )}
-                </div>
-              </div>
-
+        <div className="flex-1 min-h-0 print:flex-none print:min-h-full">
+          <div className="h-full overflow-y-auto p-6 bg-gray-50 print:h-auto print:overflow-visible print:p-0 print:bg-white">
+            <div className="bg-white rounded shadow-sm p-6 print-content print:p-0 print:shadow-none print:rounded-none">
               {selectedJour ? (
-                <PlanningJour selectedJour={selectedJour} planningData={planningData} />
+                <PlanningJour selectedJour={selectedJour} planningData={planningData} pdvInfo={pdvInfo} nextWeek={nextWeek} />
               ) : (
                 <PlanningHebdo planningData={planningData} />
               )}
@@ -143,77 +210,210 @@ export default function ImpressionPanel({
   );
 }
 
-// Composant pour le planning d'un jour
-function PlanningJour({ selectedJour, planningData }) {
-  return (
-    <div>
-      <h2 className="text-lg font-bold text-center bg-gray-200 p-2 mb-4 border-2 border-gray-800">
-        PLANNING DU {selectedJour.toUpperCase()}
-      </h2>
+// Composant pour le planning d'un jour (format compact A4 paysage)
+function PlanningJour({ selectedJour, planningData, pdvInfo, nextWeek }) {
+  // Préparer les données pour affichage en tableau unique compact
+  const rayonsData = [];
 
-      <div className="mb-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r">
-        <h4 className="font-semibold text-yellow-800 mb-2">💡 Principe d'ajustement :</h4>
-        <p className="text-sm text-yellow-700">
-          <strong>Soir :</strong> Quantité proposée à ajuster selon le stock rayon.<br/>
-          <strong>Exemple :</strong> Pain aux céréales → Soir: 4 proposés, Stock rayon: 2 → À cuire: 4-2 = 2
-        </p>
+  if (planningData?.jours[selectedJour]) {
+    for (const [rayon, programmes] of Object.entries(planningData.jours[selectedJour])) {
+      for (const [programme, data] of Object.entries(programmes)) {
+        if (data.produits && data.produits.size > 0) {
+          rayonsData.push({
+            rayon,
+            programme,
+            produits: Array.from(data.produits),
+            data
+          });
+        }
+      }
+    }
+  }
+
+  return (
+    <div className="text-xs">
+      {/* En-tête ultra compact sur une seule ligne */}
+      <div className="text-[8px] mb-1 pb-0.5 border-b border-black">
+        <strong>Planning {selectedJour}</strong> |
+        {pdvInfo && ` PDV ${pdvInfo.numero} - ${pdvInfo.nom} | `}
+        Impression: {new Date().toLocaleDateString('fr-FR')} |
+        Semaine du {nextWeek.start} au {nextWeek.end}
+        {planningData?.stats?.ponderationType && ` | Pondération: ${planningData.stats.ponderationType}`}
       </div>
 
-      {['BOULANGERIE', 'VIENNOISERIE', 'PATISSERIE'].map(famille => {
-        const produits = planningData?.jours[selectedJour][famille];
-        if (!produits || produits.size === 0) return null;
-
-        return (
-          <div key={famille} className="mb-6">
-            <h3 className="text-md font-bold text-center bg-gray-100 p-2 mb-2 border-2 border-gray-800">
-              {famille}
-            </h3>
-
-            <table className="w-full border-collapse border-2 border-gray-800 text-sm">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="border border-gray-800 p-2 text-left">Produit</th>
-                  <th className="border border-gray-800 p-2 text-center">
-                    Matin<br/>
-                    <span className="text-xs text-gray-600">9h-12h</span>
-                  </th>
-                  <th className="border border-gray-800 p-2 text-center">
-                    Midi<br/>
-                    <span className="text-xs text-gray-600">12h-16h</span>
-                  </th>
-                  <th className="border border-gray-800 p-2 text-center bg-yellow-100">
-                    Soir (à ajuster)<br/>
-                    <span className="text-xs text-gray-600">16h-23h</span>
-                  </th>
-                  <th className="border border-gray-800 p-2 text-center bg-orange-100">
-                    Ajustement<br/>
-                    <span className="text-xs text-gray-600">Stock rayon</span>
-                  </th>
+      {/* Tableau unique compact - optimisé noir et blanc */}
+      <table className="w-full border-collapse border border-black" style={{ fontSize: '8px' }}>
+        <thead>
+          <tr className="bg-gray-100">
+            <th className="border border-black px-0.5 py-0.5 w-4 text-center text-[7px]">Rayon</th>
+            <th className="border border-black px-0.5 py-0.5 w-4 text-center text-[7px]">Prog</th>
+            <th className="border border-black px-1 py-0.5 w-9 text-center text-[7px]">Code PLU</th>
+            <th className="border border-black px-1 py-0.5 text-left text-[7px]" style={{ width: '420px' }}>Article</th>
+            <th className="border border-black px-1 py-0.5 w-16 text-center text-[7px]">Remarque</th>
+            <th className="border border-black px-1 py-0.5 text-center text-[7px]" style={{ width: '60px' }}>Matin<br/>9h-12h</th>
+            <th className="border border-black px-1 py-0.5 text-center text-[7px]" style={{ width: '60px' }}>Midi<br/>12h-16h</th>
+            <th className="border border-black px-1 py-0.5 text-center text-[7px]" style={{ width: '60px' }}>Soir<br/>16h-23h</th>
+            <th className="border border-black px-1 py-0.5 w-16 text-center text-[7px]">Stock<br/>rayon</th>
+            <th className="border border-black px-1 py-0.5 w-16 text-center text-[7px]">A cuire</th>
+            <th className="border border-black px-1 py-0.5 text-left text-[7px]" style={{ width: '100px' }}>Pertes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rayonsData.map(({ rayon, programme, produits, data }) => (
+            <React.Fragment key={`${rayon}-${programme}`}>
+              {/* Lignes des produits - Rayon et Programme répétés sur chaque ligne pour pagination */}
+              {produits.map(([produit, creneaux], prodIndex) => (
+                <tr key={produit} className={`product-row ${prodIndex === 0 ? 'border-t-2 border-black' : ''}`} style={{ height: '28px' }}>
+                  <td className="border border-black px-0.5 py-0.5 text-center font-bold bg-gray-100 text-[6px]">
+                    {rayon}
+                  </td>
+                  <td className="border border-black px-0.5 py-0.5 text-center font-bold bg-gray-100 text-[5px]">
+                    {programme}
+                  </td>
+                  <td className="border border-black px-1 py-0.5 text-center text-[10px]">{creneaux.codePLU || ''}</td>
+                  <td className="border border-black px-1 py-0.5 text-[21px]"><span className="product-name">{produit}</span></td>
+                  <td className="border border-black px-1 py-0.5"></td>
+                  <td className="border border-black px-1 py-0.5 text-center font-semibold">
+                    {(() => {
+                      const texte = convertirEnPlaques(creneaux.matin, creneaux.unitesParVente, creneaux.unitesParPlaque);
+                      if (texte.includes('Pl.')) {
+                        const [nombre, unite] = texte.split(' ');
+                        return <span><span className="quantity-number">{nombre}</span> <span className="quantity-unit">{unite}</span></span>;
+                      }
+                      return <span className="quantity-number">{texte}</span>;
+                    })()}
+                  </td>
+                  <td className="border border-black px-1 py-0.5 text-center font-semibold">
+                    {(() => {
+                      const texte = convertirEnPlaques(creneaux.midi, creneaux.unitesParVente, creneaux.unitesParPlaque);
+                      if (texte.includes('Pl.')) {
+                        const [nombre, unite] = texte.split(' ');
+                        return <span><span className="quantity-number">{nombre}</span> <span className="quantity-unit">{unite}</span></span>;
+                      }
+                      return <span className="quantity-number">{texte}</span>;
+                    })()}
+                  </td>
+                  <td className="border border-black px-1 py-0.5 text-center font-semibold">
+                    {(() => {
+                      const texte = convertirEnPlaques(creneaux.soir, creneaux.unitesParVente, creneaux.unitesParPlaque);
+                      if (texte.includes('Pl.')) {
+                        const [nombre, unite] = texte.split(' ');
+                        return <span><span className="quantity-number">{nombre}</span> <span className="quantity-unit">{unite}</span></span>;
+                      }
+                      return <span className="quantity-number">{texte}</span>;
+                    })()}
+                  </td>
+                  <td className="border border-black px-1 py-0.5 text-right pr-1 text-[7px]"></td>
+                  <td className="border border-black px-1 py-0.5 text-right pr-1 text-[7px]"></td>
+                  <td className="border border-black px-1 py-0.5"></td>
                 </tr>
-              </thead>
-              <tbody>
-                {Array.from(produits || []).map(([produit, creneaux]) => (
-                  <tr key={produit}>
-                    <td className="border border-gray-800 p-2 text-xs font-medium">{produit}</td>
-                    <td className="border border-gray-800 p-2 text-center font-bold">{creneaux.matin}</td>
-                    <td className="border border-gray-800 p-2 text-center font-bold">{creneaux.midi}</td>
-                    <td className="border border-gray-800 p-2 text-center font-bold bg-yellow-50">{creneaux.soir}</td>
-                    <td className="border border-gray-800 p-2 text-center bg-orange-50">
-                      Stock: ___ À cuire: ___
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        );
-      })}
+              ))}
+
+              {/* Ligne de capacité - gris clair pour économie d'encre */}
+              <tr className="bg-gray-200 font-bold capacity-row">
+                <td className="border border-black text-center font-bold bg-gray-100">
+                  {rayon}
+                </td>
+                <td className="border border-black text-center font-bold bg-gray-100">
+                  {programme}
+                </td>
+                <td className="border border-black text-center">Capacité</td>
+                <td className="border border-black"></td>
+                <td className="border border-black"></td>
+                <td className="border border-black text-center">
+                  {(() => {
+                    const val = calculerTotalPlaques(data.produits, 'matin');
+                    if (val === 'NC') return '-';
+                    const formatted = val % 1 === 0 ? val : val.toFixed(1);
+                    return `${formatted} Pl.`;
+                  })()}
+                </td>
+                <td className="border border-black text-center">
+                  {(() => {
+                    const val = calculerTotalPlaques(data.produits, 'midi');
+                    if (val === 'NC') return '-';
+                    const formatted = val % 1 === 0 ? val : val.toFixed(1);
+                    return `${formatted} Pl.`;
+                  })()}
+                </td>
+                <td className="border border-black text-center">
+                  {(() => {
+                    const val = calculerTotalPlaques(data.produits, 'soir');
+                    if (val === 'NC') return '-';
+                    const formatted = val % 1 === 0 ? val : val.toFixed(1);
+                    return `${formatted} Pl.`;
+                  })()}
+                </td>
+                <td colSpan="2" className="border border-black text-center">
+                  {(() => {
+                    const val = calculerTotalJournalier(data.produits);
+                    return val === 'NC' ? '-' : `Total: ${val} Pl.`;
+                  })()}
+                </td>
+                <td className="border border-black"></td>
+              </tr>
+            </React.Fragment>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
 
+// Calculer le total d'articles pour un jour donné
+function calculerTotalJour(planningData, jour) {
+  let total = 0;
+  if (planningData?.jours[jour]) {
+    // Nouvelle structure: rayon -> programme -> {produits, capacite}
+    for (const rayon of Object.values(planningData.jours[jour])) {
+      for (const programme of Object.values(rayon)) {
+        if (programme.capacite) {
+          total += programme.capacite.total;
+        }
+      }
+    }
+  }
+  return total;
+}
+
+// Récupérer tous les produits uniques pour un rayon et programme donnés
+function recupererProduitsParRayonProgramme(planningData, rayon, programme) {
+  const produitsSet = new Set();
+  const jours = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+  for (const jour of jours) {
+    if (planningData?.jours[jour]?.[rayon]?.[programme]?.produits) {
+      for (const [produit] of planningData.jours[jour][rayon][programme].produits) {
+        produitsSet.add(produit);
+      }
+    }
+  }
+  return Array.from(produitsSet);
+}
+
+// Calculer les quantités par jour pour un produit
+function calculerQuantitesParJour(planningData, rayon, programme, produit) {
+  const jours = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+  let totalSemaine = 0;
+  const joursData = jours.map(jour => {
+    const qte = planningData?.jours[jour]?.[rayon]?.[programme]?.produits?.get(produit)?.total || 0;
+    totalSemaine += qte;
+    return { jour, qte };
+  });
+  return { joursData, totalSemaine };
+}
+
 // Composant pour le planning hebdomadaire
 function PlanningHebdo({ planningData }) {
+  const jours = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+
+  // Récupérer tous les rayons et programmes
+  const rayonsPrograms = {};
+  if (planningData?.programmesParRayon) {
+    Object.entries(planningData.programmesParRayon).forEach(([rayon, programmes]) => {
+      rayonsPrograms[rayon] = Object.keys(programmes);
+    });
+  }
+
   return (
     <div>
       <h2 className="text-lg font-bold text-center bg-gray-200 p-2 mb-4 border-2 border-gray-800">
@@ -221,16 +421,8 @@ function PlanningHebdo({ planningData }) {
       </h2>
 
       <div className="grid grid-cols-7 gap-2 mb-6">
-        {['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].map(jour => {
-          let total = 0;
-          if (planningData?.jours[jour]) {
-            Object.values(planningData.jours[jour]).forEach(famille => {
-              famille.forEach(creneaux => {
-                total += creneaux.total;
-              });
-            });
-          }
-
+        {jours.map(jour => {
+          const total = calculerTotalJour(planningData, jour);
           return (
             <div key={jour} className="border border-gray-800 p-2 text-center bg-gray-50">
               <div className="font-bold text-xs mb-1">{jour}</div>
@@ -241,68 +433,56 @@ function PlanningHebdo({ planningData }) {
         })}
       </div>
 
-      {['BOULANGERIE', 'VIENNOISERIE', 'PATISSERIE'].map(famille => {
-        const hasProducts = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].some(jour =>
-          planningData?.jours[jour]?.[famille]?.size > 0
-        );
+      {Object.entries(rayonsPrograms).map(([rayon, programmes]) => (
+        <div key={rayon} className="mb-6">
+          <h2 className="text-md font-bold text-center bg-blue-200 p-2 mb-2 border-2 border-gray-800">
+            {rayon}
+          </h2>
 
-        if (!hasProducts) return null;
+          {programmes.map(programme => {
+            const produits = recupererProduitsParRayonProgramme(planningData, rayon, programme);
+            if (produits.length === 0) return null;
 
-        return (
-          <div key={famille} className="mb-6">
-            <h2 className="text-md font-bold text-center bg-gray-100 p-2 mb-2 border-2 border-gray-800">
-              {famille}
-            </h2>
+            return (
+              <div key={programme} className="mb-4">
+                <h3 className="text-sm font-semibold text-center bg-gray-100 p-1 border border-gray-800">
+                  {programme}
+                </h3>
 
-            <table className="w-full border-collapse border-2 border-gray-800 text-xs">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="border border-gray-800 p-1 text-left">Produit</th>
-                  <th className="border border-gray-800 p-1">Lun</th>
-                  <th className="border border-gray-800 p-1">Mar</th>
-                  <th className="border border-gray-800 p-1">Mer</th>
-                  <th className="border border-gray-800 p-1">Jeu</th>
-                  <th className="border border-gray-800 p-1">Ven</th>
-                  <th className="border border-gray-800 p-1">Sam</th>
-                  <th className="border border-gray-800 p-1">Dim</th>
-                  <th className="border border-gray-800 p-1">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(() => {
-                  const produitsSet = new Set();
-                  ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].forEach(jour => {
-                    if (planningData?.jours[jour]?.[famille]) {
-                      planningData.jours[jour][famille].forEach((_, produit) => {
-                        produitsSet.add(produit);
-                      });
-                    }
-                  });
-
-                  return Array.from(produitsSet).map(produit => {
-                    let totalSemaine = 0;
-                    const quantitesJours = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].map(jour => {
-                      const qte = planningData?.jours[jour]?.[famille]?.get(produit)?.total || 0;
-                      totalSemaine += qte;
-                      return qte;
-                    });
-
-                    return (
-                      <tr key={produit}>
-                        <td className="border border-gray-800 p-1 text-xs font-medium">{produit}</td>
-                        {quantitesJours.map((qte, index) => (
-                          <td key={index} className="border border-gray-800 p-1 text-center">{qte || 0}</td>
-                        ))}
-                        <td className="border border-gray-800 p-1 text-center font-bold">{totalSemaine}</td>
-                      </tr>
-                    );
-                  });
-                })()}
-              </tbody>
-            </table>
-          </div>
-        );
-      })}
+                <table className="w-full border-collapse border-2 border-gray-800 text-xs">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="border border-gray-800 p-1 text-left">Produit</th>
+                      <th className="border border-gray-800 p-1">Lun</th>
+                      <th className="border border-gray-800 p-1">Mar</th>
+                      <th className="border border-gray-800 p-1">Mer</th>
+                      <th className="border border-gray-800 p-1">Jeu</th>
+                      <th className="border border-gray-800 p-1">Ven</th>
+                      <th className="border border-gray-800 p-1">Sam</th>
+                      <th className="border border-gray-800 p-1">Dim</th>
+                      <th className="border border-gray-800 p-1">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {produits.map(produit => {
+                      const { joursData, totalSemaine } = calculerQuantitesParJour(planningData, rayon, programme, produit);
+                      return (
+                        <tr key={produit}>
+                          <td className="border border-gray-800 p-1 text-xs font-medium">{produit}</td>
+                          {joursData.map(({ jour, qte }) => (
+                            <td key={`${produit}-${jour}`} className="border border-gray-800 p-1 text-center">{qte || 0}</td>
+                          ))}
+                          <td className="border border-gray-800 p-1 text-center font-bold">{totalSemaine}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }
