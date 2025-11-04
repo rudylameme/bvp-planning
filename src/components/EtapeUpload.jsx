@@ -1,5 +1,5 @@
-import { useRef } from 'react';
-import { Upload, ChevronRight } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Upload, ChevronRight, Loader2 } from 'lucide-react';
 
 export default function EtapeUpload({
   frequentationData,
@@ -12,6 +12,34 @@ export default function EtapeUpload({
 }) {
   const refFrequentation = useRef(null);
   const refVentes = useRef(null);
+  const [loadingFreq, setLoadingFreq] = useState(false);
+  const [loadingVentes, setLoadingVentes] = useState(false);
+
+  const handleFrequentationUpload = (e) => {
+    setLoadingFreq(true);
+    // Forcer React à mettre à jour l'interface avant de commencer le traitement
+    setTimeout(() => {
+      const result = onFrequentationUpload(e);
+      // handleFrequentationUpload retourne une promesse
+      if (result && result.then) {
+        result.finally(() => setLoadingFreq(false));
+      } else {
+        setLoadingFreq(false);
+      }
+    }, 50);
+  };
+
+  const handleVentesUpload = (e) => {
+    setLoadingVentes(true);
+    // Forcer React à mettre à jour l'interface avant de commencer le traitement
+    setTimeout(() => {
+      onVentesUpload(e);
+      // Attendre un peu avant de masquer le spinner
+      setTimeout(() => {
+        setLoadingVentes(false);
+      }, 1000);
+    }, 50);
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
@@ -87,19 +115,29 @@ export default function EtapeUpload({
             ref={refFrequentation}
             type="file"
             accept=".csv,.xlsx"
-            onChange={onFrequentationUpload}
+            onChange={handleFrequentationUpload}
             className="hidden"
           />
           <button
             onClick={() => refFrequentation.current.click()}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-700 text-white rounded-lg hover:bg-amber-800 transition"
+            disabled={loadingFreq}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-700 text-white rounded-lg hover:bg-amber-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Upload size={20} />
-            Choisir un fichier
+            {loadingFreq ? (
+              <>
+                <Loader2 size={20} className="animate-spin" />
+                Traitement en cours...
+              </>
+            ) : (
+              <>
+                <Upload size={20} />
+                Choisir un fichier
+              </>
+            )}
           </button>
-          {frequentationData && (
+          {frequentationData && !loadingFreq && (
             <p className="text-green-600 mt-3 text-sm font-medium">
-              Fichier chargé - {frequentationData.totalQteTot.toFixed(0)} quantités totales détectées
+              ✅ Fichier chargé - {frequentationData.totalQteTot.toFixed(0)} quantités totales détectées
             </p>
           )}
         </div>
@@ -131,25 +169,34 @@ export default function EtapeUpload({
             ref={refVentes}
             type="file"
             accept=".csv,.xlsx"
-            onChange={onVentesUpload}
+            onChange={handleVentesUpload}
             className="hidden"
           />
           <button
             onClick={() => refVentes.current.click()}
-            disabled={!frequentationData}
+            disabled={!frequentationData || loadingVentes}
             className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition ${
-              frequentationData
+              frequentationData && !loadingVentes
                 ? 'bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer'
-                : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                : 'bg-gray-400 text-gray-200 cursor-not-allowed opacity-50'
             }`}
             title={frequentationData ? 'Choisir un fichier' : 'Importez d\'abord la fréquentation'}
           >
-            <Upload size={20} />
-            Choisir un fichier
+            {loadingVentes ? (
+              <>
+                <Loader2 size={20} className="animate-spin" />
+                Traitement en cours...
+              </>
+            ) : (
+              <>
+                <Upload size={20} />
+                Choisir un fichier
+              </>
+            )}
           </button>
-          {ventesData && (
+          {ventesData && !loadingVentes && (
             <p className="text-green-600 mt-3 text-sm font-medium">
-              Fichier chargé - {ventesData.produits.size} produits détectés
+              ✅ Fichier chargé - {ventesData.produits.size} produits détectés
             </p>
           )}
         </div>

@@ -77,7 +77,13 @@ const calculerPotentielMathematique = (ventesParJour, poidsJours) => {
  * @returns {number} Quantité finale après application des règles
  */
 const appliquerVarianteJournaliere = (qteMathematique, ventesHistoriques, variante) => {
-  // Règle 2: Le minimum est toujours les ventes historiques
+  // Règle 2 modifiée: Protection contre les zéros
+  // Si pas d'historique ET pas de calcul mathématique → minimum de sécurité de 2 unités
+  if (ventesHistoriques === 0 && qteMathematique === 0) {
+    return 2;
+  }
+
+  // Règle 2: Le minimum est toujours les ventes historiques (si > 0)
   if (qteMathematique < ventesHistoriques) {
     return ventesHistoriques;
   }
@@ -85,6 +91,12 @@ const appliquerVarianteJournaliere = (qteMathematique, ventesHistoriques, varian
   // Règle 3: Application des limites selon variante
   if (variante === 'sans') {
     // Pas de limite
+    return qteMathematique;
+  }
+
+  // Protection contre division par zéro pour le calcul de progression
+  if (ventesHistoriques === 0) {
+    // Si pas d'historique mais calcul mathématique > 0, on utilise le calcul
     return qteMathematique;
   }
 
