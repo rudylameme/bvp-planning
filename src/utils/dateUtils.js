@@ -18,7 +18,22 @@ export const getJourSemaine = (dateStr) => {
     date = new Date(excelEpoch.getTime() + numValue * 86400000);
   } else {
     // Essayer de parser comme string
-    date = new Date(dateStr);
+    const dateStrTrimmed = dateStr.toString().trim();
+
+    // Vérifier si c'est du format DD/MM/YYYY
+    const ddmmyyyyMatch = dateStrTrimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (ddmmyyyyMatch) {
+      // Extraire jour, mois, année
+      const jour = parseInt(ddmmyyyyMatch[1], 10);
+      const mois = parseInt(ddmmyyyyMatch[2], 10);
+      const annee = parseInt(ddmmyyyyMatch[3], 10);
+
+      // Créer la date (mois - 1 car JavaScript commence à 0)
+      date = new Date(annee, mois - 1, jour);
+    } else {
+      // Essayer le parser par défaut (YYYY-MM-DD, etc.)
+      date = new Date(dateStrTrimmed);
+    }
   }
 
   if (!Number.isFinite(date.getTime())) {

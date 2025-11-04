@@ -250,6 +250,13 @@ function App() {
     ));
   };
 
+  // Changer les unités par vente (lot de vente)
+  const changerUnitesParVente = (id, nouvelleValeur) => {
+    setProduits(prev => prev.map(p =>
+      p.id === id ? { ...p, unitesParVente: Number.parseInt(nouvelleValeur) || 1 } : p
+    ));
+  };
+
   // Changer le libellé personnalisé
   const changerLibelle = (id, nouveauLibelle) => {
     setProduits(prev => prev.map(p =>
@@ -475,6 +482,7 @@ function App() {
             onChangerProgramme={changerProgramme}
             onChangerUnitesParPlaque={changerUnitesParPlaque}
             onChangerCodePLU={changerCodePLU}
+            onChangerUnitesParVente={changerUnitesParVente}
             onChangerLibelle={changerLibelle}
             onChangerPotentiel={changerPotentiel}
             onToggleActif={toggleActif}
@@ -492,8 +500,11 @@ function App() {
           <EtapePlanning
             planning={planning}
             pdvInfo={pdvInfo}
+            produits={produits}
+            frequentationData={frequentationData}
             onRetour={() => setEtape('personnalisation')}
             onPersonnaliser={() => setEtape('personnalisation')}
+            onPlanningChange={setPlanning}
           />
         )}
       </div>

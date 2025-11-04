@@ -3,14 +3,125 @@ import { useState } from 'react';
 import StatistiquesPanel from './StatistiquesPanel';
 import ImpressionPanel from './ImpressionPanel';
 import { convertirEnPlaques } from '../utils/conversionUtils';
+import { recalculerPlanningAvecVariantes } from '../services/planningRecalculator';
 
-export default function EtapePlanning({ planning, pdvInfo, onRetour, onPersonnaliser }) {
+export default function EtapePlanning({ planning, pdvInfo, produits, frequentationData, onRetour, onPersonnaliser, onPlanningChange }) {
   const [selectedJour, setSelectedJour] = useState(null);
   const [showStats, setShowStats] = useState(false);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
   const [modeAffichage, setModeAffichage] = useState('plaques'); // 'unites' ou 'plaques'
 
-  if (!planning) return null;
+  // Initialiser les variantes par défaut : Forte (lundi-jeudi), Faible (vendredi-dimanche)
+  const getVariantesParDefaut = () => {
+    if (!planning?.programmesParRayon) return {};
+
+    const variantes = {};
+    const rayons = Object.keys(planning.programmesParRayon);
+
+    rayons.forEach(rayon => {
+      variantes[rayon] = {
+        'lundi': 'forte',
+        'mardi': 'forte',
+        'mercredi': 'forte',
+        'jeudi': 'forte',
+        'vendredi': 'faible',
+        'samedi': 'faible',
+        'dimanche': 'faible'
+      };
+    });
+
+    return variantes;
+  };
+
+  // Nouveau système : variantes par rayon ET par jour
+  // Structure: { rayon: { jour: 'sans'|'forte'|'faible' } }
+  const [variantesParRayonEtJour, setVariantesParRayonEtJour] = useState(getVariantesParDefaut());
+
+  // Tracking des modifications manuelles (Règle 4)
+  // Structure: { rayon: { jour: { libelleProduit: quantite } } }
+  const [modificationsManuellesParRayonEtJour, setModificationsManuellesParRayonEtJour] = useState({});
+
+  const [planningLocal, setPlanningLocal] = useState(planning);
+
+  if (!planningLocal) return null;
+
+  // Handler pour passer à la vue journalière
+  const handleVoirJour = (jour) => {
+    setSelectedJour(jour);
+  };
+
+  // Handler pour imprimer toute la semaine
+  const handleImprimerSemaine = () => {
+    setSelectedJour(null);
+    setShowPrintPreview(true);
+  };
+
+  // Handler pour changer la variante d'un rayon pour un jour spécifique
+  const handleChangeVariante = (rayon, jour, nouvelleVariante) => {
+    const nouvellesVariantes = {
+      ...variantesParRayonEtJour,
+      [rayon]: {
+        ...(variantesParRayonEtJour[rayon] || {}),
+        [jour]: nouvelleVariante
+      }
+    };
+    setVariantesParRayonEtJour(nouvellesVariantes);
+
+    // IMPORTANT: Effacer les modifications manuelles pour ce rayon/jour
+    // Car changer la variante doit recalculer automatiquement
+    const nouvellesModifs = { ...modificationsManuellesParRayonEtJour };
+    if (nouvellesModifs[rayon]?.[jour]) {
+      delete nouvellesModifs[rayon][jour];
+      // Si le rayon n'a plus de jours modifiés, supprimer le rayon
+      if (Object.keys(nouvellesModifs[rayon]).length === 0) {
+        delete nouvellesModifs[rayon];
+      }
+    }
+    setModificationsManuellesParRayonEtJour(nouvellesModifs);
+
+    // Recalculer le planning avec la nouvelle variante (sans les modifs manuelles de ce jour)
+    const nouveauPlanning = recalculerPlanningAvecVariantes(
+      planningLocal,
+      produits,
+      nouvellesVariantes,
+      frequentationData,
+      nouvellesModifs
+    );
+
+    setPlanningLocal(nouveauPlanning);
+    if (onPlanningChange) {
+      onPlanningChange(nouveauPlanning);
+    }
+  };
+
+  // Handler pour modification manuelle d'une quantité (Règle 4)
+  const handleModificationManuelle = (rayon, jour, libelleProduit, nouvelleQuantite) => {
+    const nouvellesModifs = {
+      ...modificationsManuellesParRayonEtJour,
+      [rayon]: {
+        ...(modificationsManuellesParRayonEtJour[rayon] || {}),
+        [jour]: {
+          ...(modificationsManuellesParRayonEtJour[rayon]?.[jour] || {}),
+          [libelleProduit]: parseInt(nouvelleQuantite, 10) || 0
+        }
+      }
+    };
+    setModificationsManuellesParRayonEtJour(nouvellesModifs);
+
+    // Recalculer le planning avec la modification manuelle
+    const nouveauPlanning = recalculerPlanningAvecVariantes(
+      planningLocal,
+      produits,
+      variantesParRayonEtJour,
+      frequentationData,
+      nouvellesModifs
+    );
+
+    setPlanningLocal(nouveauPlanning);
+    if (onPlanningChange) {
+      onPlanningChange(nouveauPlanning);
+    }
+  };
 
   /**
    * Formate l'affichage des quantités selon le mode sélectionné
@@ -107,7 +218,7 @@ export default function EtapePlanning({ planning, pdvInfo, onRetour, onPersonnal
         isVisible={showPrintPreview}
         onClose={() => setShowPrintPreview(false)}
         selectedJour={selectedJour}
-        planningData={planning}
+        planningData={planningLocal}
         pdvInfo={pdvInfo}
       />
 
@@ -153,89 +264,273 @@ export default function EtapePlanning({ planning, pdvInfo, onRetour, onPersonnal
           </div>
         </div>
 
+        {/* Barre de navigation fixe des jours */}
+        {!selectedJour && (
+          <div className="sticky top-0 z-50 bg-gradient-to-r from-blue-600 to-blue-700 shadow-lg">
+            <div className="max-w-7xl mx-auto px-4 py-3">
+              <div className="flex items-center justify-center gap-2">
+                {['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].map((jour) => (
+                  <button
+                    key={jour}
+                    onClick={() => handleVoirJour(jour)}
+                    className="px-4 py-2 bg-white text-blue-700 font-semibold rounded-lg hover:bg-blue-50 hover:scale-105 transition-all shadow-md"
+                    title={`Voir le détail du ${jour}`}
+                  >
+                    {jour}
+                  </button>
+                ))}
+                <button
+                  onClick={handleImprimerSemaine}
+                  className="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 hover:scale-105 transition-all shadow-md flex items-center gap-2"
+                  title="Imprimer toute la semaine"
+                >
+                  <Printer className="w-4 h-4" />
+                  Imprimer Semaine
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Content */}
         <div className="max-w-7xl mx-auto p-4">
           {/* Statistiques */}
-          <StatistiquesPanel planning={planning} isVisible={showStats} />
+          <StatistiquesPanel planning={planningLocal} isVisible={showStats} />
 
-          {/* Vue hebdomadaire */}
+          {/* Vue hebdomadaire - Nouveau tableau */}
           {!selectedJour && (
             <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-              <h2 className="text-xl font-semibold mb-4">Planning Hebdomadaire</h2>
+              <div className="mb-4">
+                <h2 className="text-xl font-semibold mb-3">Planning Hebdomadaire</h2>
 
-              {/* Sélection des jours */}
-              <div className="grid grid-cols-7 gap-4 mb-6">
-                {['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].map(jour => {
-                  let total = 0;
-                  if (planning.jours[jour]) {
-                    // Nouvelle structure: rayon -> programme -> produits
-                    for (const rayon of Object.values(planning.jours[jour])) {
-                      for (const programme of Object.values(rayon)) {
-                        if (programme.capacite) {
-                          total += programme.capacite.total;
-                        }
-                      }
-                    }
-                  }
-
-                  const poids = planning.stats.poidsJours[jour] || 0;
-
-                  return (
-                    <button
-                      key={jour}
-                      onClick={() => setSelectedJour(jour)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          setSelectedJour(jour);
-                        }
-                      }}
-                      className="bg-gray-50 p-4 rounded-lg cursor-pointer hover:bg-blue-50 transition relative focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      type="button"
-                      aria-label={`Voir le planning du ${jour}`}
-                    >
-                      <div className="absolute top-2 right-2 text-xs text-gray-500">
-                        {(poids * 100).toFixed(0)}%
-                      </div>
-                      <h3 className="font-semibold text-center mb-2">{jour}</h3>
-                      <p className="text-2xl font-bold text-center text-blue-600">
-                        {total}
-                      </p>
-                      <p className="text-xs text-center text-gray-500">articles</p>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Résumé par rayon */}
-              <div className="grid grid-cols-2 gap-4">
-                {planning.programmesParRayon && Object.entries(planning.programmesParRayon).map(([rayon, programmes]) => {
-                  let total = 0;
-                  let nbProduits = 0;
-
-                  // Calculer le total pour ce rayon sur la semaine
-                  Object.values(planning.jours).forEach(joursData => {
-                    if (joursData[rayon]) {
-                      Object.values(joursData[rayon]).forEach(programme => {
-                        if (programme.capacite) {
-                          total += programme.capacite.total;
-                        }
-                        nbProduits += programme.produits.size;
-                      });
-                    }
-                  });
-
-                  return (
-                    <div key={rayon} className="bg-gray-50 p-4 rounded-lg">
-                      <h3 className="font-semibold mb-2">{rayon}</h3>
-                      <p className="text-xl font-bold">{total} unités/semaine</p>
-                      <p className="text-sm text-gray-500">
-                        {Object.keys(programmes).length} programme(s) de cuisson
-                      </p>
+                {/* Légendes */}
+                <div className="flex items-center justify-between gap-6 text-xs">
+                  {/* Légende variantes */}
+                  <div className="flex items-center gap-3">
+                    <span className="font-semibold">Variantes:</span>
+                    <div className="flex items-center gap-1">
+                      <div className="w-5 h-5 rounded bg-purple-600 text-white flex items-center justify-center font-bold text-[10px]">S</div>
+                      <span>Sans limite</span>
                     </div>
-                  );
-                })}
+                    <div className="flex items-center gap-1">
+                      <div className="w-5 h-5 rounded bg-green-600 text-white flex items-center justify-center font-bold text-[10px]">F</div>
+                      <span>Forte (+20%)</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-5 h-5 rounded bg-orange-600 text-white flex items-center justify-center font-bold text-[10px]">f</div>
+                      <span>Faible (+10%)</span>
+                    </div>
+                  </div>
+
+                  {/* Légende des couleurs */}
+                  <div className="flex items-center gap-3">
+                    <span className="font-semibold">Écarts vs historique:</span>
+                    <div className="flex items-center gap-1">
+                      <div className="w-4 h-4 bg-green-50 border border-gray-300"></div>
+                      <span>&gt;+20%</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-4 h-4 bg-blue-50 border border-gray-300"></div>
+                      <span>+10 à +20%</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-4 h-4 bg-white border border-gray-300"></div>
+                      <span>-10 à +10%</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-4 h-4 bg-orange-50 border border-gray-300"></div>
+                      <span>0 à -10%</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-4 h-4 bg-red-50 border border-gray-300"></div>
+                      <span>&lt;-10%</span>
+                    </div>
+                  </div>
+                </div>
               </div>
+
+              {/* Tableau par rayon */}
+              {planningLocal.programmesParRayon && Object.entries(planningLocal.programmesParRayon).map(([rayon, programmes], rayonIndex) => {
+                // Collecter tous les produits uniques de ce rayon
+                const produitsSet = new Set();
+                Object.values(programmes).forEach(produits => {
+                  produits.forEach(p => produitsSet.add(p.libelle));
+                });
+                const produitsArray = Array.from(produitsSet);
+
+                const joursOrdre = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+
+                return (
+                  <div key={rayon} className="mb-8">
+                    {/* En-tête du rayon */}
+                    <div className="flex items-center justify-between bg-blue-600 text-white p-3 rounded-t">
+                      <h3 className="text-xl font-bold">{rayon}</h3>
+                      <span className="text-sm italic">Sélectionnez la variante par jour dans le tableau</span>
+                    </div>
+
+                    {/* Tableau des produits */}
+                    <div className="overflow-x-auto border border-gray-300 rounded-b">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-100 sticky top-0">
+                          <tr>
+                            <th className="border border-gray-300 p-2 text-left min-w-[200px]">Produit</th>
+                            {joursOrdre.map(jour => {
+                              const jourLower = jour.toLowerCase();
+                              // Déterminer la variante par défaut selon le jour
+                              const varianteDefaut = ['lundi', 'mardi', 'mercredi', 'jeudi'].includes(jourLower) ? 'forte' : 'faible';
+                              const varianteActuelle = variantesParRayonEtJour[rayon]?.[jourLower] || varianteDefaut;
+
+                              return (
+                                <th key={jour} className="border border-gray-300 p-2 text-center min-w-[100px]">
+                                  <div className="flex flex-col gap-1">
+                                    <span className="font-semibold text-sm">{jour.substring(0, 3)}</span>
+                                    {/* Groupe de 3 icônes compactes */}
+                                    <div className="flex gap-0.5 justify-center">
+                                      <button
+                                        onClick={() => handleChangeVariante(rayon, jourLower, 'sans')}
+                                        className={`w-6 h-6 rounded flex items-center justify-center text-[11px] font-bold transition-all ${
+                                          varianteActuelle === 'sans'
+                                            ? 'bg-purple-600 text-white scale-110'
+                                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                        }`}
+                                        title="Sans limite"
+                                      >
+                                        S
+                                      </button>
+                                      <button
+                                        onClick={() => handleChangeVariante(rayon, jourLower, 'forte')}
+                                        className={`w-6 h-6 rounded flex items-center justify-center text-[11px] font-bold transition-all ${
+                                          varianteActuelle === 'forte'
+                                            ? 'bg-green-600 text-white scale-110'
+                                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                        }`}
+                                        title="Forte: +20% max"
+                                      >
+                                        F
+                                      </button>
+                                      <button
+                                        onClick={() => handleChangeVariante(rayon, jourLower, 'faible')}
+                                        className={`w-6 h-6 rounded flex items-center justify-center text-[11px] font-bold transition-all ${
+                                          varianteActuelle === 'faible'
+                                            ? 'bg-orange-600 text-white scale-110'
+                                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                        }`}
+                                        title="Faible: +10% max"
+                                      >
+                                        f
+                                      </button>
+                                    </div>
+                                  </div>
+                                </th>
+                              );
+                            })}
+                          </tr>
+                          <tr>
+                            <th className="border border-gray-300 p-2 text-left bg-gray-50"></th>
+                            {joursOrdre.map(jour => (
+                              <th key={jour} className="border border-gray-300 p-2 text-center bg-gray-50">
+                                <span className="text-xs text-gray-500">
+                                  {((planningLocal.stats.poidsJours[jour] || 0) * 100).toFixed(0)}%
+                                </span>
+                              </th>
+                            ))}
+                            <th className="border border-gray-300 p-2 text-center min-w-[100px]">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {produitsArray.map(produitLibelle => {
+                            // Trouver les données de ce produit dans les programmes
+                            let produitData = null;
+                            for (const programmeProduits of Object.values(programmes)) {
+                              const found = programmeProduits.find(p => p.libelle === produitLibelle);
+                              if (found) {
+                                produitData = found;
+                                break;
+                              }
+                            }
+
+                            if (!produitData) return null;
+
+                            // Calculer les totaux
+                            let totalPreco = 0;
+                            let totalHistorique = 0;
+
+                            return (
+                              <tr key={produitLibelle} className="hover:bg-blue-50">
+                                <td className="border border-gray-300 p-2 font-medium">
+                                  {produitLibelle}
+                                </td>
+                                {joursOrdre.map(jour => {
+                                  // Récupérer les données pour ce jour
+                                  const jourData = planningLocal.jours[jour]?.[rayon];
+                                  let qteJour = 0;
+                                  let ventesHistoJour = 0;
+
+                                  if (jourData) {
+                                    for (const programme of Object.values(jourData)) {
+                                      const produit = programme.produits.get(produitLibelle);
+                                      if (produit) {
+                                        qteJour = produit.total;
+                                        ventesHistoJour = produit.ventesHistoriques || 0;
+                                        break;
+                                      }
+                                    }
+                                  }
+
+                                  totalPreco += qteJour;
+                                  totalHistorique += ventesHistoJour;
+
+                                  const ecart = ventesHistoJour > 0 ? ((qteJour - ventesHistoJour) / ventesHistoJour) * 100 : 0;
+                                  let bgColor = 'bg-white';
+                                  if (ecart > 20) bgColor = 'bg-green-50';
+                                  else if (ecart > 10) bgColor = 'bg-blue-50';
+                                  else if (ecart < -10) bgColor = 'bg-red-50';
+                                  else if (ecart < 0) bgColor = 'bg-orange-50';
+
+                                  return (
+                                    <td key={jour} className={`border border-gray-300 px-1 py-0.5 text-center ${bgColor}`}>
+                                      <div className="flex flex-col gap-0.5">
+                                        {/* Préconisation éditable */}
+                                        <div className="flex items-center gap-0.5 justify-center">
+                                          <span className="text-[9px] text-gray-500 w-7">Préco</span>
+                                          <input
+                                            type="number"
+                                            value={qteJour}
+                                            onChange={(e) => handleModificationManuelle(rayon, jour.toLowerCase(), produitLibelle, e.target.value)}
+                                            className={`w-14 text-center border border-blue-300 rounded px-1 py-0.5 text-xs font-semibold text-blue-700 ${bgColor}`}
+                                            min="0"
+                                          />
+                                        </div>
+                                        {/* Historique */}
+                                        <div className="flex items-center gap-0.5 justify-center">
+                                          <span className="text-[9px] text-gray-500 w-7">Histo</span>
+                                          <span className="w-14 text-xs text-gray-600">{ventesHistoJour}</span>
+                                        </div>
+                                        {/* Écart en pourcentage */}
+                                        {ventesHistoJour > 0 && (
+                                          <div className={`text-[9px] ${ecart >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                            {ecart >= 0 ? '+' : ''}{ecart.toFixed(0)}%
+                                          </div>
+                                        )}
+                                      </div>
+                                    </td>
+                                  );
+                                })}
+                                <td className="border border-gray-300 p-2 text-center">
+                                  <div className="flex flex-col gap-1">
+                                    <div className="font-bold text-blue-700">{totalPreco}</div>
+                                    <div className="text-sm text-gray-600">{totalHistorique}</div>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -288,7 +583,7 @@ export default function EtapePlanning({ planning, pdvInfo, onRetour, onPersonnal
                 </p>
               </div>
 
-              {planning.jours[selectedJour] && Object.entries(planning.jours[selectedJour]).map(([rayon, programmes]) => (
+              {planningLocal.jours[selectedJour] && Object.entries(planningLocal.jours[selectedJour]).map(([rayon, programmes]) => (
                 <div key={rayon} className="mb-8">
                   {/* Titre du rayon */}
                   <h3 className="text-xl font-bold text-white bg-blue-600 p-3 mb-0 rounded-t">

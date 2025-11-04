@@ -11,6 +11,7 @@ export default function TableauProduits({
   onChangerProgramme,
   onChangerUnitesParPlaque,
   onChangerCodePLU,
+  onChangerUnitesParVente,
   rayonsDisponibles = [],
   programmesDisponibles = []
 }) {
@@ -23,9 +24,8 @@ export default function TableauProduits({
             <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700">Rayon</th>
             <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700">Programme</th>
             <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700">Code PLU</th>
+            <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700">Lot de vente</th>
             <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700">Unités/Plaque</th>
-            <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700">Potentiel Hebdo</th>
-            <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700">Volume</th>
             <th className="px-2 py-2 text-center text-xs font-semibold text-gray-700">Actif</th>
             <th className="px-2 py-2 text-center text-xs font-semibold text-gray-700">Actions</th>
           </tr>
@@ -93,6 +93,17 @@ export default function TableauProduits({
                   />
                 </td>
                 <td className="px-2 py-2">
+                  <input
+                    type="number"
+                    value={produit.unitesParVente ?? 1}
+                    onChange={(e) => onChangerUnitesParVente && onChangerUnitesParVente(produit.id, e.target.value)}
+                    className="w-14 px-1 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm"
+                    min="1"
+                    step="1"
+                    title="Quantité par lot de vente (ex: 3+1 = 4)"
+                  />
+                </td>
+                <td className="px-2 py-2">
                   <div className="flex items-center gap-1">
                     <input
                       type="number"
@@ -106,23 +117,6 @@ export default function TableauProduits({
                       <span className="text-orange-600 text-xs whitespace-nowrap" title="Produit sans cuisson">NC</span>
                     )}
                   </div>
-                </td>
-                <td className="px-2 py-2">
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="number"
-                      value={produit.potentielHebdo}
-                      onChange={(e) => onChangerPotentiel(produit.id, e.target.value)}
-                      className={`w-16 px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm ${aPotentielModifie ? 'border-emerald-500 bg-emerald-50' : 'border-gray-300'}`}
-                      min="0"
-                    />
-                    {aPotentielModifie && (
-                      <span className="text-emerald-600 text-xs whitespace-nowrap">✓</span>
-                    )}
-                  </div>
-                </td>
-                <td className="px-4 py-2 text-gray-600">
-                  {produit.totalVentes.toFixed(0)}
                 </td>
                 <td className="px-4 py-2 text-center">
                   <input

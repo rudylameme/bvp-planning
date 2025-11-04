@@ -15,6 +15,7 @@ export default function EtapePersonnalisation({
   onChangerProgramme,
   onChangerUnitesParPlaque,
   onChangerCodePLU,
+  onChangerUnitesParVente,
   onChangerLibelle,
   onChangerPotentiel,
   onToggleActif,
@@ -27,7 +28,7 @@ export default function EtapePersonnalisation({
   frequentationData
 }) {
   const refReglages = useRef(null);
-  const [modeAffichage, setModeAffichage] = useState('groupes'); // 'groupes' ou 'liste'
+  const [modeAffichage, setModeAffichage] = useState('liste'); // Passer directement en mode liste
   const [showAttributionManuelle, setShowAttributionManuelle] = useState(false);
   const [modeCalculPotentiel, setModeCalculPotentiel] = useState('mathematique'); // 'mathematique' | 'forte-progression' | 'prudent'
 
@@ -214,28 +215,7 @@ export default function EtapePersonnalisation({
         </div>
       )}
 
-      {/* Message d'information sur les potentiels */}
-      {nbProduitsAvecPotentiel === nbProduitsTotal && nbProduitsTotal > 0 && (
-        <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
-          <p className="text-sm text-green-800">
-            ✅ <strong>Potentiels calculés automatiquement</strong> pour {nbProduitsTotal} produits à partir des ventes historiques. Vous pouvez les ajuster manuellement si besoin.
-          </p>
-        </div>
-      )}
-      {nbProduitsAvecPotentiel > 0 && nbProduitsAvecPotentiel < nbProduitsTotal && (
-        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="text-sm text-yellow-800">
-            ⚠️ {nbProduitsAvecPotentiel}/{nbProduitsTotal} produits ont des potentiels définis. Utilisez le bouton "🤖 Auto-Potentiels" pour calculer les potentiels manquants.
-          </p>
-        </div>
-      )}
-      {nbProduitsAvecPotentiel === 0 && nbProduitsTotal > 0 && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm text-red-800">
-            ❌ Aucun potentiel défini. Cliquez sur "🤖 Auto-Potentiels" pour les calculer automatiquement à partir des ventes.
-          </p>
-        </div>
-      )}
+      {/* Message d'information sur les potentiels - Retiré car calcul automatique dans le planning */}
 
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-800">Personnalisation des produits</h2>
@@ -295,41 +275,6 @@ export default function EtapePersonnalisation({
               </button>
             </>
           )}
-          {/* Menu Auto-Potentiels avec choix du mode */}
-          <div className="relative group">
-            <button
-              onClick={() => calculerPotentielsAuto()}
-              className="flex items-center gap-2 px-4 py-2 bg-amber-700 text-white rounded-lg hover:bg-amber-800 transition"
-              title="Calculer automatiquement les potentiels à partir des ventes"
-            >
-              🤖 Auto-Potentiels
-              <span className="text-xs opacity-75">({modeCalculPotentiel === 'mathematique' ? 'Math' : modeCalculPotentiel === 'forte-progression' ? '+20%' : '+10%'})</span>
-            </button>
-            {/* Dropdown pour choisir le mode */}
-            <div className="absolute hidden group-hover:block top-full mt-1 right-0 bg-white border border-gray-300 rounded-lg shadow-lg z-10 min-w-[200px]">
-              <button
-                onClick={() => { setModeCalculPotentiel('mathematique'); calculerPotentielsAuto('mathematique'); }}
-                className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 rounded-t-lg ${modeCalculPotentiel === 'mathematique' ? 'bg-amber-50 text-amber-800 font-semibold' : 'text-gray-700'}`}
-              >
-                📊 Mathématique
-                <div className="text-xs text-gray-500">Calcul brut sans limite</div>
-              </button>
-              <button
-                onClick={() => { setModeCalculPotentiel('forte-progression'); calculerPotentielsAuto('forte-progression'); }}
-                className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 border-t ${modeCalculPotentiel === 'forte-progression' ? 'bg-amber-50 text-amber-800 font-semibold' : 'text-gray-700'}`}
-              >
-                🚀 Forte progression
-                <div className="text-xs text-gray-500">Limite +20% max</div>
-              </button>
-              <button
-                onClick={() => { setModeCalculPotentiel('prudent'); calculerPotentielsAuto('prudent'); }}
-                className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 rounded-b-lg border-t ${modeCalculPotentiel === 'prudent' ? 'bg-amber-50 text-amber-800 font-semibold' : 'text-gray-700'}`}
-              >
-                🛡️ Prudent
-                <div className="text-xs text-gray-500">Limite +10% max</div>
-              </button>
-            </div>
-          </div>
           <button
             onClick={onAjouterProduitCustom}
             className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
@@ -340,7 +285,7 @@ export default function EtapePersonnalisation({
             onClick={exporterReglages}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
           >
-            <Download size={20} />
+            <Upload size={20} />
             Exporter
           </button>
           <input
@@ -354,7 +299,7 @@ export default function EtapePersonnalisation({
             onClick={() => refReglages.current.click()}
             className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
           >
-            <Upload size={20} />
+            <Download size={20} />
             Importer
           </button>
         </div>
@@ -369,6 +314,7 @@ export default function EtapePersonnalisation({
           onChangerProgramme={onChangerProgramme}
           onChangerUnitesParPlaque={onChangerUnitesParPlaque}
           onChangerCodePLU={onChangerCodePLU}
+          onChangerUnitesParVente={onChangerUnitesParVente}
           onChangerLibelle={onChangerLibelle}
           onChangerPotentiel={onChangerPotentiel}
           onToggleActif={onToggleActif}
@@ -384,6 +330,7 @@ export default function EtapePersonnalisation({
           onChangerProgramme={onChangerProgramme}
           onChangerUnitesParPlaque={onChangerUnitesParPlaque}
           onChangerCodePLU={onChangerCodePLU}
+          onChangerUnitesParVente={onChangerUnitesParVente}
           onChangerLibelle={onChangerLibelle}
           onChangerPotentiel={onChangerPotentiel}
           onToggleActif={onToggleActif}

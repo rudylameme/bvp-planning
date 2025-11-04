@@ -1,4 +1,50 @@
 /**
+ * Calcule les ventes historiques totales pour un jour donné
+ */
+const calculerVentesHistoriquesPourJour = (ventesParJour, jourCible) => {
+  if (!ventesParJour || Object.keys(ventesParJour).length === 0) {
+    return 0;
+  }
+
+  // Fonction pour convertir une date en jour de la semaine
+  const getJourSemaine = (dateStr) => {
+    let date;
+    const numValue = Number(dateStr);
+    if (Number.isFinite(numValue)) {
+      const excelEpoch = new Date(1899, 11, 30);
+      date = new Date(excelEpoch.getTime() + numValue * 86400000);
+    } else {
+      const dateStrTrimmed = dateStr.toString().trim();
+      const ddmmyyyyMatch = dateStrTrimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (ddmmyyyyMatch) {
+        const jour = parseInt(ddmmyyyyMatch[1], 10);
+        const mois = parseInt(ddmmyyyyMatch[2], 10);
+        const annee = parseInt(ddmmyyyyMatch[3], 10);
+        date = new Date(annee, mois - 1, jour);
+      } else {
+        date = new Date(dateStrTrimmed);
+      }
+    }
+    if (!Number.isFinite(date.getTime())) {
+      return null;
+    }
+    const jours = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+    return jours[date.getDay()];
+  };
+
+  // Calculer le total des ventes pour ce jour
+  let totalVentes = 0;
+  for (const [date, quantite] of Object.entries(ventesParJour)) {
+    const jourDeDate = getJourSemaine(date);
+    if (jourDeDate === jourCible) {
+      totalVentes += quantite;
+    }
+  }
+
+  return totalVentes;
+};
+
+/**
  * Calcule le planning de production avec répartition horaire Matin/Midi/Soir
  */
 export const calculerPlanning = (frequentationData, produits) => {
@@ -88,7 +134,8 @@ export const calculerPlanning = (frequentationData, produits) => {
           };
 
           for (const produit of produitsDuProgramme) {
-            const qteHebdo = Math.ceil(produit.potentielHebdo * 1.1);
+            // Le potentielHebdo contient déjà la progression appliquée (Mathématique/Fort/Prudent)
+            const qteHebdo = produit.potentielHebdo;
             const poids = planning.stats.poidsJours[jour];
             const qteJour = Math.ceil(qteHebdo * poids);
 
@@ -99,6 +146,9 @@ export const calculerPlanning = (frequentationData, produits) => {
             const qteMidi = Math.ceil(qteJour * poidsTranchesJour.midi);
             const qteSoir = Math.ceil(qteJour * poidsTranchesJour.soir);
 
+            // Calculer les ventes historiques pour ce jour
+            const ventesHistoriques = calculerVentesHistoriquesPourJour(produit.ventesParJour, jourLower);
+
             const creneauxData = {
               matin: qteMatin,
               midi: qteMidi,
@@ -107,7 +157,8 @@ export const calculerPlanning = (frequentationData, produits) => {
               unitesParVente: produit.unitesParVente ?? 1,
               unitesParPlaque: produit.unitesParPlaque ?? 0,
               itm8: produit.itm8,
-              codePLU: produit.codePLU
+              codePLU: produit.codePLU,
+              ventesHistoriques: ventesHistoriques // Ajout des ventes historiques
             };
 
             console.log(`📦 Planning ${jour} - ${produit.libelle}:`, creneauxData);

@@ -80,7 +80,7 @@ export default function EtapeUpload({
               <li>Ligne avec "JOUR" dans les en-têtes</li>
               <li>Colonne G : Jours (1-lundi, 2-mardi...)</li>
               <li>Colonne H : Tranches horaires</li>
-              <li>Colonnes N, T, Z : Tickets (S-1, AS-1, S-2)</li>
+              <li>Colonnes J, P, V : Qte Tot BVP (S-1, AS-1, S-2)</li>
             </ul>
           </div>
           <input
@@ -99,7 +99,7 @@ export default function EtapeUpload({
           </button>
           {frequentationData && (
             <p className="text-green-600 mt-3 text-sm font-medium">
-              Fichier chargé - {frequentationData.totalTicketsPDV.toFixed(0)} tickets détectés
+              Fichier chargé - {frequentationData.totalQteTot.toFixed(0)} quantités totales détectées
             </p>
           )}
         </div>

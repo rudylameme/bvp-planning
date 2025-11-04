@@ -285,16 +285,16 @@ const diagnostiquerFrequentation = (allData) => {
 
   // Vérifier qu'il y a assez de colonnes
   const sampleRow = allData[headerRowIndex >= 0 ? headerRowIndex + 1 : 1];
-  if (!sampleRow || sampleRow.length < 26) {
+  if (!sampleRow || sampleRow.length < 22) {
     console.error(`❌ ERREUR : Pas assez de colonnes dans le fichier`);
     console.error(`   Nombre de colonnes trouvées : ${sampleRow ? sampleRow.length : 0}`);
-    console.error(`   Nombre de colonnes requises : 26 minimum`);
+    console.error(`   Nombre de colonnes requises : 22 minimum`);
     console.error('   Colonnes attendues :');
     console.error('   - Colonne G (7) : JOUR');
     console.error('   - Colonne H (8) : TRANCHE');
-    console.error('   - Colonne N (14) : Tickets S-1');
-    console.error('   - Colonne T (20) : Tickets AS-1');
-    console.error('   - Colonne Z (26) : Tickets S-2');
+    console.error('   - Colonne J (10) : Qte Tot BVP S-1');
+    console.error('   - Colonne P (16) : Qte Tot BVP AS-1');
+    console.error('   - Colonne V (22) : Qte Tot BVP S-2');
     return false;
   }
 
@@ -307,15 +307,15 @@ const diagnostiquerFrequentation = (allData) => {
 
   for (let i = (headerRowIndex >= 0 ? headerRowIndex + 1 : 1); i < Math.min(allData.length, 50); i++) {
     const row = allData[i];
-    if (!row || row.length < 26) continue;
+    if (!row || row.length < 22) continue;
 
     const jour = row[6];
     const tranche = row[7];
-    const ticketsS1 = parseFloat(row[13]) || 0;
+    const qteTotBVPS1 = parseFloat(row[9]) || 0;  // Colonne J (index 9)
 
     if (jour) joursDetectes.add(jour.toString());
     if (tranche) tranchesDetectees.add(tranche.toString());
-    if (ticketsS1 > 0) lignesAvecDonnees++;
+    if (qteTotBVPS1 > 0) lignesAvecDonnees++;
   }
 
   console.log(`📊 Jours détectés (${joursDetectes.size}) :`, Array.from(joursDetectes).join(', '));
@@ -323,7 +323,7 @@ const diagnostiquerFrequentation = (allData) => {
   console.log(`📈 Lignes avec des données : ${lignesAvecDonnees}`);
 
   if (lignesAvecDonnees === 0) {
-    console.error('❌ ERREUR : Aucune donnée de tickets trouvée dans la colonne N (14)');
+    console.error('❌ ERREUR : Aucune donnée de quantités trouvée dans la colonne J (Qte Tot BVP S-1)');
     return false;
   }
 
@@ -358,19 +358,19 @@ export const parseFrequentationExcel = (arrayBuffer, typePonderation = 'standard
     '7-dimanche': 'dimanche'
   };
 
-  // Initialisation des données pour les 3 semaines
-  const ticketsParJourS1 = {};
-  const ticketsParJourAS1 = {};
-  const ticketsParJourS2 = {};
-  const ticketsParJourTrancheS1 = {};
-  const ticketsParJourTrancheAS1 = {};
-  const ticketsParJourTrancheS2 = {};
+  // Initialisation des données pour les 3 semaines (utilisant Qte Tot BVP)
+  const qteTotParJourS1 = {};
+  const qteTotParJourAS1 = {};
+  const qteTotParJourS2 = {};
+  const qteTotParJourTrancheS1 = {};
+  const qteTotParJourTrancheAS1 = {};
+  const qteTotParJourTrancheS2 = {};
 
   Object.values(jourMap).forEach(jour => {
-    ticketsParJourS1[jour] = 0;
-    ticketsParJourAS1[jour] = 0;
-    ticketsParJourS2[jour] = 0;
-    ticketsParJourTrancheS1[jour] = {
+    qteTotParJourS1[jour] = 0;
+    qteTotParJourAS1[jour] = 0;
+    qteTotParJourS2[jour] = 0;
+    qteTotParJourTrancheS1[jour] = {
       '00_Autre': 0,
       '09h_12h': 0,
       '12h_14h': 0,
@@ -378,7 +378,7 @@ export const parseFrequentationExcel = (arrayBuffer, typePonderation = 'standard
       '16h_19h': 0,
       '19h_23h': 0
     };
-    ticketsParJourTrancheAS1[jour] = {
+    qteTotParJourTrancheAS1[jour] = {
       '00_Autre': 0,
       '09h_12h': 0,
       '12h_14h': 0,
@@ -386,7 +386,7 @@ export const parseFrequentationExcel = (arrayBuffer, typePonderation = 'standard
       '16h_19h': 0,
       '19h_23h': 0
     };
-    ticketsParJourTrancheS2[jour] = {
+    qteTotParJourTrancheS2[jour] = {
       '00_Autre': 0,
       '09h_12h': 0,
       '12h_14h': 0,
@@ -410,16 +410,16 @@ export const parseFrequentationExcel = (arrayBuffer, typePonderation = 'standard
     headerRowIndex = 0;
   }
 
-  // Extraction des données (colonnes : 6=JOUR, 7=TRANCHE, N=13, T=19, Z=25)
+  // Extraction des données (colonnes : 6=JOUR, 7=TRANCHE, J=9, P=15, V=21)
   for (let i = headerRowIndex + 1; i < allData.length; i++) {
     const row = allData[i];
-    if (!row || row.length < 26) continue;
+    if (!row || row.length < 22) continue;
 
     const jourCell = row[6];
     const trancheCell = row[7];
-    const ticketsPDVS1 = parseFloat(row[13]) || 0;  // Colonne N (S-1)
-    const ticketsPDVAS1 = parseFloat(row[19]) || 0; // Colonne T (AS-1)
-    const ticketsPDVS2 = parseFloat(row[25]) || 0;  // Colonne Z (S-2)
+    const qteTotBVPS1 = parseFloat(row[9]) || 0;   // Colonne J (S-1) - Qte Tot BVP
+    const qteTotBVPAS1 = parseFloat(row[15]) || 0; // Colonne P (AS-1) - Qte Tot BVP
+    const qteTotBVPS2 = parseFloat(row[21]) || 0;  // Colonne V (S-2) - Qte Tot BVP
 
     if (!jourCell || !trancheCell) continue;
 
@@ -436,15 +436,15 @@ export const parseFrequentationExcel = (arrayBuffer, typePonderation = 'standard
     }
 
     if (jourKey) {
-      ticketsParJourS1[jourKey] += ticketsPDVS1;
-      ticketsParJourAS1[jourKey] += ticketsPDVAS1;
-      ticketsParJourS2[jourKey] += ticketsPDVS2;
+      qteTotParJourS1[jourKey] += qteTotBVPS1;
+      qteTotParJourAS1[jourKey] += qteTotBVPAS1;
+      qteTotParJourS2[jourKey] += qteTotBVPS2;
 
       // Pour l'analyse horaire, on utilise les 3 semaines
-      if (ticketsParJourTrancheS1[jourKey][tranche] !== undefined) {
-        ticketsParJourTrancheS1[jourKey][tranche] += ticketsPDVS1;
-        ticketsParJourTrancheAS1[jourKey][tranche] += ticketsPDVAS1;
-        ticketsParJourTrancheS2[jourKey][tranche] += ticketsPDVS2;
+      if (qteTotParJourTrancheS1[jourKey][tranche] !== undefined) {
+        qteTotParJourTrancheS1[jourKey][tranche] += qteTotBVPS1;
+        qteTotParJourTrancheAS1[jourKey][tranche] += qteTotBVPAS1;
+        qteTotParJourTrancheS2[jourKey][tranche] += qteTotBVPS2;
       }
     }
   }
@@ -458,38 +458,38 @@ export const parseFrequentationExcel = (arrayBuffer, typePonderation = 'standard
 
   const weights = ponderations[typePonderation];
 
-  // Calcul des moyennes pondérées
-  const ticketsParJour = {};
-  let totalTicketsPDV = 0;
+  // Calcul des moyennes pondérées (basées sur Qte Tot BVP)
+  const qteTotParJour = {};
+  let totalQteTot = 0;
 
-  Object.keys(ticketsParJourS1).forEach(jour => {
-    const ticketsPonderes =
-      (ticketsParJourS1[jour] * weights.S1) +
-      (ticketsParJourAS1[jour] * weights.AS1) +
-      (ticketsParJourS2[jour] * weights.S2);
+  Object.keys(qteTotParJourS1).forEach(jour => {
+    const qteTotPonderee =
+      (qteTotParJourS1[jour] * weights.S1) +
+      (qteTotParJourAS1[jour] * weights.AS1) +
+      (qteTotParJourS2[jour] * weights.S2);
 
-    ticketsParJour[jour] = ticketsPonderes;
-    totalTicketsPDV += ticketsPonderes;
+    qteTotParJour[jour] = qteTotPonderee;
+    totalQteTot += qteTotPonderee;
   });
 
   // Calcul des poids par jour
   const poidsJours = {};
-  Object.keys(ticketsParJour).forEach(jour => {
-    poidsJours[jour] = totalTicketsPDV > 0
-      ? ticketsParJour[jour] / totalTicketsPDV
+  Object.keys(qteTotParJour).forEach(jour => {
+    poidsJours[jour] = totalQteTot > 0
+      ? qteTotParJour[jour] / totalQteTot
       : 0;
   });
 
   // Calcul des poids par tranche horaire avec pondération des 3 semaines
   const poidsTranchesParJour = {};
-  let totalTicketsMatinGlobal = 0;
-  let totalTicketsMidiGlobal = 0;
-  let totalTicketsSoirGlobal = 0;
+  let totalQteTotMatinGlobal = 0;
+  let totalQteTotMidiGlobal = 0;
+  let totalQteTotSoirGlobal = 0;
 
-  Object.keys(ticketsParJourTrancheS1).forEach(jour => {
-    const tranchesS1 = ticketsParJourTrancheS1[jour];
-    const tranchesAS1 = ticketsParJourTrancheAS1[jour];
-    const tranchesS2 = ticketsParJourTrancheS2[jour];
+  Object.keys(qteTotParJourTrancheS1).forEach(jour => {
+    const tranchesS1 = qteTotParJourTrancheS1[jour];
+    const tranchesAS1 = qteTotParJourTrancheAS1[jour];
+    const tranchesS2 = qteTotParJourTrancheS2[jour];
 
     // Appliquer la pondération pour chaque tranche horaire
     const tranchesPonderees = {};
@@ -500,16 +500,16 @@ export const parseFrequentationExcel = (arrayBuffer, typePonderation = 'standard
         (tranchesS2[tranche] * weights.S2);
     });
 
-    const ticketsMatinJour = (tranchesPonderees['00_Autre'] || 0) + (tranchesPonderees['09h_12h'] || 0);
-    const ticketsMidiJour = (tranchesPonderees['12h_14h'] || 0) + (tranchesPonderees['14h_16h'] || 0);
-    const ticketsSoirJour = (tranchesPonderees['16h_19h'] || 0) + (tranchesPonderees['19h_23h'] || 0);
-    const totalTicketsJour = ticketsMatinJour + ticketsMidiJour + ticketsSoirJour;
+    const qteTotMatinJour = (tranchesPonderees['00_Autre'] || 0) + (tranchesPonderees['09h_12h'] || 0);
+    const qteTotMidiJour = (tranchesPonderees['12h_14h'] || 0) + (tranchesPonderees['14h_16h'] || 0);
+    const qteTotSoirJour = (tranchesPonderees['16h_19h'] || 0) + (tranchesPonderees['19h_23h'] || 0);
+    const totalQteTotJour = qteTotMatinJour + qteTotMidiJour + qteTotSoirJour;
 
-    if (totalTicketsJour > 0) {
+    if (totalQteTotJour > 0) {
       poidsTranchesParJour[jour] = {
-        matin: ticketsMatinJour / totalTicketsJour,
-        midi: ticketsMidiJour / totalTicketsJour,
-        soir: ticketsSoirJour / totalTicketsJour
+        matin: qteTotMatinJour / totalQteTotJour,
+        midi: qteTotMidiJour / totalQteTotJour,
+        soir: qteTotSoirJour / totalQteTotJour
       };
     } else {
       poidsTranchesParJour[jour] = {
@@ -519,27 +519,27 @@ export const parseFrequentationExcel = (arrayBuffer, typePonderation = 'standard
       };
     }
 
-    totalTicketsMatinGlobal += ticketsMatinJour;
-    totalTicketsMidiGlobal += ticketsMidiJour;
-    totalTicketsSoirGlobal += ticketsSoirJour;
+    totalQteTotMatinGlobal += qteTotMatinJour;
+    totalQteTotMidiGlobal += qteTotMidiJour;
+    totalQteTotSoirGlobal += qteTotSoirJour;
   });
 
-  const totalTicketsTranchesGlobal = totalTicketsMatinGlobal + totalTicketsMidiGlobal + totalTicketsSoirGlobal;
+  const totalQteTotTranchesGlobal = totalQteTotMatinGlobal + totalQteTotMidiGlobal + totalQteTotSoirGlobal;
   const poidsTranchesGlobal = {
-    matin: totalTicketsTranchesGlobal > 0 ? totalTicketsMatinGlobal / totalTicketsTranchesGlobal : 0.6,
-    midi: totalTicketsTranchesGlobal > 0 ? totalTicketsMidiGlobal / totalTicketsTranchesGlobal : 0.3,
-    soir: totalTicketsTranchesGlobal > 0 ? totalTicketsSoirGlobal / totalTicketsTranchesGlobal : 0.1
+    matin: totalQteTotTranchesGlobal > 0 ? totalQteTotMatinGlobal / totalQteTotTranchesGlobal : 0.6,
+    midi: totalQteTotTranchesGlobal > 0 ? totalQteTotMidiGlobal / totalQteTotTranchesGlobal : 0.3,
+    soir: totalQteTotTranchesGlobal > 0 ? totalQteTotSoirGlobal / totalQteTotTranchesGlobal : 0.1
   };
 
-  if (totalTicketsPDV === 0) {
-    alert('Aucune donnée de fréquentation trouvée');
+  if (totalQteTot === 0) {
+    alert('Aucune donnée de quantité totale BVP trouvée dans le fichier de fréquentation');
     return null;
   }
 
   return {
-    ticketsParJour,
+    qteTotParJour,
     poidsJours,
-    totalTicketsPDV,
+    totalQteTot,
     poidsTranchesParJour,
     poidsTranchesGlobal,
     type: typePonderation,
