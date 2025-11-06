@@ -220,6 +220,7 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
         selectedJour={selectedJour}
         planningData={planningLocal}
         pdvInfo={pdvInfo}
+        modeAffichage={modeAffichage}
       />
 
       <div className="min-h-screen bg-gray-50 print:hidden">

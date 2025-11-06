@@ -68,7 +68,8 @@ export default function ImpressionPanel({
   onClose,
   selectedJour,
   planningData,
-  pdvInfo
+  pdvInfo,
+  modeAffichage = 'plaques' // 'plaques' ou 'unites'
 }) {
   if (!isVisible) return null;
 
@@ -198,7 +199,7 @@ export default function ImpressionPanel({
           <div className="h-full overflow-y-auto p-6 bg-gray-50 print:h-auto print:overflow-visible print:p-0 print:bg-white">
             <div className="bg-white rounded shadow-sm p-6 print-content print:p-0 print:shadow-none print:rounded-none">
               {selectedJour ? (
-                <PlanningJour selectedJour={selectedJour} planningData={planningData} pdvInfo={pdvInfo} nextWeek={nextWeek} />
+                <PlanningJour selectedJour={selectedJour} planningData={planningData} pdvInfo={pdvInfo} nextWeek={nextWeek} modeAffichage={modeAffichage} />
               ) : (
                 <PlanningHebdo planningData={planningData} />
               )}
@@ -211,7 +212,21 @@ export default function ImpressionPanel({
 }
 
 // Composant pour le planning d'un jour (format compact A4 paysage)
-function PlanningJour({ selectedJour, planningData, pdvInfo, nextWeek }) {
+function PlanningJour({ selectedJour, planningData, pdvInfo, nextWeek, modeAffichage = 'plaques' }) {
+  /**
+   * Formate une quantité selon le mode d'affichage choisi
+   */
+  const formaterQuantite = (ventes, unitesParVente, unitesParPlaque) => {
+    if (modeAffichage === 'unites') {
+      // Mode unités : afficher les unités brutes
+      const unitesProduction = ventes * (unitesParVente || 1);
+      return `${unitesProduction}`;
+    } else {
+      // Mode plaques : utiliser la fonction de conversion existante
+      return convertirEnPlaques(ventes, unitesParVente, unitesParPlaque);
+    }
+  };
+
   // Préparer les données pour affichage en tableau unique compact
   const rayonsData = [];
 
@@ -275,7 +290,7 @@ function PlanningJour({ selectedJour, planningData, pdvInfo, nextWeek }) {
                   <td className="border border-black px-1 py-0.5"></td>
                   <td className="border border-black px-1 py-0.5 text-center font-semibold">
                     {(() => {
-                      const texte = convertirEnPlaques(creneaux.matin, creneaux.unitesParVente, creneaux.unitesParPlaque);
+                      const texte = formaterQuantite(creneaux.matin, creneaux.unitesParVente, creneaux.unitesParPlaque);
                       if (texte.includes('Pl.')) {
                         const [nombre, unite] = texte.split(' ');
                         return <span><span className="quantity-number">{nombre}</span> <span className="quantity-unit">{unite}</span></span>;
@@ -285,7 +300,7 @@ function PlanningJour({ selectedJour, planningData, pdvInfo, nextWeek }) {
                   </td>
                   <td className="border border-black px-1 py-0.5 text-center font-semibold">
                     {(() => {
-                      const texte = convertirEnPlaques(creneaux.midi, creneaux.unitesParVente, creneaux.unitesParPlaque);
+                      const texte = formaterQuantite(creneaux.midi, creneaux.unitesParVente, creneaux.unitesParPlaque);
                       if (texte.includes('Pl.')) {
                         const [nombre, unite] = texte.split(' ');
                         return <span><span className="quantity-number">{nombre}</span> <span className="quantity-unit">{unite}</span></span>;
@@ -295,7 +310,7 @@ function PlanningJour({ selectedJour, planningData, pdvInfo, nextWeek }) {
                   </td>
                   <td className="border border-black px-1 py-0.5 text-center font-semibold">
                     {(() => {
-                      const texte = convertirEnPlaques(creneaux.soir, creneaux.unitesParVente, creneaux.unitesParPlaque);
+                      const texte = formaterQuantite(creneaux.soir, creneaux.unitesParVente, creneaux.unitesParPlaque);
                       if (texte.includes('Pl.')) {
                         const [nombre, unite] = texte.split(' ');
                         return <span><span className="quantity-number">{nombre}</span> <span className="quantity-unit">{unite}</span></span>;
