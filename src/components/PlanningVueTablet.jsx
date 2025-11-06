@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import AccordeonRayon from './AccordeonRayon';
 import TouchButton from './TouchButton';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import ModeProductionEnCours from './ModeProductionEnCours';
+import ModeSuiviTempsReel from './ModeSuiviTempsReel';
+import { ChevronLeft, ChevronRight, List, PlayCircle, Activity } from 'lucide-react';
 import { convertirEnPlaques } from '../utils/conversionUtils';
 
 /**
@@ -45,8 +48,50 @@ export default function PlanningVueTablet({
     'AUTRE': 'gray'
   };
 
+  // Mode d'affichage tablette
+  const [modeTablette, setModeTablette] = useState('planning'); // 'planning', 'production', 'suivi'
+
+  // Déterminer la tranche horaire actuelle
+  const getTrancheActuelle = () => {
+    const heure = new Date().getHours();
+    if (heure >= 9 && heure < 12) return 'matin';
+    if (heure >= 12 && heure < 16) return 'midi';
+    return 'soir';
+  };
+
   return (
     <div className="pb-6">
+      {/* Sélecteur de mode tablette */}
+      <div className="mb-4 flex gap-2 overflow-x-auto pb-2">
+        <TouchButton
+          variant={modeTablette === 'planning' ? 'primary' : 'ghost'}
+          size="md"
+          onClick={() => setModeTablette('planning')}
+          icon={<List className="w-5 h-5" />}
+          className={modeTablette !== 'planning' ? 'border-2 border-gray-300' : ''}
+        >
+          Planning
+        </TouchButton>
+        <TouchButton
+          variant={modeTablette === 'production' ? 'primary' : 'ghost'}
+          size="md"
+          onClick={() => setModeTablette('production')}
+          icon={<PlayCircle className="w-5 h-5" />}
+          className={modeTablette !== 'production' ? 'border-2 border-gray-300' : ''}
+        >
+          Production
+        </TouchButton>
+        <TouchButton
+          variant={modeTablette === 'suivi' ? 'primary' : 'ghost'}
+          size="md"
+          onClick={() => setModeTablette('suivi')}
+          icon={<Activity className="w-5 h-5" />}
+          className={modeTablette !== 'suivi' ? 'border-2 border-gray-300' : ''}
+        >
+          Suivi temps réel
+        </TouchButton>
+      </div>
+
       {/* Navigation entre jours (tactile optimisée) */}
       <div className="sticky top-0 z-40 bg-gradient-to-r from-blue-600 to-blue-700 shadow-lg mb-4 -mx-4 px-4 py-4">
         <div className="flex items-center justify-between gap-3">
@@ -90,8 +135,8 @@ export default function PlanningVueTablet({
         </div>
       </div>
 
-      {/* Accordéons par rayon */}
-      {rayonsData.map(({ rayon, programme, data }) => {
+      {/* Mode Planning : Accordéons par rayon */}
+      {modeTablette === 'planning' && rayonsData.map(({ rayon, programme, data }) => {
         const produitsArray = Array.from(data.produits);
         const totalPlaquesJour = data.capacite?.total || 0;
         const varianteJour = variantesParRayonEtJour[rayon]?.[selectedJour.toLowerCase()] || 'sans';
@@ -166,6 +211,67 @@ export default function PlanningVueTablet({
           </AccordeonRayon>
         );
       })}
+
+      {/* Mode Production en cours */}
+      {modeTablette === 'production' && rayonsData.map(({ rayon, programme, data }) => {
+        const produitsArray = Array.from(data.produits);
+        const trancheActuelle = getTrancheActuelle();
+
+        // Transformer les produits pour le mode production
+        const produitsProduction = produitsArray.map(([libelle, creneaux]) => ({
+          libelle,
+          quantite: formaterQuantite(
+            creneaux[trancheActuelle],
+            creneaux.unitesParVente,
+            creneaux.unitesParPlaque
+          )
+        }));
+
+        return (
+          <div key={`${rayon}-${programme}`} className="mb-4">
+            <ModeProductionEnCours
+              rayon={rayon}
+              programme={programme}
+              produits={produitsProduction}
+              tranche={trancheActuelle}
+              onProduitCoche={(libelle, estCoche) => {
+                console.log(`${libelle} ${estCoche ? 'coché' : 'décoché'}`);
+              }}
+              onDemarrer={() => {
+                console.log(`Production démarrée pour ${rayon} - ${programme}`);
+              }}
+            />
+          </div>
+        );
+      })}
+
+      {/* Mode Suivi temps réel */}
+      {modeTablette === 'suivi' && (() => {
+        // Agréger les données par rayon pour le suivi
+        const rayonsSuivi = rayonsData.reduce((acc, { rayon, data }) => {
+          if (!acc[rayon]) {
+            acc[rayon] = { rayon, totalProduits: 0, progression: 0, retard: 0 };
+          }
+          acc[rayon].totalProduits += data.produits.size;
+          // Pour la démo, simuler une progression aléatoire
+          // Dans une vraie app, cela viendrait du tracking production
+          acc[rayon].progression = Math.floor(Math.random() * 100);
+          acc[rayon].retard = Math.floor(Math.random() * 10) - 3; // Entre -3 et +6
+          return acc;
+        }, {});
+
+        return (
+          <ModeSuiviTempsReel
+            rayonsData={Object.values(rayonsSuivi)}
+            trancheActuelle={getTrancheActuelle()}
+            onVoirDetails={() => setModeTablette('planning')}
+            onAjusterPlanning={() => {
+              setModeTablette('planning');
+              // TODO: ouvrir modal d'ajustement
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }
