@@ -2,14 +2,20 @@ import { ChevronLeft, Printer, TrendingUp, Settings } from 'lucide-react';
 import { useState } from 'react';
 import StatistiquesPanel from './StatistiquesPanel';
 import ImpressionPanel from './ImpressionPanel';
+import PlanningVueTablet from './PlanningVueTablet';
+import TouchButton from './TouchButton';
 import { convertirEnPlaques } from '../utils/conversionUtils';
 import { recalculerPlanningAvecVariantes } from '../services/planningRecalculator';
+import { useDeviceType } from '../hooks/useDeviceType';
 
 export default function EtapePlanning({ planning, pdvInfo, produits, frequentationData, onRetour, onPersonnaliser, onPlanningChange }) {
   const [selectedJour, setSelectedJour] = useState(null);
   const [showStats, setShowStats] = useState(false);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
   const [modeAffichage, setModeAffichage] = useState('plaques'); // 'unites' ou 'plaques'
+
+  // Détection du type d'appareil pour adapter l'interface
+  const { deviceType, isTouchDevice } = useDeviceType();
 
   // Initialiser les variantes par défaut : Forte (lundi-jeudi), Faible (vendredi-dimanche)
   const getVariantesParDefaut = () => {
@@ -536,7 +542,7 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
           )}
 
           {/* Vue d'un jour spécifique */}
-          {selectedJour && (
+          {selectedJour && deviceType !== 'mobile' && deviceType !== 'tablet' && (
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold">
@@ -680,6 +686,62 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
                   })}
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Vue Tablette/Mobile optimisée */}
+          {selectedJour && (deviceType === 'mobile' || deviceType === 'tablet') && (
+            <div className="bg-white rounded-lg shadow-md p-4">
+              {/* Header avec toggle Unités/Plaques adaptatif */}
+              <div className="flex flex-col gap-3 mb-4">
+                <div className="flex items-center justify-between">
+                  <TouchButton
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedJour(null)}
+                    icon={<ChevronLeft className="w-4 h-4" />}
+                    className="border-2 border-gray-300"
+                  >
+                    Semaine
+                  </TouchButton>
+
+                  {/* Toggle Unités/Plaques tactile */}
+                  <div className="flex bg-gray-100 rounded-lg p-1">
+                    <button
+                      onClick={() => setModeAffichage('unites')}
+                      className={`px-4 py-2 rounded-lg transition min-h-[44px] ${
+                        modeAffichage === 'unites'
+                          ? 'bg-white text-blue-600 font-semibold shadow'
+                          : 'text-gray-600'
+                      }`}
+                    >
+                      Unités
+                    </button>
+                    <button
+                      onClick={() => setModeAffichage('plaques')}
+                      className={`px-4 py-2 rounded-lg transition min-h-[44px] ${
+                        modeAffichage === 'plaques'
+                          ? 'bg-white text-blue-600 font-semibold shadow'
+                          : 'text-gray-600'
+                      }`}
+                    >
+                      Plaques
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contenu avec vue tablette */}
+              <PlanningVueTablet
+                selectedJour={selectedJour}
+                planningLocal={planningLocal}
+                modeAffichage={modeAffichage}
+                formaterQuantite={formaterQuantite}
+                handleModificationManuelle={handleModificationManuelle}
+                variantesParRayonEtJour={variantesParRayonEtJour}
+                handleChangeVariante={handleChangeVariante}
+                onNaviguerJour={handleVoirJour}
+              />
             </div>
           )}
 
