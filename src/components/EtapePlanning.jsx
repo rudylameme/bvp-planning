@@ -7,6 +7,7 @@ import TouchButton from './TouchButton';
 import { convertirEnPlaques } from '../utils/conversionUtils';
 import { recalculerPlanningAvecVariantes } from '../services/planningRecalculator';
 import { useDeviceType } from '../hooks/useDeviceType';
+import { getNomProgrammeAffiche } from '../services/referentielITM8';
 
 export default function EtapePlanning({ planning, pdvInfo, produits, frequentationData, onRetour, onPersonnaliser, onPlanningChange }) {
   const [selectedJour, setSelectedJour] = useState(null);
@@ -605,7 +606,7 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
                       <div key={programme} className="mb-6 bg-white rounded border">
                         {/* Titre du programme */}
                         <h4 className="text-md font-semibold text-center bg-gray-200 p-2 border-b-2 border-gray-800">
-                          {programme}
+                          {getNomProgrammeAffiche(programme)}
                         </h4>
 
                         <div className="overflow-x-auto">
@@ -663,7 +664,7 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
                               {/* Ligne de capacité totale pour ce programme */}
                               <tr className="bg-blue-50 font-bold border-t-4 border-blue-600">
                                 <td className="border border-gray-800 p-3 text-sm text-right">
-                                  CAPACITÉ {programme}
+                                  CAPACITÉ {getNomProgrammeAffiche(programme)}
                                 </td>
                                 <td className="border border-gray-800 p-3 text-center text-blue-700">
                                   {formaterPlaques(calculerTotalPlaques(data.produits, 'matin'))}

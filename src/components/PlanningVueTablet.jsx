@@ -3,7 +3,8 @@ import AccordeonRayon from './AccordeonRayon';
 import TouchButton from './TouchButton';
 import ModeProductionEnCours from './ModeProductionEnCours';
 import ModeSuiviTempsReel from './ModeSuiviTempsReel';
-import { ChevronLeft, ChevronRight, List, PlayCircle, Activity } from 'lucide-react';
+import ModeCasseGlobal from './ModeCasseGlobal';
+import { ChevronLeft, ChevronRight, List, PlayCircle, Activity, Trash2 } from 'lucide-react';
 import { convertirEnPlaques } from '../utils/conversionUtils';
 
 /**
@@ -51,6 +52,9 @@ export default function PlanningVueTablet({
   // Mode d'affichage tablette
   const [modeTablette, setModeTablette] = useState('planning'); // 'planning', 'production', 'suivi'
 
+  // État global pour la tranche horaire sélectionnée (partagé entre tous les rayons)
+  const [trancheGlobale, setTrancheGlobale] = useState('matin');
+
   // Déterminer la tranche horaire actuelle
   const getTrancheActuelle = () => {
     const heure = new Date().getHours();
@@ -94,7 +98,7 @@ export default function PlanningVueTablet({
 
       {/* Navigation entre jours (tactile optimisée) */}
       <div className="sticky top-0 z-40 bg-gradient-to-r from-blue-600 to-blue-700 shadow-lg mb-4 -mx-4 px-4 py-4">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 mb-3">
           {/* Jour précédent */}
           {jourPrecedent ? (
             <TouchButton
@@ -133,12 +137,60 @@ export default function PlanningVueTablet({
             <div className="w-24" />
           )}
         </div>
+
+        {/* Sélecteur de tranche horaire - uniquement en mode Production */}
+        {modeTablette === 'production' && (
+          <div className="grid grid-cols-4 gap-2">
+            <button
+              onClick={() => setTrancheGlobale('matin')}
+              className={`px-3 py-2 rounded-lg font-semibold text-sm transition-all ${
+                trancheGlobale === 'matin'
+                  ? 'bg-sky-500 text-white border-4 border-white shadow-lg scale-105'
+                  : 'bg-sky-400 text-white border-2 border-sky-500 hover:bg-sky-500'
+              }`}
+            >
+              Matin
+            </button>
+            <button
+              onClick={() => setTrancheGlobale('midi')}
+              className={`px-3 py-2 rounded-lg font-semibold text-sm transition-all ${
+                trancheGlobale === 'midi'
+                  ? 'bg-yellow-500 text-gray-900 border-4 border-white shadow-lg scale-105'
+                  : 'bg-yellow-400 text-gray-900 border-2 border-yellow-500 hover:bg-yellow-500'
+              }`}
+            >
+              Midi
+            </button>
+            <button
+              onClick={() => setTrancheGlobale('apres-midi')}
+              className={`px-3 py-2 rounded-lg font-semibold text-sm transition-all ${
+                trancheGlobale === 'apres-midi'
+                  ? 'bg-orange-600 text-white border-4 border-white shadow-lg scale-105'
+                  : 'bg-orange-500 text-white border-2 border-orange-600 hover:bg-orange-600'
+              }`}
+            >
+              Après-midi
+            </button>
+            <button
+              onClick={() => setTrancheGlobale('casse')}
+              className={`px-3 py-2 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-1 ${
+                trancheGlobale === 'casse'
+                  ? 'bg-red-700 text-white border-4 border-white shadow-lg scale-105'
+                  : 'bg-red-600 text-white border-2 border-red-700 hover:bg-red-700'
+              }`}
+            >
+              <Trash2 className="w-4 h-4" />
+              Casse
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Mode Planning : Accordéons par rayon */}
       {modeTablette === 'planning' && rayonsData.map(({ rayon, programme, data }) => {
         const produitsArray = Array.from(data.produits);
-        const totalPlaquesJour = data.capacite?.total || 0;
+        // Calculer le total des capacités sur toute la journée
+        const totalPlaquesJour = (data.capacite?.matin || 0) + (data.capacite?.midi || 0) + (data.capacite?.soir || 0);
         const varianteJour = variantesParRayonEtJour[rayon]?.[selectedJour.toLowerCase()] || 'sans';
 
         return (
@@ -213,37 +265,59 @@ export default function PlanningVueTablet({
       })}
 
       {/* Mode Production en cours */}
-      {modeTablette === 'production' && rayonsData.map(({ rayon, programme, data }) => {
-        const produitsArray = Array.from(data.produits);
-        const trancheActuelle = getTrancheActuelle();
-
-        // Transformer les produits pour le mode production
-        const produitsProduction = produitsArray.map(([libelle, creneaux]) => ({
-          libelle,
-          quantite: formaterQuantite(
-            creneaux[trancheActuelle],
-            creneaux.unitesParVente,
-            creneaux.unitesParPlaque
-          )
-        }));
-
-        return (
-          <div key={`${rayon}-${programme}`} className="mb-4">
-            <ModeProductionEnCours
-              rayon={rayon}
-              programme={programme}
-              produits={produitsProduction}
-              tranche={trancheActuelle}
-              onProduitCoche={(libelle, estCoche) => {
-                console.log(`${libelle} ${estCoche ? 'coché' : 'décoché'}`);
-              }}
-              onDemarrer={() => {
-                console.log(`Production démarrée pour ${rayon} - ${programme}`);
-              }}
+      {modeTablette === 'production' && (
+        <>
+          {trancheGlobale === 'casse' ? (
+            // Mode Casse : Vue globale de tous les produits
+            <ModeCasseGlobal
+              rayonsData={rayonsData}
+              jour={selectedJour}
+              modeAffichage={modeAffichage}
+              formaterQuantite={formaterQuantite}
             />
-          </div>
-        );
-      })}
+          ) : (
+            // Mode Production normal : Par rayon/programme
+            rayonsData.map(({ rayon, programme, data }) => {
+              const produitsArray = Array.from(data.produits);
+
+              // Transformer les produits pour le mode production
+              // Afficher uniquement les quantités de la tranche sélectionnée
+              const produitsProduction = produitsArray.map(([libelle, creneaux]) => {
+                // Mapper apres-midi vers soir car dans le planning c'est "soir"
+                const trancheData = trancheGlobale === 'apres-midi' ? 'soir' : trancheGlobale;
+                const quantiteTranche = creneaux[trancheData] || 0;
+                return {
+                  libelle,
+                  quantite: formaterQuantite(
+                    quantiteTranche,
+                    creneaux.unitesParVente,
+                    creneaux.unitesParPlaque
+                  )
+                };
+              });
+
+              return (
+                <div key={`${rayon}-${programme}`} className="mb-4">
+                  <ModeProductionEnCours
+                    rayon={rayon}
+                    programme={programme}
+                    produits={produitsProduction}
+                    jour={selectedJour}
+                    modeAffichage={modeAffichage}
+                    trancheActive={trancheGlobale}
+                    onProduitCoche={(libelle, estCoche) => {
+                      console.log(`${libelle} ${estCoche ? 'coché' : 'décoché'}`);
+                    }}
+                    onDemarrer={() => {
+                      console.log(`Production démarrée pour ${rayon} - ${programme}`);
+                    }}
+                  />
+                </div>
+              );
+            })
+          )}
+        </>
+      )}
 
       {/* Mode Suivi temps réel */}
       {modeTablette === 'suivi' && (() => {

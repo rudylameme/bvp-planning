@@ -1,11 +1,13 @@
 import { useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Download, Upload, ArrowUpAZ, ArrowDownWideNarrow, LayoutGrid, List, Layers } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Upload, ArrowUpAZ, ArrowDownWideNarrow, LayoutGrid, List, Layers, Settings, Eye, EyeOff, Square, CheckSquare } from 'lucide-react';
 import TableauProduits from './TableauProduits';
 import TableauProduitsGroupes from './TableauProduitsGroupes';
 import AttributionManuelle from './AttributionManuelle';
+import GestionProgrammes from './GestionProgrammes';
 import { parseCSV } from '../utils/parsers';
-import { getListeRayons, getListeProgrammes } from '../services/referentielITM8';
+import { getListeRayons, getListeProgrammesComplets } from '../services/referentielITM8';
 import { calculerPotentielsPourTous } from '../services/potentielCalculator';
+import { mousquetairesColors } from '../styles/mousquetaires-theme';
 
 export default function EtapePersonnalisation({
   produits,
@@ -28,9 +30,11 @@ export default function EtapePersonnalisation({
   frequentationData
 }) {
   const refReglages = useRef(null);
-  const [modeAffichage, setModeAffichage] = useState('liste'); // Passer directement en mode liste
   const [showAttributionManuelle, setShowAttributionManuelle] = useState(false);
+  const [showGestionProgrammes, setShowGestionProgrammes] = useState(false);
   const [modeCalculPotentiel, setModeCalculPotentiel] = useState('mathematique'); // 'mathematique' | 'forte-progression' | 'prudent'
+  const [modeExpert, setModeExpert] = useState(false); // Mode expert pour afficher colonnes techniques
+  const [refreshKey, setRefreshKey] = useState(0); // Clé pour forcer le rafraîchissement après modification des programmes
 
   // Identifier les produits non reconnus
   const produitsNonReconnus = produits.filter(p => !p.reconnu && !p.custom);
@@ -197,17 +201,21 @@ export default function EtapePersonnalisation({
         />
       )}
 
-      <div className="bg-white rounded-lg shadow-lg p-6">
+      <div className="bg-white rounded-lg shadow-lg p-8" style={{ borderTop: `4px solid ${mousquetairesColors.primary.red}` }}>
       {/* Message pour les produits non reconnus */}
       {nbProduitsNonReconnus > 0 && (
-        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-blue-800">
-              ℹ️ <strong>{nbProduitsNonReconnus} produit(s) non reconnu(s)</strong> par le référentiel ITM8. Vous pouvez continuer ou les attribuer manuellement pour plus de précision.
+        <div className="mb-6 p-4 rounded-lg" style={{ backgroundColor: mousquetairesColors.secondary.beigeLight, border: `1px solid ${mousquetairesColors.primary.red}` }}>
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <p className="text-sm" style={{ color: mousquetairesColors.text.secondary }}>
+              ℹ️ <strong style={{ color: mousquetairesColors.primary.redDark }}>{nbProduitsNonReconnus} produit(s) non reconnu(s)</strong> par le référentiel ITM8. Vous pouvez continuer ou les attribuer manuellement pour plus de précision.
             </p>
             <button
               onClick={() => setShowAttributionManuelle(true)}
-              className="ml-4 px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition whitespace-nowrap"
+              className="px-4 py-2 text-sm rounded font-semibold transition whitespace-nowrap"
+              style={{
+                backgroundColor: mousquetairesColors.primary.red,
+                color: mousquetairesColors.text.white
+              }}
             >
               Attribuer (optionnel)
             </button>
@@ -215,77 +223,150 @@ export default function EtapePersonnalisation({
         </div>
       )}
 
-      {/* Message d'information sur les potentiels - Retiré car calcul automatique dans le planning */}
+      {/* En-tête */}
+      <div className="mb-8">
+        <h2 className="text-3xl font-bold mb-2" style={{ color: mousquetairesColors.primary.redDark }}>
+          Personnalisation des produits
+        </h2>
+        <p className="text-sm" style={{ color: mousquetairesColors.text.secondary }}>
+          Ajustez les paramètres de vos produits avant de générer le planning
+        </p>
+      </div>
 
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Personnalisation des produits</h2>
-        <div className="flex gap-2">
-          {/* Toggle mode d'affichage */}
+      {/* Séparateur */}
+      <div style={{ width: '100%', height: '1px', backgroundColor: mousquetairesColors.secondary.gray, marginBottom: '2rem' }}></div>
+
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+        {/* Boutons principaux */}
+        <div className="flex gap-2 flex-wrap">
+          {/* Tri cyclique (simplifié) */}
           <button
-            onClick={() => setModeAffichage(modeAffichage === 'groupes' ? 'liste' : 'groupes')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
-              modeAffichage === 'groupes' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-            title={modeAffichage === 'groupes' ? 'Passer en mode liste' : 'Passer en mode groupé'}
+              onClick={() => {
+                // Cycle entre les modes de tri : nom → volume → rayon-volume → nom
+                if (sortType === 'nom') {
+                  onTrier('volume');
+                } else if (sortType === 'volume') {
+                  onTrier('rayon-volume');
+                } else {
+                  onTrier('nom');
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg transition font-semibold"
+              style={{
+                backgroundColor: mousquetairesColors.primary.red,
+                color: mousquetairesColors.text.white,
+                border: `2px solid ${mousquetairesColors.primary.red}`
+              }}
+              title={
+                sortType === 'nom' ? 'Tri: A→Z (cliquez pour Volume)' :
+                sortType === 'volume' ? 'Tri: Volume (cliquez pour Rayon)' :
+                'Tri: Rayon (cliquez pour A→Z)'
+              }
+            >
+              {sortType === 'nom' && (
+                <>
+                  <ArrowUpAZ size={20} />
+                  Tri: A→Z
+                </>
+              )}
+              {sortType === 'volume' && (
+                <>
+                  <ArrowDownWideNarrow size={20} />
+                  Tri: Volume
+                </>
+              )}
+              {sortType === 'rayon-volume' && (
+                <>
+                  <LayoutGrid size={20} />
+                  Tri: Rayon
+                </>
+              )}
+            </button>
+
+          {/* Sélection rapide - Toggle */}
+          <button
+            onClick={() => {
+              // Vérifier si tous les produits sont actifs
+              const tousActifs = produits.every(p => p.actif);
+
+              // Si tous actifs → tout décocher, sinon → tout cocher
+              const nouveauxProduits = produits.map(p => ({ ...p, actif: !tousActifs }));
+              setProduits(nouveauxProduits);
+            }}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg transition font-semibold"
+            style={{
+              backgroundColor: mousquetairesColors.secondary.beige,
+              color: mousquetairesColors.primary.redDark,
+              border: `2px solid ${mousquetairesColors.secondary.gray}`
+            }}
+            title={produits.every(p => p.actif) ? "Désactiver tous les produits" : "Activer tous les produits"}
           >
-            {modeAffichage === 'groupes' ? <LayoutGrid size={20} /> : <List size={20} />}
-            {modeAffichage === 'groupes' ? 'Groupé' : 'Liste'}
+            {produits.every(p => p.actif) ? (
+              <>
+                <Square size={20} />
+                Tout décocher
+              </>
+            ) : (
+              <>
+                <CheckSquare size={20} />
+                Tout cocher
+              </>
+            )}
           </button>
 
-          {/* Tri (uniquement en mode liste) */}
-          {modeAffichage === 'liste' && (
-            <>
-              <button
-                onClick={() => onTrier('rayon-volume')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
-                  sortType === 'rayon-volume' ? 'bg-amber-700 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-                title="Tri par défaut : rayon puis volume décroissant"
-              >
-                <LayoutGrid size={20} />
-                Tri Rayon
-              </button>
-              <button
-                onClick={() => onTrier('nom')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
-                  sortType === 'nom' ? 'bg-amber-700 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                <ArrowUpAZ size={20} />
-                Tri A-Z
-              </button>
-              <button
-                onClick={() => onTrier('volume')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
-                  sortType === 'volume' ? 'bg-amber-700 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                <ArrowDownWideNarrow size={20} />
-                Tri Volume
-              </button>
-              <button
-                onClick={() => onTrier('rayon-programme')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
-                  sortType === 'rayon-programme' ? 'bg-amber-700 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-                title="Trier par rayon, puis programme, puis volume"
-              >
-                <Layers size={20} />
-                Tri Rayon/Prog
-              </button>
-            </>
-          )}
+          {/* Mode Expert */}
+          <button
+            onClick={() => setModeExpert(!modeExpert)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg transition font-semibold"
+            style={{
+              backgroundColor: modeExpert ? mousquetairesColors.primary.red : mousquetairesColors.secondary.beige,
+              color: modeExpert ? mousquetairesColors.text.white : mousquetairesColors.primary.redDark,
+              border: `2px solid ${modeExpert ? mousquetairesColors.primary.red : mousquetairesColors.secondary.gray}`
+            }}
+            title={modeExpert ? 'Masquer les colonnes techniques' : 'Afficher toutes les colonnes'}
+          >
+            {modeExpert ? <Eye size={20} /> : <EyeOff size={20} />}
+            Mode Expert
+          </button>
+
+          {/* Ajouter produit */}
           <button
             onClick={onAjouterProduitCustom}
-            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
+            className="px-4 py-2 rounded-lg transition font-semibold"
+            style={{
+              backgroundColor: mousquetairesColors.functional.success,
+              color: mousquetairesColors.text.white
+            }}
           >
-            + Ajouter
+            + Ajouter produit
+          </button>
+        </div>
+
+        {/* Boutons secondaires (regroupés) */}
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setShowGestionProgrammes(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg transition font-semibold"
+            style={{
+              backgroundColor: mousquetairesColors.secondary.beige,
+              color: mousquetairesColors.primary.redDark,
+              border: `2px solid ${mousquetairesColors.secondary.gray}`
+            }}
+            title="Gérer les programmes de cuisson"
+          >
+            <Settings size={18} />
+            Programmes
           </button>
           <button
             onClick={exporterReglages}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg transition font-semibold"
+            style={{
+              backgroundColor: mousquetairesColors.secondary.beige,
+              color: mousquetairesColors.primary.redDark,
+              border: `2px solid ${mousquetairesColors.secondary.gray}`
+            }}
           >
-            <Upload size={20} />
+            <Upload size={18} />
             Exporter
           </button>
           <input
@@ -297,18 +378,25 @@ export default function EtapePersonnalisation({
           />
           <button
             onClick={() => refReglages.current.click()}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg transition font-semibold"
+            style={{
+              backgroundColor: mousquetairesColors.secondary.beige,
+              color: mousquetairesColors.primary.redDark,
+              border: `2px solid ${mousquetairesColors.secondary.gray}`
+            }}
           >
-            <Download size={20} />
+            <Download size={18} />
             Importer
           </button>
         </div>
       </div>
 
       {/* Tableau des produits */}
-      {modeAffichage === 'liste' ? (
-        <TableauProduits
+      {sortType === 'rayon-volume' ? (
+        <TableauProduitsGroupes
+          key={refreshKey}
           produits={produits}
+          modeExpert={modeExpert}
           onChangerFamille={onChangerFamille}
           onChangerRayon={onChangerRayon}
           onChangerProgramme={onChangerProgramme}
@@ -320,11 +408,13 @@ export default function EtapePersonnalisation({
           onToggleActif={onToggleActif}
           onSupprimerProduit={onSupprimerProduit}
           rayonsDisponibles={getListeRayons()}
-          programmesDisponibles={getListeProgrammes()}
+          programmesDisponibles={getListeProgrammesComplets()}
         />
       ) : (
-        <TableauProduitsGroupes
+        <TableauProduits
+          key={refreshKey}
           produits={produits}
+          modeExpert={modeExpert}
           onChangerFamille={onChangerFamille}
           onChangerRayon={onChangerRayon}
           onChangerProgramme={onChangerProgramme}
@@ -336,28 +426,55 @@ export default function EtapePersonnalisation({
           onToggleActif={onToggleActif}
           onSupprimerProduit={onSupprimerProduit}
           rayonsDisponibles={getListeRayons()}
-          programmesDisponibles={getListeProgrammes()}
+          programmesDisponibles={getListeProgrammesComplets()}
         />
       )}
 
+        {/* Séparateur */}
+        <div style={{ width: '100%', height: '1px', backgroundColor: mousquetairesColors.secondary.gray, margin: '2rem 0' }}></div>
+
         {/* Boutons navigation */}
-        <div className="mt-6 flex justify-between">
+        <div className="flex justify-between flex-wrap gap-4">
           <button
             onClick={onRetour}
-            className="flex items-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
+            className="flex items-center gap-2 px-6 py-3 rounded-lg transition font-semibold"
+            style={{
+              backgroundColor: mousquetairesColors.secondary.beige,
+              color: mousquetairesColors.primary.redDark,
+              border: `2px solid ${mousquetairesColors.secondary.gray}`
+            }}
           >
             <ChevronLeft size={20} />
             Retour
           </button>
           <button
             onClick={onCalculerPlanning}
-            className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
+            className="flex items-center gap-3 px-8 py-4 rounded-lg transition font-bold text-lg"
+            style={{
+              backgroundColor: mousquetairesColors.primary.red,
+              color: mousquetairesColors.text.white
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = mousquetairesColors.primary.redDark;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = mousquetairesColors.primary.red;
+            }}
           >
-            Calculer le planning
-            <ChevronRight size={20} />
+            Générer le planning
+            <ChevronRight size={24} />
           </button>
         </div>
       </div>
+
+      {/* Modal de gestion des programmes */}
+      {showGestionProgrammes && (
+        <GestionProgrammes onClose={() => {
+          setShowGestionProgrammes(false);
+          // Forcer le rafraîchissement des listes de programmes
+          setRefreshKey(prev => prev + 1);
+        }} />
+      )}
     </>
   );
 }

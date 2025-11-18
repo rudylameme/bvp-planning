@@ -1,8 +1,10 @@
 import { Edit3, Star, ChevronDown, ChevronRight, CheckSquare, Square } from 'lucide-react';
 import { useState } from 'react';
+import { getNomProgrammeAffiche } from '../services/referentielITM8';
 
 export default function TableauProduitsGroupes({
   produits,
+  modeExpert = false,
   onChangerFamille,
   onChangerRayon,
   onChangerProgramme,
@@ -12,225 +14,137 @@ export default function TableauProduitsGroupes({
   onChangerPotentiel,
   onToggleActif,
   onSupprimerProduit,
+  onChangerUnitesParVente,
   rayonsDisponibles = [],
   programmesDisponibles = []
 }) {
-  const [famillesOuvertes, setFamillesOuvertes] = useState({
-    BOULANGERIE: true,
-    VIENNOISERIE: true,
-    PATISSERIE: true,
-    SNACKING: true,
-    AUTRE: true
+  // Récupérer tous les rayons uniques
+  const rayonsUniques = [...new Set(produits.map(p => p.rayon).filter(Boolean))].sort();
+
+  const [rayonsOuverts, setRayonsOuverts] = useState(
+    Object.fromEntries(rayonsUniques.map(r => [r, true]))
+  );
+
+  // Grouper les produits par rayon
+  const produitsParRayon = {};
+  rayonsUniques.forEach(rayon => {
+    produitsParRayon[rayon] = produits.filter(p => p.rayon === rayon);
   });
 
-  const [selectionsParFamille, setSelectionsParFamille] = useState({});
+  // Couleurs alternées pour les rayons - Palette Mousquetaires
+  const couleursRayon = [
+    'bg-stone-50 border-stone-300 text-stone-900',
+    'bg-amber-50 border-amber-300 text-amber-900',
+    'bg-blue-50 border-blue-300 text-blue-900',
+    'bg-rose-50 border-rose-300 text-rose-900',
+    'bg-emerald-50 border-emerald-300 text-emerald-900',
+    'bg-purple-50 border-purple-300 text-purple-900',
+    'bg-orange-50 border-orange-300 text-orange-900',
+  ];
 
-  // Grouper les produits par famille
-  const produitsParFamille = {
-    BOULANGERIE: produits.filter(p => p.famille === 'BOULANGERIE'),
-    VIENNOISERIE: produits.filter(p => p.famille === 'VIENNOISERIE'),
-    PATISSERIE: produits.filter(p => p.famille === 'PATISSERIE'),
-    SNACKING: produits.filter(p => p.famille === 'SNACKING'),
-    AUTRE: produits.filter(p => p.famille === 'AUTRE')
-  };
-
-  // Couleurs par famille - Palette Chaleureuse Boulangerie
-  const couleursFamille = {
-    BOULANGERIE: 'bg-stone-100 border-stone-300 text-stone-800',
-    VIENNOISERIE: 'bg-amber-100 border-amber-300 text-amber-800',
-    PATISSERIE: 'bg-rose-100 border-rose-300 text-rose-800',
-    SNACKING: 'bg-emerald-100 border-emerald-300 text-emerald-800',
-    AUTRE: 'bg-slate-100 border-slate-300 text-slate-800'
-  };
-
-  const toggleFamille = (famille) => {
-    setFamillesOuvertes(prev => ({
+  const toggleRayon = (rayon) => {
+    setRayonsOuverts(prev => ({
       ...prev,
-      [famille]: !prev[famille]
+      [rayon]: !prev[rayon]
     }));
   };
 
-  // Sélection/désélection d'un produit
-  const toggleSelection = (famille, produitId) => {
-    setSelectionsParFamille(prev => {
-      const selections = prev[famille] || [];
-      const nouvellesSelections = selections.includes(produitId)
-        ? selections.filter(id => id !== produitId)
-        : [...selections, produitId];
+  // Activer/désactiver tous les produits d'un rayon
+  const toggleToutRayon = (rayon) => {
+    const produitsRayon = produitsParRayon[rayon];
+    if (!produitsRayon || produitsRayon.length === 0) return;
 
-      return {
-        ...prev,
-        [famille]: nouvellesSelections
-      };
-    });
-  };
+    // Vérifier si tous les produits du rayon sont actifs
+    const tousActifs = produitsRayon.every(p => p.actif);
 
-  // Sélectionner/désélectionner tous les produits d'une famille
-  const toggleTouteFamille = (famille) => {
-    const tousIds = produitsParFamille[famille].map(p => p.id);
-    const selections = selectionsParFamille[famille] || [];
-    const tousSelectionnes = tousIds.every(id => selections.includes(id));
-
-    setSelectionsParFamille(prev => ({
-      ...prev,
-      [famille]: tousSelectionnes ? [] : tousIds
-    }));
-  };
-
-  // Appliquer un potentiel à tous les produits sélectionnés d'une famille
-  const appliquerPotentielBatch = (famille) => {
-    const selections = selectionsParFamille[famille] || [];
-    if (selections.length === 0) {
-      alert('Aucun produit sélectionné');
-      return;
-    }
-
-    const potentiel = prompt(`Potentiel hebdomadaire à appliquer aux ${selections.length} produits sélectionnés :`);
-    if (potentiel !== null) {
-      selections.forEach(id => {
-        onChangerPotentiel(id, potentiel);
-      });
-      // Réinitialiser les sélections
-      setSelectionsParFamille(prev => ({
-        ...prev,
-        [famille]: []
-      }));
-    }
-  };
-
-  // Activer/désactiver tous les produits sélectionnés
-  const toggleActifBatch = (famille, actif) => {
-    const selections = selectionsParFamille[famille] || [];
-    if (selections.length === 0) {
-      alert('Aucun produit sélectionné');
-      return;
-    }
-
-    selections.forEach(id => {
-      const produit = produits.find(p => p.id === id);
-      if (produit && produit.actif !== actif) {
-        onToggleActif(id);
+    // Basculer tous les produits du rayon
+    produitsRayon.forEach(produit => {
+      if (produit.actif === tousActifs) {
+        onToggleActif(produit.id);
       }
     });
-
-    // Réinitialiser les sélections
-    setSelectionsParFamille(prev => ({
-      ...prev,
-      [famille]: []
-    }));
   };
 
-  const renderFamille = (nomFamille) => {
-    const produitsDelaFamille = produitsParFamille[nomFamille];
-    if (produitsDelaFamille.length === 0) return null;
+  const renderRayon = (nomRayon, indexRayon) => {
+    const produitsRayon = produitsParRayon[nomRayon];
+    if (!produitsRayon || produitsRayon.length === 0) return null;
 
-    const estOuverte = famillesOuvertes[nomFamille];
-    const selections = selectionsParFamille[nomFamille] || [];
-    const nbSelections = selections.length;
-    const tousSelectionnes = produitsDelaFamille.length > 0 &&
-                            produitsDelaFamille.every(p => selections.includes(p.id));
+    const estOuvert = rayonsOuverts[nomRayon];
+    const tousActifs = produitsRayon.every(p => p.actif);
+    const couleur = couleursRayon[indexRayon % couleursRayon.length];
 
     return (
-      <div key={nomFamille} className="mb-6">
-        {/* En-tête de famille */}
-        <div className={`border-2 rounded-lg p-4 ${couleursFamille[nomFamille]}`}>
+      <div key={nomRayon} className="mb-8">
+        {/* Séparateur visuel entre rayons */}
+        {indexRayon > 0 && (
+          <div className="mb-6 border-t-4 border-gray-300"></div>
+        )}
+
+        {/* En-tête de rayon */}
+        <div className={`border-2 rounded-lg p-4 shadow-sm ${couleur}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <button
-                onClick={() => toggleFamille(nomFamille)}
+                onClick={() => toggleRayon(nomRayon)}
                 className="hover:opacity-70 transition"
+                title="Plier/Déplier"
               >
-                {estOuverte ? <ChevronDown size={24} /> : <ChevronRight size={24} />}
+                {estOuvert ? <ChevronDown size={24} /> : <ChevronRight size={24} />}
               </button>
               <button
-                onClick={() => toggleTouteFamille(nomFamille)}
-                className="hover:opacity-70 transition"
-                title="Tout sélectionner / Tout désélectionner"
+                onClick={() => toggleToutRayon(nomRayon)}
+                className="hover:opacity-70 transition p-1"
+                title={tousActifs ? "Désactiver tout le rayon" : "Activer tout le rayon"}
               >
-                {tousSelectionnes ? <CheckSquare size={20} /> : <Square size={20} />}
+                {tousActifs ? <CheckSquare size={22} /> : <Square size={22} />}
               </button>
-              <h3 className="text-lg font-bold">
-                {nomFamille} ({produitsDelaFamille.length} produits)
+              <h3 className="text-xl font-bold">
+                {nomRayon}
               </h3>
-              {nbSelections > 0 && (
-                <span className="px-3 py-1 bg-white rounded-full text-sm font-semibold">
-                  {nbSelections} sélectionné{nbSelections > 1 ? 's' : ''}
-                </span>
-              )}
+              <span className="px-3 py-1 bg-white rounded-full text-sm font-semibold shadow-sm">
+                {produitsRayon.length} produit{produitsRayon.length > 1 ? 's' : ''}
+              </span>
             </div>
-
-            {/* Actions batch */}
-            {nbSelections > 0 && (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => appliquerPotentielBatch(nomFamille)}
-                  className="px-3 py-1 bg-white text-gray-800 rounded-lg hover:bg-gray-100 transition text-sm font-medium"
-                >
-                  Définir potentiel
-                </button>
-                <button
-                  onClick={() => toggleActifBatch(nomFamille, true)}
-                  className="px-3 py-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition text-sm font-medium"
-                >
-                  Activer
-                </button>
-                <button
-                  onClick={() => toggleActifBatch(nomFamille, false)}
-                  className="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium"
-                >
-                  Désactiver
-                </button>
-              </div>
-            )}
           </div>
         </div>
 
         {/* Tableau des produits */}
-        {estOuverte && (
-          <div className="mt-2 overflow-x-auto border border-gray-200 rounded-lg">
+        {estOuvert && (
+          <div className="mt-3 overflow-x-auto border-2 border-gray-200 rounded-lg shadow-sm">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-100">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 w-8">
-                    <Square size={16} className="opacity-30" />
-                  </th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Libellé</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Potentiel Hebdo</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Volume</th>
-                  <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600">Actif</th>
-                  <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600">Actions</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Libellé</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Rayon</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Programme</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">U/Plaque</th>
+                  {modeExpert && (
+                    <>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Code PLU</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">U/Vente</th>
+                    </>
+                  )}
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Potentiel Hebdo</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Volume</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700">Actif</th>
                 </tr>
               </thead>
               <tbody>
-                {produitsDelaFamille.map((produit, index) => {
-                  const estSelectionne = selections.includes(produit.id);
+                {produitsRayon.map((produit, index) => {
                   const estModifie = produit.libelle !== produit.libellePersonnalise;
-                  const aPotentielModifie = produit.potentielHebdo > 0;
 
                   return (
                     <tr
                       key={produit.id}
-                      className={`border-b ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${!produit.actif ? 'opacity-50' : ''} ${estSelectionne ? 'bg-blue-50' : ''} hover:bg-gray-100 transition`}
+                      className={`border-b ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${!produit.actif ? 'opacity-50' : ''} hover:bg-gray-100 transition`}
                     >
-                      <td className="px-4 py-2">
-                        <button
-                          onClick={() => toggleSelection(nomFamille, produit.id)}
-                          className="hover:opacity-70"
-                        >
-                          {estSelectionne ? (
-                            <CheckSquare size={18} className="text-blue-600" />
-                          ) : (
-                            <Square size={18} className="text-gray-400" />
-                          )}
-                        </button>
-                      </td>
                       <td className="px-4 py-2">
                         <div className="flex items-center gap-2">
                           <input
                             type="text"
                             value={produit.libellePersonnalise}
                             onChange={(e) => onChangerLibelle(produit.id, e.target.value)}
-                            className="flex-1 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm"
+                            className="flex-1 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                           />
                           {estModifie && (
                             <span className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full whitespace-nowrap">
@@ -247,18 +161,67 @@ export default function TableauProduitsGroupes({
                         </div>
                       </td>
                       <td className="px-4 py-2">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            value={produit.potentielHebdo}
-                            onChange={(e) => onChangerPotentiel(produit.id, e.target.value)}
-                            className={`w-24 px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm ${aPotentielModifie ? 'border-emerald-500 bg-emerald-50' : 'border-gray-300'}`}
-                            min="0"
-                          />
-                          {aPotentielModifie && (
-                            <span className="text-emerald-600 text-xs whitespace-nowrap">✓</span>
-                          )}
-                        </div>
+                        <select
+                          value={produit.rayon || ''}
+                          onChange={(e) => onChangerRayon(produit.id, e.target.value)}
+                          className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        >
+                          <option value="">-- Select. --</option>
+                          {rayonsDisponibles.map(r => (
+                            <option key={r} value={r}>{r}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-4 py-2">
+                        <select
+                          value={produit.programme || ''}
+                          onChange={(e) => onChangerProgramme(produit.id, e.target.value)}
+                          className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        >
+                          <option value="">-- Select. --</option>
+                          {programmesDisponibles.map(prog => (
+                            <option key={prog} value={prog}>{getNomProgrammeAffiche(prog)}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-4 py-2">
+                        <input
+                          type="number"
+                          value={produit.unitesParPlaque ?? 0}
+                          onChange={(e) => onChangerUnitesParPlaque(produit.id, e.target.value)}
+                          className="w-20 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          min="0"
+                        />
+                      </td>
+                      {modeExpert && (
+                        <>
+                          <td className="px-4 py-2">
+                            <input
+                              type="text"
+                              value={produit.codePLU || ''}
+                              onChange={(e) => onChangerCodePLU(produit.id, e.target.value)}
+                              className="w-24 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                            />
+                          </td>
+                          <td className="px-4 py-2">
+                            <input
+                              type="number"
+                              value={produit.unitesParVente ?? 1}
+                              onChange={(e) => onChangerUnitesParVente(produit.id, e.target.value)}
+                              className="w-20 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              min="1"
+                            />
+                          </td>
+                        </>
+                      )}
+                      <td className="px-4 py-2">
+                        <input
+                          type="number"
+                          value={produit.potentielHebdo}
+                          onChange={(e) => onChangerPotentiel(produit.id, e.target.value)}
+                          className="w-24 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          min="0"
+                        />
                       </td>
                       <td className="px-4 py-2 text-gray-600 text-sm">
                         {produit.totalVentes.toFixed(0)}
@@ -268,18 +231,8 @@ export default function TableauProduitsGroupes({
                           type="checkbox"
                           checked={produit.actif}
                           onChange={() => onToggleActif(produit.id)}
-                          className="w-5 h-5 text-amber-600 focus:ring-amber-500 rounded"
+                          className="w-5 h-5 text-blue-600 focus:ring-blue-500 rounded"
                         />
-                      </td>
-                      <td className="px-4 py-2 text-center">
-                        {produit.custom && (
-                          <button
-                            onClick={() => onSupprimerProduit(produit.id)}
-                            className="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition"
-                          >
-                            Supprimer
-                          </button>
-                        )}
                       </td>
                     </tr>
                   );
@@ -294,11 +247,7 @@ export default function TableauProduitsGroupes({
 
   return (
     <div>
-      {renderFamille('BOULANGERIE')}
-      {renderFamille('VIENNOISERIE')}
-      {renderFamille('PATISSERIE')}
-      {renderFamille('SNACKING')}
-      {renderFamille('AUTRE')}
+      {rayonsUniques.map((rayon, index) => renderRayon(rayon, index))}
     </div>
   );
 }

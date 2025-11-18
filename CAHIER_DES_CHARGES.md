@@ -1901,7 +1901,630 @@ Desktop (> 1024) :
 
 ---
 
-## 11. ÉVOLUTIONS FUTURES
+## 11. MODE PRODUCTION TABLETTE
+
+### 11.1 Vue d'Ensemble
+
+Le **Mode Production** est une interface optimisée pour les tablettes permettant aux opérateurs de suivre et valider la production en temps réel. Cette fonctionnalité transforme l'application de simple outil de planification en véritable système de suivi de production.
+
+### 11.2 Interface Tablette
+
+#### Navigation Multi-Modes
+```
+Trois modes d'affichage :
+┌─────────────────────────────────────────┐
+│ [Planning] [Production] [Suivi temps réel] │
+└─────────────────────────────────────────┘
+
+Planning         : Vue standard du planning (accordéons par rayon)
+Production       : Checklist interactive de production
+Suivi temps réel : Tableau de bord avec progression par rayon
+```
+
+#### Navigation Temporelle
+```
+Interface de navigation entre les jours :
+┌─────────────────────────────────────────┐
+│  [◀ Lun]    MARDI       [Mer ▶]        │
+│             5 programmes                 │
+│                                          │
+│  [Matin] [Midi] [Après-midi] [Casse]   │
+└─────────────────────────────────────────┘
+
+Fonctionnalités :
+- Navigation tactile entre les jours de la semaine
+- Sélection de la tranche horaire active (4 boutons)
+- Code couleur : Matin (bleu), Midi (jaune), Après-midi (orange), Casse (rouge)
+```
+
+### 11.3 Gestion des Tranches Horaires
+
+#### 4 Tranches Indépendantes
+
+**Matin (9h-12h)** - Bleu
+```
+Objectif : Première cuisson de la journée
+Caractéristiques :
+- Produits pour l'ouverture et pic matinal
+- Checkboxes indépendantes pour valider la production
+- Suivi en temps réel de l'avancement
+```
+
+**Midi (12h-16h)** - Jaune
+```
+Objectif : Cuisson pour le pic déjeuner
+Caractéristiques :
+- Nouvelle équipe, nouvelles checkboxes
+- Visualisation de ce qui a été fait le matin
+- Quantités spécifiques à la tranche
+```
+
+**Après-midi (16h-23h)** - Orange
+```
+Objectif : Dernière cuisson de la journée
+Caractéristiques :
+- Gestion intelligente du stock rayon
+- Calcul automatique : Prévision - Stock = À cuire
+- Évite la surproduction en fin de journée
+```
+
+**Casse (Invendus)** - Rouge
+```
+Objectif : Enregistrer les produits non vendus
+Caractéristiques :
+- Vue globale alphabétique de tous les produits
+- Saisie rapide des quantités d'invendus
+- Données pour ajuster le planning futur
+```
+
+### 11.4 Système de Persistance
+
+#### Clés de Stockage localStorage
+```javascript
+Format de la clé :
+`production_${jour}_${rayon}_${programme}`
+
+Exemple :
+production_Lundi_BOULANGERIE_Cuisson Baguette
+
+Structure des données :
+{
+  trancheActive: 'matin',
+  produitsCoches: {
+    matin: ['Baguette Blanche', 'Pain Complet'],
+    midi: ['Baguette Tradition'],
+    'apres-midi': []
+  },
+  stocksRayon: {
+    'Baguette Blanche': 2.5,  // En plaques ou unités
+    'Pain Complet': 1.0
+  },
+  casse: {
+    'Croissant Beurre': 0.5
+  },
+  heureDebut: '2025-11-06T09:15:00.000Z',
+  enCours: true
+}
+```
+
+#### Isolation des Données
+```
+Par jour :
+- Lundi ≠ Mardi (données indépendantes)
+- Changement de jour → checkboxes vierges
+
+Par rayon/programme :
+- BOULANGERIE/Cuisson Baguette ≠ VIENNOISERIE/Four Principal
+
+Par tranche :
+- Matin ≠ Midi ≠ Après-midi
+- Checkboxes indépendantes
+- Historique visible en résumé
+```
+
+### 11.5 Mode Production - Checklist Interactive
+
+#### Composant ModeProductionEnCours
+
+**Header Dynamique**
+```
+Couleur selon tranche active :
+- Matin : Dégradé bleu (sky-400 → sky-500)
+- Midi : Dégradé jaune (yellow-400 → yellow-500)
+- Après-midi : Dégradé orange (orange-500 → orange-600)
+- Casse : Dégradé rouge (red-600 → red-700)
+
+Affiche :
+- Rayon (ex: BOULANGERIE)
+- Programme (ex: Cuisson Baguette)
+- Heure de démarrage si production lancée
+```
+
+**Résumé des Tranches**
+```
+┌────────────────────────────────────────┐
+│  Matin      │  Midi       │ Après-midi │
+│  2/5 faits  │  0/5 faits  │  0/5 faits │
+│  ✓ Actif    │  Inactif    │  Inactif   │
+└────────────────────────────────────────┘
+
+Fonctionnalités :
+- Vue d'ensemble de toutes les tranches
+- Tranche active mise en évidence (bleu)
+- Tranches complétées en vert
+- Compteur produits cochés/total
+```
+
+**Liste Produits avec Checkboxes**
+```
+Pour chaque produit :
+┌────────────────────────────────────────┐
+│ ○ Baguette Blanche                     │
+│   Prévision: 11 Pl.                    │
+└────────────────────────────────────────┘
+
+Après validation :
+┌────────────────────────────────────────┐
+│ ✓ Baguette Blanche              [Fait] │
+│   Prévision: 11 Pl.                    │
+└────────────────────────────────────────┘
+
+Comportement :
+- Clic sur la zone → toggle checkbox
+- État coché → fond vert, texte barré
+- Badge "Fait" visible
+```
+
+**Barre de Progression**
+```
+┌────────────────────────────────────────┐
+│ Progression               40%          │
+│ ████████░░░░░░░░░░                     │
+│ 2 / 5 produits                         │
+└────────────────────────────────────────┘
+
+Calcul :
+- Pourcentage = (produits cochés / total) × 100
+- Uniquement pour la tranche active
+- Animation lors du changement
+```
+
+#### États de Production
+
+**Non Démarrée**
+```
+Affichage :
+[▶ Démarrer la production]
+
+Action :
+- Enregistre l'heure de début
+- Passe enCours = true
+- Permet le suivi de la durée
+```
+
+**En Cours**
+```
+Affichage :
+┌────────────────────────────────────────┐
+│ 🕐 Production en cours...              │
+│                                        │
+│ Progression : 40%                      │
+└────────────────────────────────────────┘
+```
+
+**Terminée (100%)**
+```
+Affichage :
+┌────────────────────────────────────────┐
+│ ✓ Production terminée !                │
+│   Durée : 27 minutes                   │
+└────────────────────────────────────────┘
+```
+
+### 11.6 Gestion Stock Rayon (Après-midi)
+
+#### Fonctionnalité Intelligente
+
+**Contexte**
+```
+Problème résolu :
+En après-midi, il reste souvent du stock de la cuisson
+du matin ou du midi. Il faut éviter de tout recuire.
+
+Solution :
+Calcul automatique de la quantité à cuire en fonction
+du stock rayon actuel.
+```
+
+**Interface de Saisie**
+```
+Affichée uniquement pour :
+- Tranche = Après-midi
+- Produit non coché
+- Mode ≠ Casse
+
+┌────────────────────────────────────────────────┐
+│ 📦 Gestion Stock Rayon                         │
+│                                                │
+│ ┌──────────┬──────────┬──────────┐            │
+│ │ Prévision│   Stock  │  À cuire │            │
+│ │          │   rayon  │          │            │
+│ ├──────────┼──────────┼──────────┤            │
+│ │  11 Pl.  │ [  2.5 ] │  8.5 Pl. │            │
+│ └──────────┴──────────┴──────────┘            │
+│                                                │
+│ 11 - 2.5 = 8.5 Pl.                            │
+└────────────────────────────────────────────────┘
+
+Comportement :
+- Prévision : lecture seule (du planning)
+- Stock rayon : input éditable (saisie opérateur)
+- À cuire : calculé automatiquement
+- Formule affichée en bas
+```
+
+**Calcul Automatique**
+```javascript
+Formule :
+À cuire = MAX(0, Prévision - Stock)
+
+Exemples :
+Prévision = 11 Pl., Stock = 2.5 Pl.
+→ À cuire = 8.5 Pl. (11 - 2.5)
+
+Prévision = 5 Pl., Stock = 6 Pl.
+→ À cuire = 0 Pl. (stock suffisant)
+
+Affichage visuel :
+- Si À cuire > 0 : Vert (production nécessaire)
+- Si À cuire = 0 : Gris (stock suffisant)
+```
+
+### 11.7 Mode Casse (Invendus)
+
+#### Vue Globale Alphabétique
+
+**Composant ModeCasseGlobal**
+```
+Objectif :
+Simplifier la saisie des invendus en fin de journée
+en affichant tous les produits dans une seule liste
+alphabétique (pas de regroupement par rayon/programme).
+
+Interface :
+┌────────────────────────────────────────┐
+│ 🗑️ Casse - Invendus                   │
+│                                        │
+│ 📝 Enregistrez les quantités d'invendus│
+│    Liste complète triée A-Z            │
+└────────────────────────────────────────┘
+```
+
+**Liste des Produits**
+```
+Pour chaque produit (ordre alphabétique) :
+┌────────────────────────────────────────┐
+│ Baguette Blanche                       │
+│ BOULANGERIE - Cuisson Baguette         │
+│ Prévision initiale: 21 Pl.             │
+│                            [    0    ] │
+│                            Invendus    │
+└────────────────────────────────────────┘
+
+Fonctionnalités :
+- Nom produit en gros
+- Rayon/Programme en petit (contexte)
+- Prévision du jour affichée
+- Input pour saisir les invendus
+- Scroll vertical pour longues listes
+```
+
+**Résumé**
+```
+En bas de la liste :
+┌────────────────────────────────────────┐
+│ 45 produits au total                   │
+└────────────────────────────────────────┘
+```
+
+### 11.8 Gestion des Programmes de Cuisson
+
+#### Interface de Personnalisation
+
+**Composant GestionProgrammes**
+```
+Déclenchement :
+Bouton "⚙️ Programmes" (violet) dans l'étape Personnalisation
+
+Modal :
+┌────────────────────────────────────────────┐
+│ Gestion des Programmes de Cuisson    [✕]  │
+├────────────────────────────────────────────┤
+│ Personnalisez les noms des programmes ou  │
+│ créez-en de nouveaux                       │
+└────────────────────────────────────────────┘
+```
+
+**Section 1 : Programmes du Référentiel**
+```
+┌────────────────────────────────────────────┐
+│ ✏️ Programmes du Référentiel               │
+├────────────────────────────────────────────┤
+│ Cuisson Baguette            [✏️ Renommer] │
+│ Original: Cuisson Baguette                 │
+│                                            │
+│ Four Principal              [✏️ Renommer] │
+│ Original: Four Principal                   │
+└────────────────────────────────────────────┘
+
+Fonctionnalités :
+- Liste tous les programmes du fichier Excel
+- Bouton "Renommer" pour chaque programme
+- Affiche le nom original si renommé
+- Sauvegarde dans localStorage
+```
+
+**Section 2 : Programmes Personnalisés**
+```
+┌────────────────────────────────────────────┐
+│ ➕ Programmes Personnalisés                │
+├────────────────────────────────────────────┤
+│ Production Nuit             [🗑️ Supprimer]│
+│                                            │
+│ [➕ Ajouter un nouveau programme]         │
+└────────────────────────────────────────────┘
+
+Fonctionnalités :
+- Création de programmes custom
+- Suppression possible (uniquement custom)
+- Bordure verte pour différenciation
+```
+
+**Édition Inline**
+```
+Mode édition activé :
+┌────────────────────────────────────────────┐
+│ [Cuisson Baguettes_________] [💾] [✕]    │
+└────────────────────────────────────────────┘
+
+Actions :
+- Input texte pour saisir nouveau nom
+- Bouton sauvegarder (vert)
+- Bouton annuler (gris)
+- Validation non-vide
+```
+
+#### Stockage localStorage
+
+**Clé de Stockage**
+```javascript
+Clé : 'bvp_programmes_personnalises'
+
+Structure :
+{
+  renommages: {
+    'Cuisson Baguette': 'Four Baguettes',
+    'Four Principal': 'Four 1'
+  },
+  custom: [
+    'Production Nuit',
+    'Four Express'
+  ]
+}
+```
+
+**Fonctions du Service**
+```javascript
+// referentielITM8.js - Nouvelles fonctions
+
+chargerProgrammesPersonnalises()
+// Retourne { renommages: Map, custom: [] }
+
+renommerProgramme(programmeOriginal, nouveauNom)
+// Enregistre le renommage
+
+ajouterProgrammeCustom(nomProgramme)
+// Ajoute un programme personnalisé
+
+supprimerProgrammeCustom(nomProgramme)
+// Supprime un programme custom
+
+getNomProgrammeAffiche(programmeOriginal)
+// Retourne le nom affiché (avec renommage)
+
+getListeProgrammesComplets()
+// Liste complète : référentiel + custom + renommages
+```
+
+### 11.9 Outils de Debug
+
+#### Boutons de Diagnostic
+
+**Affichage**
+```
+En bas de chaque carte de production :
+┌────────────────────────────────────────┐
+│ [🔍 Debug Storage] [🗑️ Reset]         │
+└────────────────────────────────────────┘
+
+Style :
+- Opacité 50% par défaut
+- Opacité 100% au survol
+- Petits boutons (text-xs)
+```
+
+**Debug Storage**
+```
+Action :
+Affiche dans la console :
+=== DEBUG LOCALSTORAGE ===
+Clé: production_Lundi_BOULANGERIE_Cuisson Baguette
+Données: {
+  trancheActive: 'matin',
+  produitsCoches: { matin: [...], ... },
+  stocksRayon: {...},
+  ...
+}
+Toutes les clés de production: [
+  'production_Lundi_BOULANGERIE_Cuisson Baguette',
+  'production_Mardi_VIENNOISERIE_Four Principal',
+  ...
+]
+
+Utilité :
+- Diagnostic problèmes de persistance
+- Vérification isolation des données
+- Identification clés orphelines
+```
+
+**Reset Production**
+```
+Action :
+1. Affiche confirmation :
+   "Voulez-vous réinitialiser la production pour
+    BOULANGERIE - Cuisson Baguette - Lundi ?"
+
+2. Si confirmé :
+   - Supprime la clé localStorage
+   - Recharge la page
+   - Données remises à zéro
+
+Utilité :
+- Nettoyage données corrompues
+- Test avec données fraîches
+- Remise à zéro d'une production
+```
+
+### 11.10 Architecture des Composants
+
+#### Hiérarchie
+```
+PlanningVueTablet.jsx (composant parent)
+├── Mode Planning (accordéons)
+├── Mode Production
+│   ├── Sélection tranche (4 boutons)
+│   ├── Navigation jours (flèches)
+│   ├── Si tranche = 'casse'
+│   │   └── ModeCasseGlobal.jsx
+│   └── Sinon
+│       └── ModeProductionEnCours.jsx (par rayon/programme)
+│           └── useProductionStorage.js (hook)
+└── Mode Suivi Temps Réel
+    └── ModeSuiviTempsReel.jsx
+```
+
+#### Flux de Données
+```
+1. PlanningVueTablet gère :
+   - selectedJour (état global)
+   - trancheGlobale (état global)
+   - Mapping 'apres-midi' → 'soir' pour données planning
+
+2. ModeProductionEnCours reçoit :
+   - jour (prop)
+   - rayon (prop)
+   - programme (prop)
+   - produits (prop - quantités filtrées par tranche)
+   - trancheActive (prop)
+
+3. useProductionStorage gère :
+   - Chargement/sauvegarde localStorage
+   - Clé composite : jour + rayon + programme
+   - Mutations : toggle, setStock, setCasse
+```
+
+### 11.11 Cas d'Usage
+
+#### Scénario 1 : Production Matin
+```
+1. Opérateur arrive à 6h
+2. Ouvre l'app sur tablette
+3. Sélectionne "Production"
+4. Jour = Aujourd'hui (détecté auto)
+5. Tranche = Matin (bouton bleu)
+6. Clique "Démarrer la production" → 6:05 enregistré
+7. Pour chaque produit cuit :
+   - Clic sur la ligne → checkbox verte
+   - Progression mise à jour automatiquement
+8. À 9h : Production terminée (100%)
+9. Durée affichée : 175 minutes
+```
+
+#### Scénario 2 : Production Après-midi avec Stock
+```
+1. Opérateur arrive à 16h
+2. Sélectionne "Après-midi" (bouton orange)
+3. Voit résumé : Matin (5/5), Midi (4/5), Après-midi (0/5)
+4. Pour "Baguette Blanche" :
+   - Prévision : 11 Pl.
+   - Va compter le rayon → reste 2.5 Pl.
+   - Saisit "2.5" dans "Stock rayon"
+   - Voit "À cuire : 8.5 Pl." (calculé auto)
+5. Cuit 8.5 Pl. seulement
+6. Coche la ligne
+7. Évite le gaspillage ✅
+```
+
+#### Scénario 3 : Saisie Casse
+```
+1. En fin de journée (23h)
+2. Opérateur sélectionne "Casse" (bouton rouge)
+3. Vue alphabétique de tous les produits
+4. Parcourt le rayon physiquement :
+   - Baguette Blanche : 1.5 Pl. restant → saisit "1.5"
+   - Croissant Beurre : 0.5 Pl. restant → saisit "0.5"
+   - Pain Complet : rien → laisse vide
+5. Données enregistrées pour analyse future
+6. Peut ajuster les prévisions demain
+```
+
+#### Scénario 4 : Renommer Programme
+```
+1. Utilisateur dans "Personnalisation"
+2. Clique "⚙️ Programmes"
+3. Voit "Cuisson Baguette"
+4. Clique "✏️ Renommer"
+5. Saisit "Four Baguettes"
+6. Clique "💾 Sauvegarder"
+7. Partout dans l'app : "Four Baguettes" affiché
+8. Sauvegardé dans localStorage
+```
+
+### 11.12 Avantages Fonctionnels
+
+#### Pour les Opérateurs
+```
+✅ Interface tactile simple (gros boutons)
+✅ Checklist visuelle (pas d'oubli)
+✅ Suivi temps réel (progression)
+✅ Historique des tranches (visibilité équipe)
+✅ Calcul intelligent stock (anti-gaspillage)
+✅ Saisie rapide invendus (ordre alphabétique)
+```
+
+#### Pour la Gestion
+```
+✅ Données de production réelles
+✅ Suivi de la durée de production
+✅ Identification des invendus
+✅ Base pour optimiser le planning
+✅ Traçabilité par jour/tranche
+✅ Personnalisation des programmes
+```
+
+#### Technique
+```
+✅ Persistance locale (pas de connexion requise)
+✅ Isolation complète des données
+✅ Interface réactive (temps réel)
+✅ Code modulaire (composants réutilisables)
+✅ Outils de debug intégrés
+✅ Extensible (nouvelles fonctionnalités faciles)
+```
+
+---
+
+## 12. ÉVOLUTIONS FUTURES
 
 ### 11.1 Fonctionnalités Métier
 
@@ -2140,10 +2763,26 @@ Potentiel = Vente MAX ÷ Poids du jour
 ---
 
 **Document rédigé le** : 29 octobre 2025
-**Version Application** : 1.0
-**Dernière mise à jour** : 30 octobre 2025 - Ajout des fonctionnalités suivantes :
+**Version Application** : 1.2
+**Dernière mise à jour** : 6 novembre 2025
+
+### Historique des Versions
+
+**Version 1.2** (6 novembre 2025) - Mode Production Tablette :
+- Interface tablette avec mode Production en cours
+- Suivi production par tranche horaire (Matin/Midi/Après-midi/Casse)
+- Persistance localStorage par jour/rayon/programme/tranche
+- Gestion stock rayon pour l'après-midi (calcul Prévision - Stock = À cuire)
+- Mode Casse pour enregistrer les invendus
+- Interface de gestion des programmes de cuisson personnalisables
+- Boutons de debug pour diagnostiquer le stockage
+
+**Version 1.1** (30 octobre 2025) :
 - Système de calcul Auto-Potentiels à 3 modes (Mathématique, Forte Progression +20%, Prudent +10%)
 - Tri par défaut Rayon-Volume (BOULANGERIE → VIENNOISERIE → PATISSERIE → SNACKING → AUTRE)
 - Logique NC pour produits sans cuisson (unitesParPlaque = 0)
 - Simplification Rayon/Famille (rayon auto-assigné, famille masquée dans UI)
 - Colonne Unités/Plaque éditable et optimisation des largeurs de colonnes
+
+**Version 1.0** (29 octobre 2025) :
+- Version initiale de l'application

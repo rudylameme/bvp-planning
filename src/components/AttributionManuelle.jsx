@@ -1,5 +1,5 @@
 import { AlertCircle } from 'lucide-react';
-import { getListeRayons, getListeProgrammes } from '../services/referentielITM8';
+import { getListeRayons, getListeProgrammesComplets, getNomProgrammeAffiche } from '../services/referentielITM8';
 
 export default function AttributionManuelle({
   produitsNonReconnus,
@@ -11,7 +11,7 @@ export default function AttributionManuelle({
   }
 
   const rayonsDisponibles = getListeRayons();
-  const programmesDisponibles = getListeProgrammes();
+  const programmesDisponibles = getListeProgrammesComplets();
 
   const handleRayonChange = (produitId, nouveauRayon) => {
     onAttribuer(produitId, { rayon: nouveauRayon });
@@ -90,7 +90,7 @@ export default function AttributionManuelle({
                       <option value="">Sélectionner un programme...</option>
                       {programmesDisponibles.map((prog) => (
                         <option key={prog} value={prog}>
-                          {prog}
+                          {getNomProgrammeAffiche(prog)}
                         </option>
                       ))}
                     </select>

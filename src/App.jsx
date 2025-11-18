@@ -6,8 +6,9 @@ import EtapePlanning from './components/EtapePlanning';
 import { parseVentesExcel, parseFrequentationExcel } from './utils/parsers';
 import { classerProduit } from './utils/classification';
 import { calculerPlanning } from './services/planningCalculator';
-import { chargerReferentielITM8, rechercherParITM8, mapRayonVersFamille, isReferentielCharge } from './services/referentielITM8';
+import { chargerReferentielITM8, rechercherParITM8, mapRayonVersFamille, isReferentielCharge, reinitialiserProgrammes } from './services/referentielITM8';
 import { trouverVenteMax, calculerPotentielDepuisVenteMax } from './services/potentielCalculator';
+import { mousquetairesColors } from './styles/mousquetaires-theme';
 
 function App() {
   // État principal
@@ -415,45 +416,96 @@ function App() {
     setPdvInfo(null);
     setPonderationType('standard');
     setFrequentationFile(null);
+    // Réinitialiser les programmes personnalisés
+    reinitialiserProgrammes();
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8 print:p-0 print:bg-white">
+    <div className="min-h-screen p-8 print:p-0 print:bg-white" style={{ backgroundColor: mousquetairesColors.secondary.beigeLight }}>
       <div className="max-w-7xl mx-auto print:max-w-none print:mx-0">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6 print:hidden">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-800">Planning BVP</h1>
-              <p className="text-gray-600 mt-1">Boulangerie - Viennoiserie - Pâtisserie</p>
-              {pdvInfo && (
-                <p className="text-sm text-indigo-600 mt-1">
-                  PDV: {pdvInfo.numero} - {pdvInfo.nom}
-                </p>
-              )}
+        <div className="bg-white rounded-lg shadow-lg mb-6 print:hidden" style={{ borderTop: `4px solid ${mousquetairesColors.primary.red}` }}>
+          {/* Bandeau supérieur avec logo */}
+          <div className="px-6 py-4" style={{ borderBottom: `1px solid ${mousquetairesColors.secondary.gray}` }}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <img
+                  src="/Data/GROUPEMENT_MOUSQUETAIRES_H_HD.png"
+                  alt="Groupement des Mousquetaires"
+                  className="h-12"
+                />
+                <div style={{ width: '2px', height: '48px', backgroundColor: mousquetairesColors.secondary.gray }}></div>
+                <div>
+                  <h1 className="text-3xl font-bold" style={{ color: mousquetairesColors.primary.redDark }}>Planning BVP</h1>
+                  <p className="text-sm" style={{ color: mousquetairesColors.text.secondary }}>Boulangerie - Viennoiserie - Pâtisserie</p>
+                </div>
+              </div>
+              <button
+                onClick={recommencer}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg transition"
+                style={{
+                  backgroundColor: mousquetairesColors.secondary.beige,
+                  color: mousquetairesColors.primary.redDark,
+                  border: `2px solid ${mousquetairesColors.primary.red}`
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = mousquetairesColors.primary.red;
+                  e.currentTarget.style.color = mousquetairesColors.text.white;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = mousquetairesColors.secondary.beige;
+                  e.currentTarget.style.color = mousquetairesColors.primary.redDark;
+                }}
+              >
+                <RotateCcw size={20} />
+                Nouveau
+              </button>
             </div>
-            <button
-              onClick={recommencer}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
-            >
-              <RotateCcw size={20} />
-              Nouveau
-            </button>
           </div>
 
-          {/* Indicateur d'étapes */}
-          <div className="flex items-center justify-center mt-6 gap-4">
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${etape === 'upload' ? 'bg-amber-700 text-white' : 'bg-gray-200 text-gray-600'}`}>
-              <Upload size={20} />
-              <span>1. Upload</span>
+          {/* Informations PDV */}
+          {pdvInfo && (
+            <div className="px-6 py-3" style={{ backgroundColor: mousquetairesColors.secondary.beigeLight }}>
+              <p className="text-sm font-semibold" style={{ color: mousquetairesColors.primary.redDark }}>
+                Point de vente : {pdvInfo.numero} - {pdvInfo.nom}
+              </p>
             </div>
-            <ChevronRight className="text-gray-400" />
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${etape === 'personnalisation' ? 'bg-amber-700 text-white' : 'bg-gray-200 text-gray-600'}`}>
+          )}
+
+          {/* Indicateur d'étapes */}
+          <div className="flex items-center justify-center py-6 gap-4">
+            <div
+              className="flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all"
+              style={{
+                backgroundColor: etape === 'upload' ? mousquetairesColors.primary.red : mousquetairesColors.secondary.beige,
+                color: etape === 'upload' ? mousquetairesColors.text.white : mousquetairesColors.text.secondary,
+                border: etape === 'upload' ? 'none' : `1px solid ${mousquetairesColors.secondary.gray}`
+              }}
+            >
+              <Upload size={20} />
+              <span>1. Chargement</span>
+            </div>
+            <ChevronRight style={{ color: mousquetairesColors.secondary.gray }} />
+            <div
+              className="flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all"
+              style={{
+                backgroundColor: etape === 'personnalisation' ? mousquetairesColors.primary.red : mousquetairesColors.secondary.beige,
+                color: etape === 'personnalisation' ? mousquetairesColors.text.white : mousquetairesColors.text.secondary,
+                border: etape === 'personnalisation' ? 'none' : `1px solid ${mousquetairesColors.secondary.gray}`
+              }}
+            >
               <FileUp size={20} />
               <span>2. Personnalisation</span>
             </div>
-            <ChevronRight className="text-gray-400" />
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${etape === 'planning' ? 'bg-amber-700 text-white' : 'bg-gray-200 text-gray-600'}`}>
+            <ChevronRight style={{ color: mousquetairesColors.secondary.gray }} />
+            <div
+              className="flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all"
+              style={{
+                backgroundColor: etape === 'planning' ? mousquetairesColors.primary.red : mousquetairesColors.secondary.beige,
+                color: etape === 'planning' ? mousquetairesColors.text.white : mousquetairesColors.text.secondary,
+                border: etape === 'planning' ? 'none' : `1px solid ${mousquetairesColors.secondary.gray}`
+              }}
+            >
               <Download size={20} />
               <span>3. Planning</span>
             </div>

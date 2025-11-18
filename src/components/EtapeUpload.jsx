@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { Upload, ChevronRight, Loader2 } from 'lucide-react';
+import { mousquetairesColors } from '../styles/mousquetaires-theme';
 
 export default function EtapeUpload({
   frequentationData,
@@ -42,68 +43,94 @@ export default function EtapeUpload({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">Upload des données</h2>
+    <div className="bg-white rounded-lg shadow-lg p-8" style={{ borderTop: `4px solid ${mousquetairesColors.primary.red}` }}>
+      <h2 className="text-3xl font-bold mb-8" style={{ color: mousquetairesColors.primary.redDark }}>
+        Chargement des données
+      </h2>
+
+      {/* Séparateur */}
+      <div style={{ width: '100%', height: '1px', backgroundColor: mousquetairesColors.secondary.gray, marginBottom: '2rem' }}></div>
 
       {/* Sélection du type de pondération */}
-      <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-        <h3 className="text-sm font-semibold text-blue-900 mb-3">Type de pondération des données</h3>
-        <div className="flex gap-3">
+      <div className="mb-8 p-6 rounded-lg" style={{ backgroundColor: mousquetairesColors.secondary.beigeLight, border: `1px solid ${mousquetairesColors.secondary.gray}` }}>
+        <h3 className="text-base font-bold mb-4" style={{ color: mousquetairesColors.primary.redDark }}>
+          Type de pondération des données
+        </h3>
+        <div className="flex gap-3 flex-wrap">
           <button
             onClick={() => onChangerPonderation('standard')}
-            className={`px-4 py-2 rounded-lg transition ${
-              ponderationType === 'standard'
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
-            }`}
+            className="px-5 py-3 rounded-lg transition font-semibold"
+            style={{
+              backgroundColor: ponderationType === 'standard' ? mousquetairesColors.primary.red : 'white',
+              color: ponderationType === 'standard' ? mousquetairesColors.text.white : mousquetairesColors.text.secondary,
+              border: `2px solid ${ponderationType === 'standard' ? mousquetairesColors.primary.red : mousquetairesColors.secondary.gray}`
+            }}
           >
-            Standard{' '}
-            <span className="text-xs block mt-1">S-1: 40% | AS-1: 30% | S-2: 30%</span>
+            Standard
+            <span className="text-xs block mt-1 font-normal">S-1: 40% | AS-1: 30% | S-2: 30%</span>
           </button>
           <button
             onClick={() => onChangerPonderation('saisonnier')}
-            className={`px-4 py-2 rounded-lg transition ${
-              ponderationType === 'saisonnier'
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
-            }`}
+            className="px-5 py-3 rounded-lg transition font-semibold"
+            style={{
+              backgroundColor: ponderationType === 'saisonnier' ? mousquetairesColors.primary.red : 'white',
+              color: ponderationType === 'saisonnier' ? mousquetairesColors.text.white : mousquetairesColors.text.secondary,
+              border: `2px solid ${ponderationType === 'saisonnier' ? mousquetairesColors.primary.red : mousquetairesColors.secondary.gray}`
+            }}
           >
-            Saisonnier{' '}
-            <span className="text-xs block mt-1">S-1: 30% | AS-1: 50% | S-2: 20%</span>
+            Saisonnier
+            <span className="text-xs block mt-1 font-normal">S-1: 30% | AS-1: 50% | S-2: 20%</span>
           </button>
           <button
             onClick={() => onChangerPonderation('fortePromo')}
-            className={`px-4 py-2 rounded-lg transition ${
-              ponderationType === 'fortePromo'
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
-            }`}
+            className="px-5 py-3 rounded-lg transition font-semibold"
+            style={{
+              backgroundColor: ponderationType === 'fortePromo' ? mousquetairesColors.primary.red : 'white',
+              color: ponderationType === 'fortePromo' ? mousquetairesColors.text.white : mousquetairesColors.text.secondary,
+              border: `2px solid ${ponderationType === 'fortePromo' ? mousquetairesColors.primary.red : mousquetairesColors.secondary.gray}`
+            }}
           >
-            Forte Promo{' '}
-            <span className="text-xs block mt-1">S-1: 60% | AS-1: 20% | S-2: 20%</span>
+            Forte Promo
+            <span className="text-xs block mt-1 font-normal">S-1: 60% | AS-1: 20% | S-2: 20%</span>
           </button>
         </div>
-        <p className="text-xs text-blue-700 mt-2">
+        <p className="text-xs mt-3" style={{ color: mousquetairesColors.text.secondary }}>
           S-1 = Semaine précédente | AS-1 = Même semaine année précédente | S-2 = Il y a 2 semaines
         </p>
       </div>
 
       {/* Message d'ordre d'upload */}
-      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-        <p className="text-sm text-blue-800">
-          📌 <strong>Ordre d'import :</strong> Importez d'abord la <strong>FRÉQUENTATION</strong>, puis les <strong>VENTES</strong>. Cela permet de calculer immédiatement les potentiels avec la bonne formule.
+      <div className="mb-6 p-4 rounded-lg" style={{ backgroundColor: '#FFF3CD', border: `1px solid #FFC107` }}>
+        <p className="text-sm" style={{ color: '#856404' }}>
+          <strong>⚠️ Ordre d'import :</strong> Importez d'abord la <strong>FRÉQUENTATION</strong>, puis les <strong>VENTES</strong>. Cela permet de calculer immédiatement les potentiels avec la bonne formule.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Upload Fréquentation */}
-        <div className="border-2 border-dashed border-amber-400 rounded-lg p-6 hover:border-amber-600 transition bg-amber-50">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="flex items-center justify-center w-8 h-8 bg-amber-700 text-white rounded-full font-bold">1</span>
-            <h3 className="text-lg font-semibold text-gray-700">Fréquentation</h3>
+        <div
+          className="border-2 border-dashed rounded-lg p-6 transition cursor-pointer"
+          style={{
+            borderColor: mousquetairesColors.primary.red,
+            backgroundColor: mousquetairesColors.secondary.beigeLight
+          }}
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <span
+              className="flex items-center justify-center w-10 h-10 rounded-full font-bold text-lg"
+              style={{
+                backgroundColor: mousquetairesColors.primary.red,
+                color: mousquetairesColors.text.white
+              }}
+            >
+              1
+            </span>
+            <h3 className="text-xl font-bold" style={{ color: mousquetairesColors.primary.redDark }}>
+              Fréquentation
+            </h3>
           </div>
-          <div className="text-sm text-gray-600 mb-4 space-y-1">
-            <p className="font-medium">Format attendu :</p>
+          <div className="text-sm mb-6 space-y-2" style={{ color: mousquetairesColors.text.secondary }}>
+            <p className="font-semibold" style={{ color: mousquetairesColors.primary.redDark }}>Format attendu :</p>
             <ul className="list-disc ml-5 space-y-1">
               <li>Ligne avec "JOUR" dans les en-têtes</li>
               <li>Colonne G : Jours (1-lundi, 2-mardi...)</li>
@@ -121,7 +148,11 @@ export default function EtapeUpload({
           <button
             onClick={() => refFrequentation.current.click()}
             disabled={loadingFreq}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-700 text-white rounded-lg hover:bg-amber-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center gap-2 px-5 py-4 rounded-lg transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              backgroundColor: mousquetairesColors.primary.red,
+              color: mousquetairesColors.text.white
+            }}
           >
             {loadingFreq ? (
               <>
@@ -136,29 +167,42 @@ export default function EtapeUpload({
             )}
           </button>
           {frequentationData && !loadingFreq && (
-            <p className="text-green-600 mt-3 text-sm font-medium">
+            <p className="mt-4 text-sm font-semibold" style={{ color: mousquetairesColors.functional.success }}>
               ✅ Fichier chargé - {frequentationData.totalQteTot.toFixed(0)} quantités totales détectées
             </p>
           )}
         </div>
 
         {/* Upload Ventes */}
-        <div className={`border-2 border-dashed rounded-lg p-6 transition ${
-          frequentationData
-            ? 'border-green-400 bg-green-50 hover:border-green-600'
-            : 'border-gray-300 bg-gray-50 opacity-60'
-        }`}>
-          <div className="flex items-center gap-2 mb-4">
-            <span className={`flex items-center justify-center w-8 h-8 rounded-full font-bold ${
-              frequentationData ? 'bg-emerald-600 text-white' : 'bg-gray-400 text-white'
-            }`}>2</span>
-            <h3 className="text-lg font-semibold text-gray-700">Ventes</h3>
+        <div
+          className="border-2 border-dashed rounded-lg p-6 transition"
+          style={{
+            borderColor: frequentationData ? mousquetairesColors.functional.success : mousquetairesColors.secondary.gray,
+            backgroundColor: frequentationData ? mousquetairesColors.secondary.beigeLight : mousquetairesColors.secondary.beige,
+            opacity: frequentationData ? 1 : 0.6
+          }}
+        >
+          <div className="flex items-center gap-3 mb-4 flex-wrap">
+            <span
+              className="flex items-center justify-center w-10 h-10 rounded-full font-bold text-lg"
+              style={{
+                backgroundColor: frequentationData ? mousquetairesColors.functional.success : mousquetairesColors.secondary.gray,
+                color: mousquetairesColors.text.white
+              }}
+            >
+              2
+            </span>
+            <h3 className="text-xl font-bold" style={{ color: mousquetairesColors.primary.redDark }}>
+              Ventes
+            </h3>
             {!frequentationData && (
-              <span className="text-xs text-orange-600 font-semibold">⚠️ Fréquentation requise</span>
+              <span className="text-xs font-semibold" style={{ color: mousquetairesColors.functional.warning }}>
+                ⚠️ Fréquentation requise
+              </span>
             )}
           </div>
-          <div className="text-sm text-gray-600 mb-4 space-y-1">
-            <p className="font-medium">Format attendu :</p>
+          <div className="text-sm mb-6 space-y-2" style={{ color: mousquetairesColors.text.secondary }}>
+            <p className="font-semibold" style={{ color: mousquetairesColors.primary.redDark }}>Format attendu :</p>
             <ul className="list-disc ml-5 space-y-1">
               <li>1ère ligne : PDV: [numéro] - [nom]</li>
               <li>Ligne avec "ITM8 Prio" en colonne A</li>
@@ -175,11 +219,11 @@ export default function EtapeUpload({
           <button
             onClick={() => refVentes.current.click()}
             disabled={!frequentationData || loadingVentes}
-            className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition ${
-              frequentationData && !loadingVentes
-                ? 'bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer'
-                : 'bg-gray-400 text-gray-200 cursor-not-allowed opacity-50'
-            }`}
+            className="w-full flex items-center justify-center gap-2 px-5 py-4 rounded-lg transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              backgroundColor: frequentationData && !loadingVentes ? mousquetairesColors.functional.success : mousquetairesColors.secondary.gray,
+              color: mousquetairesColors.text.white
+            }}
             title={frequentationData ? 'Choisir un fichier' : 'Importez d\'abord la fréquentation'}
           >
             {loadingVentes ? (
@@ -195,29 +239,33 @@ export default function EtapeUpload({
             )}
           </button>
           {ventesData && !loadingVentes && (
-            <p className="text-green-600 mt-3 text-sm font-medium">
+            <p className="mt-4 text-sm font-semibold" style={{ color: mousquetairesColors.functional.success }}>
               ✅ Fichier chargé - {ventesData.produits.size} produits détectés
             </p>
           )}
         </div>
       </div>
 
-      {/* Message d'aide pour le diagnostic */}
-      <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <p className="text-sm text-yellow-800">
-          <strong>En cas d'erreur :</strong> Appuyez sur <kbd className="px-2 py-1 bg-white border border-yellow-300 rounded">F12</kbd> pour ouvrir la console du navigateur et voir le diagnostic détaillé de vos fichiers.
-        </p>
-      </div>
-
+      {/* Séparateur */}
       {/* Bouton suivant */}
       {frequentationData && ventesData && (
-        <div className="mt-6 flex justify-end">
+        <div className="mt-8 flex justify-end">
           <button
             onClick={onSuivant}
-            className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
+            className="flex items-center gap-3 px-8 py-4 rounded-lg transition font-bold text-lg"
+            style={{
+              backgroundColor: mousquetairesColors.primary.red,
+              color: mousquetairesColors.text.white
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = mousquetairesColors.primary.redDark;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = mousquetairesColors.primary.red;
+            }}
           >
-            Suivant
-            <ChevronRight size={20} />
+            Suivant : Personnalisation
+            <ChevronRight size={24} />
           </button>
         </div>
       )}

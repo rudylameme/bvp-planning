@@ -211,3 +211,106 @@ export const mapRayonVersFamille = (rayon) => {
   // Par défaut
   return 'AUTRE';
 };
+
+/**
+ * ========================================
+ * GESTION DES PROGRAMMES PERSONNALISÉS
+ * ========================================
+ */
+
+const STORAGE_KEY_PROGRAMMES = 'bvp_programmes_personnalises';
+
+/**
+ * Charger les programmes personnalisés depuis localStorage
+ * @returns {Object} { renommages: Map<string, string>, custom: string[] }
+ */
+export const chargerProgrammesPersonnalises = () => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_PROGRAMMES);
+    if (saved) {
+      const data = JSON.parse(saved);
+      return {
+        renommages: new Map(Object.entries(data.renommages || {})),
+        custom: data.custom || []
+      };
+    }
+  } catch (error) {
+    console.error('Erreur chargement programmes personnalisés:', error);
+  }
+  return { renommages: new Map(), custom: [] };
+};
+
+/**
+ * Sauvegarder les programmes personnalisés dans localStorage
+ */
+export const sauvegarderProgrammesPersonnalises = (renommages, custom) => {
+  try {
+    const data = {
+      renommages: Object.fromEntries(renommages),
+      custom: custom
+    };
+    localStorage.setItem(STORAGE_KEY_PROGRAMMES, JSON.stringify(data));
+  } catch (error) {
+    console.error('Erreur sauvegarde programmes personnalisés:', error);
+  }
+};
+
+/**
+ * Renommer un programme existant
+ */
+export const renommerProgramme = (programmeOriginal, nouveauNom) => {
+  const { renommages, custom } = chargerProgrammesPersonnalises();
+  renommages.set(programmeOriginal, nouveauNom);
+  sauvegarderProgrammesPersonnalises(renommages, custom);
+};
+
+/**
+ * Ajouter un programme personnalisé
+ */
+export const ajouterProgrammeCustom = (nomProgramme) => {
+  const { renommages, custom } = chargerProgrammesPersonnalises();
+  if (!custom.includes(nomProgramme)) {
+    custom.push(nomProgramme);
+    sauvegarderProgrammesPersonnalises(renommages, custom);
+  }
+};
+
+/**
+ * Supprimer un programme personnalisé
+ */
+export const supprimerProgrammeCustom = (nomProgramme) => {
+  const { renommages, custom } = chargerProgrammesPersonnalises();
+  const index = custom.indexOf(nomProgramme);
+  if (index > -1) {
+    custom.splice(index, 1);
+    sauvegarderProgrammesPersonnalises(renommages, custom);
+  }
+};
+
+/**
+ * Obtenir le nom affiché d'un programme (prend en compte les renommages)
+ */
+export const getNomProgrammeAffiche = (programmeOriginal) => {
+  const { renommages } = chargerProgrammesPersonnalises();
+  return renommages.get(programmeOriginal) || programmeOriginal;
+};
+
+/**
+ * Réinitialiser tous les programmes personnalisés (renommages et custom)
+ * À appeler lors du "Recommencer" pour revenir aux paramètres par défaut
+ */
+export const reinitialiserProgrammes = () => {
+  localStorage.removeItem(STORAGE_KEY_PROGRAMMES);
+};
+
+/**
+ * Obtenir la liste complète des programmes (référentiel + custom)
+ * Retourne les identifiants originaux (pas les noms affichés)
+ */
+export const getListeProgrammesComplets = () => {
+  const programmesRef = getListeProgrammes(); // Programmes du référentiel
+  const { custom } = chargerProgrammesPersonnalises();
+
+  // Retourner les identifiants originaux + custom
+  return [...programmesRef, ...custom].sort();
+};

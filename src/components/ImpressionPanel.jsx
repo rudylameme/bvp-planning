@@ -2,6 +2,7 @@ import React from 'react';
 import { Printer, X } from 'lucide-react';
 import { convertirEnPlaques } from '../utils/conversionUtils';
 import { getNextWeekDates } from '../utils/dateUtils';
+import { getNomProgrammeAffiche } from '../services/referentielITM8';
 
 /**
  * Calcule le total de plaques pour un programme de cuisson (par créneau)
@@ -283,7 +284,7 @@ function PlanningJour({ selectedJour, planningData, pdvInfo, nextWeek, modeAffic
                     {rayon}
                   </td>
                   <td className="border border-black px-0.5 py-0.5 text-center font-bold bg-gray-100 text-[5px]">
-                    {programme}
+                    {getNomProgrammeAffiche(programme)}
                   </td>
                   <td className="border border-black px-1 py-0.5 text-center text-[10px]">{creneaux.codePLU || ''}</td>
                   <td className="border border-black px-1 py-0.5 text-[21px]"><span className="product-name">{produit}</span></td>
@@ -330,7 +331,7 @@ function PlanningJour({ selectedJour, planningData, pdvInfo, nextWeek, modeAffic
                   {rayon}
                 </td>
                 <td className="border border-black text-center font-bold bg-gray-100">
-                  {programme}
+                  {getNomProgrammeAffiche(programme)}
                 </td>
                 <td className="border border-black text-center">Capacité</td>
                 <td className="border border-black"></td>
