@@ -8,8 +8,9 @@ import { convertirEnPlaques } from '../utils/conversionUtils';
 import { recalculerPlanningAvecVariantes } from '../services/planningRecalculator';
 import { useDeviceType } from '../hooks/useDeviceType';
 import { getNomProgrammeAffiche } from '../services/referentielITM8';
+import { mousquetairesColors } from '../styles/mousquetaires-theme';
 
-export default function EtapePlanning({ planning, pdvInfo, produits, frequentationData, onRetour, onPersonnaliser, onPlanningChange }) {
+export default function EtapePlanning({ planning, pdvInfo, produits, frequentationData, configSemaine, onRetour, onPersonnaliser, onPlanningChange, forceTabletMode = false }) {
   const [selectedJour, setSelectedJour] = useState(null);
   const [showStats, setShowStats] = useState(false);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
@@ -17,6 +18,9 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
 
   // Détection du type d'appareil pour adapter l'interface
   const { deviceType, isTouchDevice } = useDeviceType();
+
+  // Mode effectif : manuel si forcé (via prop du parent), sinon automatique
+  const modeTabletActif = forceTabletMode || deviceType === 'mobile' || deviceType === 'tablet';
 
   // Initialiser les variantes par défaut : Forte (lundi-jeudi), Faible (vendredi-dimanche)
   const getVariantesParDefaut = () => {
@@ -92,7 +96,8 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
       produits,
       nouvellesVariantes,
       frequentationData,
-      nouvellesModifs
+      nouvellesModifs,
+      configSemaine
     );
 
     setPlanningLocal(nouveauPlanning);
@@ -121,7 +126,8 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
       produits,
       variantesParRayonEtJour,
       frequentationData,
-      nouvellesModifs
+      nouvellesModifs,
+      configSemaine
     );
 
     setPlanningLocal(nouveauPlanning);
@@ -245,7 +251,7 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
                   </p>
                 )}
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <button
                   onClick={onPersonnaliser}
                   className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
@@ -396,33 +402,30 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
                                     <div className="flex gap-0.5 justify-center">
                                       <button
                                         onClick={() => handleChangeVariante(rayon, jourLower, 'sans')}
-                                        className={`w-6 h-6 rounded flex items-center justify-center text-[11px] font-bold transition-all ${
-                                          varianteActuelle === 'sans'
+                                        className={`w-6 h-6 rounded flex items-center justify-center text-[11px] font-bold transition-all ${varianteActuelle === 'sans'
                                             ? 'bg-purple-600 text-white scale-110'
                                             : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                                        }`}
+                                          }`}
                                         title="Sans limite"
                                       >
                                         S
                                       </button>
                                       <button
                                         onClick={() => handleChangeVariante(rayon, jourLower, 'forte')}
-                                        className={`w-6 h-6 rounded flex items-center justify-center text-[11px] font-bold transition-all ${
-                                          varianteActuelle === 'forte'
+                                        className={`w-6 h-6 rounded flex items-center justify-center text-[11px] font-bold transition-all ${varianteActuelle === 'forte'
                                             ? 'bg-green-600 text-white scale-110'
                                             : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                                        }`}
+                                          }`}
                                         title="Forte: +20% max"
                                       >
                                         F
                                       </button>
                                       <button
                                         onClick={() => handleChangeVariante(rayon, jourLower, 'faible')}
-                                        className={`w-6 h-6 rounded flex items-center justify-center text-[11px] font-bold transition-all ${
-                                          varianteActuelle === 'faible'
+                                        className={`w-6 h-6 rounded flex items-center justify-center text-[11px] font-bold transition-all ${varianteActuelle === 'faible'
                                             ? 'bg-orange-600 text-white scale-110'
                                             : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                                        }`}
+                                          }`}
                                         title="Faible: +10% max"
                                       >
                                         f
@@ -543,7 +546,7 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
           )}
 
           {/* Vue d'un jour spécifique */}
-          {selectedJour && deviceType !== 'mobile' && deviceType !== 'tablet' && (
+          {selectedJour && !modeTabletActif && (
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold">
@@ -554,21 +557,19 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
                   <div className="flex items-center bg-gray-100 rounded-lg p-1">
                     <button
                       onClick={() => setModeAffichage('unites')}
-                      className={`px-4 py-2 rounded-lg transition ${
-                        modeAffichage === 'unites'
+                      className={`px-4 py-2 rounded-lg transition ${modeAffichage === 'unites'
                           ? 'bg-white text-blue-600 font-semibold shadow-sm'
                           : 'text-gray-600 hover:text-gray-800'
-                      }`}
+                        }`}
                     >
                       Unités
                     </button>
                     <button
                       onClick={() => setModeAffichage('plaques')}
-                      className={`px-4 py-2 rounded-lg transition ${
-                        modeAffichage === 'plaques'
+                      className={`px-4 py-2 rounded-lg transition ${modeAffichage === 'plaques'
                           ? 'bg-white text-blue-600 font-semibold shadow-sm'
                           : 'text-gray-600 hover:text-gray-800'
-                      }`}
+                        }`}
                     >
                       Plaques
                     </button>
@@ -586,7 +587,7 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
               <div className="mb-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r">
                 <h4 className="font-semibold text-yellow-800 mb-2">💡 Principe d'ajustement :</h4>
                 <p className="text-sm text-yellow-700">
-                  <strong>Soir :</strong> Quantité proposée à ajuster selon le stock rayon.<br/>
+                  <strong>Soir :</strong> Quantité proposée à ajuster selon le stock rayon.<br />
                   <strong>Exemple :</strong> Pain aux céréales → Soir: 4 proposés, Stock rayon: 2 → À cuire: 4-2 = 2
                 </p>
               </div>
@@ -617,19 +618,19 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
                                   Produit
                                 </th>
                                 <th className="border border-gray-800 p-3 text-center bg-gray-100 min-w-[80px]">
-                                  Matin<br/>
+                                  Matin<br />
                                   <span className="text-xs text-gray-600">9h-12h</span>
                                 </th>
                                 <th className="border border-gray-800 p-3 text-center bg-gray-100 min-w-[80px]">
-                                  Midi<br/>
+                                  Midi<br />
                                   <span className="text-xs text-gray-600">12h-16h</span>
                                 </th>
                                 <th className="border border-gray-800 p-3 text-center bg-yellow-100 min-w-[100px]">
-                                  Soir (à ajuster)<br/>
+                                  Soir (à ajuster)<br />
                                   <span className="text-xs text-gray-600">16h-23h</span>
                                 </th>
                                 <th className="border border-gray-800 p-3 text-center bg-amber-100 min-w-[120px]">
-                                  Ajustement<br/>
+                                  Ajustement<br />
                                   <span className="text-xs text-gray-600">Stock rayon</span>
                                 </th>
                               </tr>
@@ -691,7 +692,7 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
           )}
 
           {/* Vue Tablette/Mobile optimisée */}
-          {selectedJour && (deviceType === 'mobile' || deviceType === 'tablet') && (
+          {selectedJour && modeTabletActif && (
             <div className="bg-white rounded-lg shadow-md p-4">
               {/* Header avec toggle Unités/Plaques adaptatif */}
               <div className="flex flex-col gap-3 mb-4">
@@ -710,21 +711,19 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
                   <div className="flex bg-gray-100 rounded-lg p-1">
                     <button
                       onClick={() => setModeAffichage('unites')}
-                      className={`px-4 py-2 rounded-lg transition min-h-[44px] ${
-                        modeAffichage === 'unites'
+                      className={`px-4 py-2 rounded-lg transition min-h-[44px] ${modeAffichage === 'unites'
                           ? 'bg-white text-blue-600 font-semibold shadow'
                           : 'text-gray-600'
-                      }`}
+                        }`}
                     >
                       Unités
                     </button>
                     <button
                       onClick={() => setModeAffichage('plaques')}
-                      className={`px-4 py-2 rounded-lg transition min-h-[44px] ${
-                        modeAffichage === 'plaques'
+                      className={`px-4 py-2 rounded-lg transition min-h-[44px] ${modeAffichage === 'plaques'
                           ? 'bg-white text-blue-600 font-semibold shadow'
                           : 'text-gray-600'
-                      }`}
+                        }`}
                     >
                       Plaques
                     </button>

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Upload, ChevronRight, Download, FileUp, RotateCcw } from 'lucide-react';
+import { Upload, ChevronRight, Download, FileUp, RotateCcw, Monitor, Tablet, Calendar } from 'lucide-react';
 import EtapeUpload from './components/EtapeUpload';
 import EtapePersonnalisation from './components/EtapePersonnalisation';
+import EtapeConfigurationSemaine from './components/EtapeConfigurationSemaine';
 import EtapePlanning from './components/EtapePlanning';
 import { parseVentesExcel, parseFrequentationExcel } from './utils/parsers';
 import { classerProduit } from './utils/classification';
@@ -12,7 +13,7 @@ import { mousquetairesColors } from './styles/mousquetaires-theme';
 
 function App() {
   // État principal
-  const [etape, setEtape] = useState('upload'); // 'upload', 'personnalisation', 'planning'
+  const [etape, setEtape] = useState('upload'); // 'upload', 'personnalisation', 'configsemaine', 'planning'
   const [frequentationData, setFrequentationData] = useState(null);
   const [ventesData, setVentesData] = useState(null);
   const [produits, setProduits] = useState([]);
@@ -22,6 +23,15 @@ function App() {
   const [ponderationType, setPonderationType] = useState('standard'); // 'standard', 'saisonnier', 'fortePromo'
   const [frequentationFile, setFrequentationFile] = useState(null);
   const [referentielCharge, setReferentielCharge] = useState(false);
+  const [forceTabletMode, setForceTabletMode] = useState(false); // Mode tablette forcé manuellement
+
+  // Configuration de la semaine (nouvelle étape)
+  const [configSemaine, setConfigSemaine] = useState({
+    numeroSemaine: null,
+    annee: null,
+    fermetureHebdo: '', // 'lundi', 'mardi', etc. ou ''
+    fermeturesExceptionnelles: {} // { jour: { active, date, reports: { jourReport: pourcentage } } }
+  });
 
   // Charger le référentiel ITM8 au démarrage
   useEffect(() => {
@@ -76,7 +86,7 @@ function App() {
       if (resultat?.then) {
         resultat.then((parsedFrequentation) => {
           if (parsedFrequentation && planning && produits.length > 0) {
-            const nouveauPlanning = calculerPlanning(parsedFrequentation, produits);
+            const nouveauPlanning = calculerPlanning(parsedFrequentation, produits, configSemaine);
             if (nouveauPlanning) {
               setPlanning(nouveauPlanning);
             }
@@ -388,9 +398,10 @@ function App() {
     console.log('  - frequentationData:', frequentationData ? '✅ Présent' : '❌ Manquant');
     console.log('  - produits:', produits.length, 'produits');
 
-    const nouveauPlanning = calculerPlanning(frequentationData, produits);
+    const nouveauPlanning = calculerPlanning(frequentationData, produits, configSemaine);
 
     console.log('📋 Résultat de calculerPlanning:', nouveauPlanning);
+    console.log('  - Configuration semaine:', configSemaine);
 
     if (nouveauPlanning) {
       console.log('✅ Planning calculé avec succès');
@@ -473,42 +484,82 @@ function App() {
           )}
 
           {/* Indicateur d'étapes */}
-          <div className="flex items-center justify-center py-6 gap-4">
-            <div
-              className="flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all"
-              style={{
-                backgroundColor: etape === 'upload' ? mousquetairesColors.primary.red : mousquetairesColors.secondary.beige,
-                color: etape === 'upload' ? mousquetairesColors.text.white : mousquetairesColors.text.secondary,
-                border: etape === 'upload' ? 'none' : `1px solid ${mousquetairesColors.secondary.gray}`
-              }}
-            >
-              <Upload size={20} />
-              <span>1. Chargement</span>
+          <div className="flex items-center justify-between px-6 py-6">
+            <div className="flex items-center gap-4">
+              <div
+                className="flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all"
+                style={{
+                  backgroundColor: etape === 'upload' ? mousquetairesColors.primary.red : mousquetairesColors.secondary.beige,
+                  color: etape === 'upload' ? mousquetairesColors.text.white : mousquetairesColors.text.secondary,
+                  border: etape === 'upload' ? 'none' : `1px solid ${mousquetairesColors.secondary.gray}`
+                }}
+              >
+                <Upload size={20} />
+                <span>1. Chargement</span>
+              </div>
+              <ChevronRight style={{ color: mousquetairesColors.secondary.gray }} />
+              <div
+                className="flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all"
+                style={{
+                  backgroundColor: etape === 'personnalisation' ? mousquetairesColors.primary.red : mousquetairesColors.secondary.beige,
+                  color: etape === 'personnalisation' ? mousquetairesColors.text.white : mousquetairesColors.text.secondary,
+                  border: etape === 'personnalisation' ? 'none' : `1px solid ${mousquetairesColors.secondary.gray}`
+                }}
+              >
+                <FileUp size={20} />
+                <span>2. Personnalisation</span>
+              </div>
+              <ChevronRight style={{ color: mousquetairesColors.secondary.gray }} />
+              <div
+                className="flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all"
+                style={{
+                  backgroundColor: etape === 'configsemaine' ? mousquetairesColors.primary.red : mousquetairesColors.secondary.beige,
+                  color: etape === 'configsemaine' ? mousquetairesColors.text.white : mousquetairesColors.text.secondary,
+                  border: etape === 'configsemaine' ? 'none' : `1px solid ${mousquetairesColors.secondary.gray}`
+                }}
+              >
+                <Calendar size={20} />
+                <span>3. Semaine</span>
+              </div>
+              <ChevronRight style={{ color: mousquetairesColors.secondary.gray }} />
+              <div
+                className="flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all"
+                style={{
+                  backgroundColor: etape === 'planning' ? mousquetairesColors.primary.red : mousquetairesColors.secondary.beige,
+                  color: etape === 'planning' ? mousquetairesColors.text.white : mousquetairesColors.text.secondary,
+                  border: etape === 'planning' ? 'none' : `1px solid ${mousquetairesColors.secondary.gray}`
+                }}
+              >
+                <Download size={20} />
+                <span>4. Planning</span>
+              </div>
             </div>
-            <ChevronRight style={{ color: mousquetairesColors.secondary.gray }} />
-            <div
-              className="flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all"
-              style={{
-                backgroundColor: etape === 'personnalisation' ? mousquetairesColors.primary.red : mousquetairesColors.secondary.beige,
-                color: etape === 'personnalisation' ? mousquetairesColors.text.white : mousquetairesColors.text.secondary,
-                border: etape === 'personnalisation' ? 'none' : `1px solid ${mousquetairesColors.secondary.gray}`
-              }}
-            >
-              <FileUp size={20} />
-              <span>2. Personnalisation</span>
-            </div>
-            <ChevronRight style={{ color: mousquetairesColors.secondary.gray }} />
-            <div
-              className="flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all"
-              style={{
-                backgroundColor: etape === 'planning' ? mousquetairesColors.primary.red : mousquetairesColors.secondary.beige,
-                color: etape === 'planning' ? mousquetairesColors.text.white : mousquetairesColors.text.secondary,
-                border: etape === 'planning' ? 'none' : `1px solid ${mousquetairesColors.secondary.gray}`
-              }}
-            >
-              <Download size={20} />
-              <span>3. Planning</span>
-            </div>
+
+            {/* Bouton toggle Desktop / Tablette - Visible seulement sur la page Planning */}
+            {etape === 'planning' && (
+              <button
+                onClick={() => setForceTabletMode(!forceTabletMode)}
+                className="px-4 py-2 rounded-lg transition font-semibold flex items-center gap-2"
+                style={{
+                  backgroundColor: forceTabletMode ? mousquetairesColors.primary.red : mousquetairesColors.secondary.beige,
+                  color: forceTabletMode ? mousquetairesColors.text.white : mousquetairesColors.primary.redDark,
+                  border: `2px solid ${forceTabletMode ? mousquetairesColors.primary.red : mousquetairesColors.secondary.gray}`
+                }}
+                title={forceTabletMode ? "Basculer en mode Desktop" : "Basculer en mode Tablette"}
+              >
+                {forceTabletMode ? (
+                  <>
+                    <Tablet className="w-5 h-5" />
+                    Tablette
+                  </>
+                ) : (
+                  <>
+                    <Monitor className="w-5 h-5" />
+                    Desktop
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
 
@@ -542,9 +593,18 @@ function App() {
             onAjouterProduitCustom={ajouterProduitCustom}
             onTrier={trierProduits}
             onRetour={() => setEtape('upload')}
-            onCalculerPlanning={handleCalculerPlanning}
+            onSuivant={() => setEtape('configsemaine')}
             setProduits={setProduits}
             frequentationData={frequentationData}
+          />
+        )}
+
+        {etape === 'configsemaine' && (
+          <EtapeConfigurationSemaine
+            onSuivant={handleCalculerPlanning}
+            onPrecedent={() => setEtape('personnalisation')}
+            configSemaine={configSemaine}
+            setConfigSemaine={setConfigSemaine}
           />
         )}
 
@@ -554,9 +614,11 @@ function App() {
             pdvInfo={pdvInfo}
             produits={produits}
             frequentationData={frequentationData}
+            configSemaine={configSemaine}
             onRetour={() => setEtape('personnalisation')}
             onPersonnaliser={() => setEtape('personnalisation')}
             onPlanningChange={setPlanning}
+            forceTabletMode={forceTabletMode}
           />
         )}
       </div>

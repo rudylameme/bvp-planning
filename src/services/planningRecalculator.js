@@ -131,12 +131,26 @@ const appliquerVarianteJournaliere = (qteMathematique, ventesHistoriques, varian
  * @param {Object} modificationsManuellesParRayonEtJour - { rayon: { jour: { libelleProduit: quantite } } }
  * @returns {Object} Nouveau planning
  */
+import { appliquerFermeturesEtReports } from './planningCalculator';
+
+/**
+ * Recalcule le planning avec les variantes par rayon ET par jour
+ *
+ * @param {Object} planning - Planning actuel
+ * @param {Array} produits - Liste des produits
+ * @param {Object} variantesParRayonEtJour - { rayon: { jour: 'sans'|'forte'|'faible' } }
+ * @param {Object} frequentationData - Données de fréquentation
+ * @param {Object} modificationsManuellesParRayonEtJour - { rayon: { jour: { libelleProduit: quantite } } }
+ * @param {Object} configSemaine - Configuration de la semaine (fermetures, reports)
+ * @returns {Object} Nouveau planning
+ */
 export const recalculerPlanningAvecVariantes = (
   planning,
   produits,
   variantesParRayonEtJour,
   frequentationData,
-  modificationsManuellesParRayonEtJour = {}
+  modificationsManuellesParRayonEtJour = {},
+  configSemaine = null
 ) => {
   const nouveauPlanning = JSON.parse(JSON.stringify({
     ...planning,
@@ -184,26 +198,34 @@ export const recalculerPlanningAvecVariantes = (
     });
   }
 
-  // Générer le planning par jour
+  // Initialiser la structure du planning pour chaque jour
   for (const jour of joursCapitalized) {
     nouveauPlanning.jours[jour] = {};
-    const jourLower = jour.toLowerCase();
-
     for (const rayon in programmesParRayon) {
       nouveauPlanning.jours[jour][rayon] = {};
-
-      // Récupérer la variante pour ce rayon/jour
-      const varianteJour = variantesParRayonEtJour[rayon]?.[jourLower] || 'sans';
-
       for (const programme in programmesParRayon[rayon]) {
-        const produitsDuProgramme = programmesParRayon[rayon][programme];
         nouveauPlanning.jours[jour][rayon][programme] = {
           produits: new Map(),
           capacite: { matin: 0, midi: 0, soir: 0, total: 0 }
         };
+      }
+    }
+  }
 
-        for (const produit of produitsDuProgramme) {
-          const potentielMath = produit.potentielMathematique;
+  // Traiter produit par produit pour gérer les reports correctement
+  for (const rayon in programmesParRayon) {
+    for (const programme in programmesParRayon[rayon]) {
+      const produitsDuProgramme = programmesParRayon[rayon][programme];
+
+      for (const produit of produitsDuProgramme) {
+        const potentielMath = produit.potentielMathematique;
+
+        // 1. Calculer les quantités de base (avec variantes) pour TOUTE la semaine
+        const quantitesBaseSemaine = {};
+        const ventesHistoriquesSemaine = {};
+
+        for (const jour of joursCapitalized) {
+          const jourLower = jour.toLowerCase();
           const poids = poidsJours[jourLower] || 0.14;
 
           // Règle 1: Calcul mathématique
@@ -211,17 +233,33 @@ export const recalculerPlanningAvecVariantes = (
 
           // Calculer les ventes historiques pour ce jour
           const ventesHistoriques = calculerVentesHistoriquesPourJour(produit.ventesParJour, jourLower);
+          ventesHistoriquesSemaine[jourLower] = ventesHistoriques;
+
+          // Récupérer la variante pour ce rayon/jour
+          const varianteJour = variantesParRayonEtJour[rayon]?.[jourLower] || 'sans';
+
+          // Règles 2 & 3: Appliquer la variante
+          quantitesBaseSemaine[jourLower] = appliquerVarianteJournaliere(qteMathematique, ventesHistoriques, varianteJour);
+        }
+
+        // 2. Appliquer les fermetures et reports sur la semaine complète
+        // Cela modifie les quantités calculées précédemment
+        const quantitesFinalesSemaine = appliquerFermeturesEtReports(quantitesBaseSemaine, configSemaine);
+
+        // 3. Distribuer dans le planning jour par jour et appliquer les modifications manuelles
+        for (const jour of joursCapitalized) {
+          const jourLower = jour.toLowerCase();
 
           // Règle 4: Vérifier s'il y a une modification manuelle
           const modifManuelle = modificationsManuellesParRayonEtJour[rayon]?.[jourLower]?.[produit.libelle];
 
           let qteJour;
           if (modifManuelle !== undefined && modifManuelle !== null) {
-            // Règle 4: Utiliser la modification manuelle
+            // Règle 4: Utiliser la modification manuelle (écrase tout, même les fermetures)
             qteJour = modifManuelle;
           } else {
-            // Règles 2 & 3: Appliquer la variante
-            qteJour = appliquerVarianteJournaliere(qteMathematique, ventesHistoriques, varianteJour);
+            // Sinon utiliser la quantité calculée (avec variantes + fermetures + reports)
+            qteJour = quantitesFinalesSemaine[jourLower] || 0;
           }
 
           const poidsTranchesJour = poidsTranchesParJour[jourLower] || { matin: 0.6, midi: 0.3, soir: 0.1 };
@@ -239,7 +277,7 @@ export const recalculerPlanningAvecVariantes = (
             unitesParPlaque: produit.unitesParPlaque ?? 0,
             itm8: produit.itm8,
             codePLU: produit.codePLU,
-            ventesHistoriques: ventesHistoriques,
+            ventesHistoriques: ventesHistoriquesSemaine[jourLower],
             modifieManuellement: modifManuelle !== undefined && modifManuelle !== null
           };
 

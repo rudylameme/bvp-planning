@@ -45,9 +45,49 @@ const calculerVentesHistoriquesPourJour = (ventesParJour, jourCible) => {
 };
 
 /**
- * Calcule le planning de production avec répartition horaire Matin/Midi/Soir
+ * Applique les fermetures et reports à un objet de quantités par jour
+ * @param {Object} quantitesBase - Quantités initiales par jour { lundi: X, mardi: Y, ... }
+ * @param {Object} configSemaine - Configuration de la semaine avec fermetures
+ * @returns {Object} Quantités finales après fermetures et reports
  */
-export const calculerPlanning = (frequentationData, produits) => {
+export const appliquerFermeturesEtReports = (quantitesBase, configSemaine) => {
+  if (!configSemaine) return quantitesBase;
+
+  const quantites = { ...quantitesBase };
+
+  // 1. Fermeture hebdomadaire (pas de report)
+  if (configSemaine.fermetureHebdo) {
+    quantites[configSemaine.fermetureHebdo] = 0;
+  }
+
+  // 2. Fermetures exceptionnelles (avec reports)
+  if (configSemaine.fermeturesExceptionnelles) {
+    Object.entries(configSemaine.fermeturesExceptionnelles).forEach(([jour, config]) => {
+      if (!config.active) return;
+
+      const qteJour = quantitesBase[jour];
+
+      // Appliquer les reports
+      Object.entries(config.reports || {}).forEach(([jourReport, pourcentage]) => {
+        const qteReport = Math.ceil(qteJour * (pourcentage / 100));
+        quantites[jourReport] = (quantites[jourReport] || 0) + qteReport;
+      });
+
+      // Mettre le jour férié à 0
+      quantites[jour] = 0;
+    });
+  }
+
+  return quantites;
+};
+
+/**
+ * Calcule le planning de production avec répartition horaire Matin/Midi/Soir
+ * @param {Object} frequentationData - Données de fréquentation
+ * @param {Array} produits - Liste des produits
+ * @param {Object} configSemaine - Configuration optionnelle de la semaine (fermetures, reports)
+ */
+export const calculerPlanning = (frequentationData, produits, configSemaine = null) => {
   try {
     if (!frequentationData?.poidsJours) {
       console.error('❌ calculerPlanning : Pas de données de fréquentation !');
@@ -105,7 +145,8 @@ export const calculerPlanning = (frequentationData, produits) => {
         quantiteMax: produit.potentielHebdo / 7,
         poidsJour: 0.14,
         unitesParVente: produit.unitesParVente ?? 1,
-        unitesParPlaque: produit.unitesParPlaque ?? 0
+        unitesParPlaque: produit.unitesParPlaque ?? 0,
+        ventesParJour: produit.ventesParJour // Ajout de ventesParJour pour le calcul historique
       });
     }
 
@@ -127,19 +168,39 @@ export const calculerPlanning = (frequentationData, produits) => {
         planning.jours[jour][rayon] = {};
 
         for (const programme in programmesParRayon[rayon]) {
-          const produitsDuProgramme = programmesParRayon[rayon][programme];
           planning.jours[jour][rayon][programme] = {
             produits: new Map(),
             capacite: { matin: 0, midi: 0, soir: 0, total: 0 }
           };
+        }
+      }
+    }
 
-          for (const produit of produitsDuProgramme) {
-            // Le potentielHebdo contient déjà la progression appliquée (Mathématique/Fort/Prudent)
-            const qteHebdo = produit.potentielHebdo;
-            const poids = planning.stats.poidsJours[jour];
-            const qteJour = Math.ceil(qteHebdo * poids);
+    // Itérer sur les produits pour calculer leurs quantités sur toute la semaine
+    for (const rayon in programmesParRayon) {
+      for (const programme in programmesParRayon[rayon]) {
+        const produitsDuProgramme = programmesParRayon[rayon][programme];
 
+        for (const produit of produitsDuProgramme) {
+          const qteHebdo = produit.potentielHebdo;
+
+          // 1. Calculer les quantités de base pour TOUTE la semaine
+          const quantitesBaseSemaine = {};
+          for (const jour of joursCapitalized) {
             const jourLower = jour.toLowerCase();
+            const poids = planning.stats.poidsJours[jour] || 0;
+            quantitesBaseSemaine[jourLower] = Math.ceil(qteHebdo * poids);
+          }
+
+          // 2. Appliquer les fermetures et reports sur la semaine complète
+          const quantitesFinalesSemaine = appliquerFermeturesEtReports(quantitesBaseSemaine, configSemaine);
+
+          // 3. Distribuer dans le planning jour par jour
+          for (const jour of joursCapitalized) {
+            const jourLower = jour.toLowerCase();
+            const qteJour = quantitesFinalesSemaine[jourLower] || 0;
+
+            // Répartition par tranches horaires
             const poidsTranchesJour = poidsTranchesParJour[jourLower] || { matin: 0.6, midi: 0.3, soir: 0.1 };
 
             const qteMatin = Math.ceil(qteJour * poidsTranchesJour.matin);
@@ -158,10 +219,8 @@ export const calculerPlanning = (frequentationData, produits) => {
               unitesParPlaque: produit.unitesParPlaque ?? 0,
               itm8: produit.itm8,
               codePLU: produit.codePLU,
-              ventesHistoriques: ventesHistoriques // Ajout des ventes historiques
+              ventesHistoriques: ventesHistoriques
             };
-
-            console.log(`📦 Planning ${jour} - ${produit.libelle}:`, creneauxData);
 
             planning.jours[jour][rayon][programme].produits.set(produit.libelle, creneauxData);
 
@@ -182,3 +241,4 @@ export const calculerPlanning = (frequentationData, produits) => {
     return null;
   }
 };
+

@@ -25,7 +25,7 @@ export default function EtapePersonnalisation({
   onAjouterProduitCustom,
   onTrier,
   onRetour,
-  onCalculerPlanning,
+  onSuivant,
   setProduits,
   frequentationData
 }) {
@@ -448,7 +448,7 @@ export default function EtapePersonnalisation({
             Retour
           </button>
           <button
-            onClick={onCalculerPlanning}
+            onClick={onSuivant}
             className="flex items-center gap-3 px-8 py-4 rounded-lg transition font-bold text-lg"
             style={{
               backgroundColor: mousquetairesColors.primary.red,
@@ -461,7 +461,7 @@ export default function EtapePersonnalisation({
               e.currentTarget.style.backgroundColor = mousquetairesColors.primary.red;
             }}
           >
-            Générer le planning
+            Suivant : Configuration de la semaine
             <ChevronRight size={24} />
           </button>
         </div>

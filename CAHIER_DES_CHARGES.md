@@ -97,6 +97,7 @@ bvp-planning/
 │   ├── components/          # Composants React
 │   │   ├── EtapeUpload.jsx
 │   │   ├── EtapePersonnalisation.jsx
+│   │   ├── EtapeConfigurationSemaine.jsx
 │   │   ├── EtapePlanning.jsx
 │   │   ├── TableauProduits.jsx
 │   │   ├── TableauProduitsGroupes.jsx
@@ -130,7 +131,7 @@ bvp-planning/
 
 **États React gérés** :
 ```javascript
-etape                 // 'upload' | 'personnalisation' | 'planning'
+etape                 // 'upload' | 'personnalisation' | 'configsemaine' | 'planning'
 frequentationData     // Données de fréquentation pondérées
 ventesData            // Historique des ventes
 produits              // Array des produits avec attributs
@@ -139,6 +140,7 @@ sortType              // Type de tri actif
 pdvInfo               // Informations point de vente
 ponderationType       // 'standard' | 'saisonnier' | 'fortePromo'
 referentielCharge     // Boolean (référentiel ITM8 chargé)
+configSemaine         // Configuration semaine (numéro, année, fermetures)
 ```
 
 #### **EtapeUpload.jsx** - Import des Données
@@ -156,6 +158,13 @@ referentielCharge     // Boolean (référentiel ITM8 chargé)
 - Calcul automatique potentiels (bouton 🤖)
 - Import/Export configuration (CSV)
 - Attribution manuelle pour produits non reconnus
+
+#### **EtapeConfigurationSemaine.jsx** - Gestion du Temps
+**Fonctionnalités** :
+- Sélection de la semaine et de l'année
+- Définition de la fermeture hebdomadaire (ex: tous les lundis)
+- Gestion des fermetures exceptionnelles (jours fériés)
+- Configuration des reports de production (ex: reporter 50% sur la veille)
 
 #### **EtapePlanning.jsx** - Visualisation Planning
 **Fonctionnalités** :
@@ -353,7 +362,7 @@ Potentiel = Vente MAX ÷ Poids du jour de cette vente
 
 ## 5. FLUX DE TRAITEMENT
 
-### 5.1 Workflow Complet (3 Étapes)
+### 5.1 Workflow Complet (4 Étapes)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -374,8 +383,16 @@ Potentiel = Vente MAX ÷ Poids du jour de cette vente
 └─────────────────────────────────────────────────────────────┘
                            ↓
 ┌─────────────────────────────────────────────────────────────┐
-│             ÉTAPE 3 : PLANNING                              │
-│  - Calcul planning hebdomadaire                             │
+│           ÉTAPE 3 : CONFIGURATION SEMAINE                   │
+│  - Sélection semaine et année                               │
+│  - Définition fermeture hebdomadaire                        │
+│  - Gestion jours fériés (fermetures exceptionnelles)        │
+│  - Configuration des reports de production                  │
+└─────────────────────────────────────────────────────────────┘
+                           ↓
+┌─────────────────────────────────────────────────────────────┐
+│             ÉTAPE 4 : PLANNING                              │
+│  - Calcul planning hebdomadaire (avec reports)              │
 │  - Vue hebdomadaire (7 jours)                               │
 │  - Vue détaillée par jour                                   │
 │  - Export/Impression (HTML/PDF)                             │
@@ -481,7 +498,23 @@ Modal AttributionManuelle :
 - Compteur : X/Y produits attribués
 ```
 
-### 5.4 Phase 3 - Calcul Planning
+### 5.4 Phase 3 - Configuration Semaine
+
+#### 3.1 Sélection Période
+- Choix Numéro de semaine (1-53)
+- Choix Année
+- Calcul automatique des dates (Lundi au Dimanche)
+
+#### 3.2 Fermetures
+- Fermeture Hebdomadaire : Jour récurrent (mise à 0 sans report)
+- Fermetures Exceptionnelles : Jours fériés (mise à 0 avec reports configurables)
+
+#### 3.3 Reports de Production
+- Pour chaque fermeture exceptionnelle :
+- Définition des jours de report (ex: Veille, Avant-veille)
+- Pourcentage de report par jour (Total doit faire 100%)
+
+### 5.5 Phase 4 - Calcul Planning
 
 #### 3.1 Validation Pré-calcul
 ```
@@ -532,7 +565,7 @@ Vue DÉTAILLÉE JOUR :
 - Conversion plaques si métadonnées disponibles
 ```
 
-### 5.5 Phase 4 - Export
+### 5.6 Phase 5 - Export
 
 #### 4.1 Prévisualisation
 ```
@@ -1257,9 +1290,17 @@ Mardi     : 14.2%
 │                                                          │
 │  PDV: 001 - Boulangerie Treville                        │
 │                                                          │
-│  ① Upload  →  ② Personnalisation  →  ③ Planning        │
+│  ① Upload → ② Perso → ③ Semaine → ④ Planning  [🖥️ Desktop/📱Tablette] │
 └─────────────────────────────────────────────────────────┘
 ```
+
+**Modifications récentes (2025-11-19)** :
+- Bouton toggle Desktop/Tablette ajouté dans le header (visible uniquement sur la page Planning)
+- Permet de basculer manuellement entre le mode Desktop et Tablette
+- Positionné à droite des étapes pour un accès rapide
+- Utilise les couleurs Mousquetaires (rouge actif, beige inactif)
+- Remplace le détection automatique qui peut être inadaptée selon le matériel
+- Les étapes sont maintenant alignées à gauche (justify-start) pour une meilleure lisibilité
 
 #### Zone de Contenu (swappable)
 ```
@@ -1273,13 +1314,6 @@ Mardi     : 14.2%
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  TYPE DE PONDÉRATION                                    │
-│  ○ Standard (S-1: 40%, AS-1: 30%, S-2: 30%)            │
-│  ○ Saisonnier (S-1: 30%, AS-1: 50%, S-2: 20%)          │
-│  ○ Forte Promo (S-1: 60%, AS-1: 20%, S-2: 20%)         │
-└─────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────┐
 │  ÉTAPE 1 : FRÉQUENTATION                                │
 │  [📁 Choisir fichier]                                   │
 │  ✓ Fichier chargé : frequentation.xlsx                  │
@@ -1289,10 +1323,25 @@ Mardi     : 14.2%
 │  ÉTAPE 2 : VENTES                                       │
 │  [📁 Choisir fichier]                                   │
 │  ✓ 45 produits détectés                                 │
-│                                                          │
-│  [Suivant →]                                            │
 └─────────────────────────────────────────────────────────┘
+
+─────────────────────────────────────────────────────────
+
+┌─────────────────────────────────────────────────────────┐
+│  TYPE DE PONDÉRATION DES DONNÉES                        │
+│  ○ Standard (S-1: 40%, AS-1: 30%, S-2: 30%)            │
+│  ○ Saisonnier (S-1: 30%, AS-1: 50%, S-2: 20%)          │
+│  ○ Forte Promo (S-1: 60%, AS-1: 20%, S-2: 20%)         │
+└─────────────────────────────────────────────────────────┘
+
+                      [Suivant →]
 ```
+
+**Modifications récentes (2025-11-19)** :
+- Section "Type de pondération" déplacée APRÈS les imports de fichiers
+- Cette section n'apparaît que lorsque les deux fichiers sont chargés
+- Améliore le flux UX : l'utilisateur ne voit cette option que quand elle devient modifiable
+- Séparateur visuel (ligne horizontale) avant la section pondération
 
 ### 8.3 EtapePersonnalisation
 
@@ -1396,7 +1445,35 @@ Input Unités/Plaque :
 - Badge "NC" si valeur = 0 (produits sans cuisson)
 ```
 
-### 8.4 EtapePlanning
+### 8.4 EtapeConfigurationSemaine
+
+#### Configuration Période
+```
+┌─────────────────────────────────────────────────────────┐
+│  Période de production                                  │
+│  [Semaine 5] [Année 2025]  → Du Lundi 27/01 au Dim...   │
+└─────────────────────────────────────────────────────────┘
+```
+
+#### Gestion Fermetures
+```
+┌─────────────────────────────────────────────────────────┐
+│  Fermeture hebdomadaire légale                          │
+│  [Tous les Lundis ▼]                                    │
+│  ⚠️ Les quantités seront mises à zéro (pas de report)   │
+└─────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────┐
+│  Fermetures exceptionnelles                             │
+│  ☐ Lundi 27/01 - Fermeture exceptionnelle               │
+│  ☑ Mardi 28/01 - Fermeture exceptionnelle               │
+│    ↳ Report des quantités :                             │
+│      Lundi : [50]%                                      │
+│      Mercredi : [50]%                                   │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 8.5 EtapePlanning
 
 #### Vue Hebdomadaire
 ```
@@ -1451,7 +1528,7 @@ Input Unités/Plaque :
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 8.5 ImpressionPanel
+### 8.6 ImpressionPanel
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -1477,7 +1554,7 @@ Input Unités/Plaque :
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 8.6 Design System
+### 8.7 Design System
 
 #### Couleurs par Famille (Palette Chaleureuse Boulangerie)
 ```
@@ -1595,10 +1672,19 @@ Colonnes clés (détection flexible) :
 1. Détection ligne header (contient "ITM8")
 2. Détection colonnes par keywords
 3. Extraction PDV info (ligne contenant "PDV:")
+   - Format: "PDV: [numéro] - [nom complet]"
+   - Regex: /PDV:?\s*(\d+)\s*-\s*(.+?)(?:\s*Date|$)/i
+   - Capture le nom complet jusqu'au mot "Date" ou fin de chaîne
 4. Groupement par produit (libellé)
 5. Groupement par jour (date)
 6. Calcul totaux
 ```
+
+**Modifications récentes (2025-11-19)** :
+- Amélioration du regex de parsing PDV pour capturer le nom complet
+- Ancienne version tronquait le nom à la première lettre D/a/t/e
+- Nouvelle version utilise un lookahead pour trouver le mot "Date" complet
+- Exemple: "PDV: 10679 - Super Boulangerie de Paris Date: ..." → capture maintenant "Super Boulangerie de Paris" au lieu de "Super Boulangerie "
 
 ### 9.4 Référentiel ITM8
 
@@ -1908,6 +1994,35 @@ Desktop (> 1024) :
 Le **Mode Production** est une interface optimisée pour les tablettes permettant aux opérateurs de suivre et valider la production en temps réel. Cette fonctionnalité transforme l'application de simple outil de planification en véritable système de suivi de production.
 
 ### 11.2 Interface Tablette
+
+#### Activation du Mode Tablette
+
+**Détection Automatique** :
+```
+L'application détecte automatiquement le type d'appareil :
+- Mobile     : largeur < 768px
+- Tablette   : largeur 768-1024px OU appareil tactile
+- Desktop    : largeur > 1024px ET non tactile
+```
+
+**Activation Manuelle (2025-11-19)** :
+```
+┌─────────────────────────────────────────┐
+│  ① Upload → ② Personnalisation → ③ Planning  [🖥️ Desktop/📱Tablette] │
+└─────────────────────────────────────────┘
+
+Bouton toggle Desktop/Tablette :
+- Position : Header, à droite des étapes (visible uniquement sur page Planning)
+- Comportement : Bascule manuellement entre mode Desktop et Tablette
+- Style : Rouge Mousquetaires (#ED1C24) actif, Beige (#E8E1D5) inactif
+- Icônes : Monitor (🖥️) pour Desktop, Tablet (📱) pour Tablette
+- Raison : Permet de forcer le mode tablette sur des machines avec résolutions variables
+```
+
+**Avantages du mode manuel** :
+- Flexibilité pour les parcs machines hétérogènes
+- Permet de tester l'interface tablette sur desktop
+- Résolution indépendante de l'écran physique
 
 #### Navigation Multi-Modes
 ```
@@ -2763,10 +2878,17 @@ Potentiel = Vente MAX ÷ Poids du jour
 ---
 
 **Document rédigé le** : 29 octobre 2025
-**Version Application** : 1.2
-**Dernière mise à jour** : 6 novembre 2025
+**Version Application** : 1.3
+**Dernière mise à jour** : 19 novembre 2025
 
 ### Historique des Versions
+
+**Version 1.3** (19 novembre 2025) - Améliorations UX et Parsing :
+- Bouton toggle Desktop/Tablette manuel dans le header (à côté des étapes)
+- Repositionnement de la section "Type de pondération" après l'import des fichiers
+- Amélioration du parsing PDV : capture complète du nom (fix regex)
+- Alignement des étapes à gauche pour meilleure lisibilité
+- Mode tablette activable manuellement (indépendant de la résolution d'écran)
 
 **Version 1.2** (6 novembre 2025) - Mode Production Tablette :
 - Interface tablette avec mode Production en cours

@@ -51,54 +51,6 @@ export default function EtapeUpload({
       {/* Séparateur */}
       <div style={{ width: '100%', height: '1px', backgroundColor: mousquetairesColors.secondary.gray, marginBottom: '2rem' }}></div>
 
-      {/* Sélection du type de pondération */}
-      <div className="mb-8 p-6 rounded-lg" style={{ backgroundColor: mousquetairesColors.secondary.beigeLight, border: `1px solid ${mousquetairesColors.secondary.gray}` }}>
-        <h3 className="text-base font-bold mb-4" style={{ color: mousquetairesColors.primary.redDark }}>
-          Type de pondération des données
-        </h3>
-        <div className="flex gap-3 flex-wrap">
-          <button
-            onClick={() => onChangerPonderation('standard')}
-            className="px-5 py-3 rounded-lg transition font-semibold"
-            style={{
-              backgroundColor: ponderationType === 'standard' ? mousquetairesColors.primary.red : 'white',
-              color: ponderationType === 'standard' ? mousquetairesColors.text.white : mousquetairesColors.text.secondary,
-              border: `2px solid ${ponderationType === 'standard' ? mousquetairesColors.primary.red : mousquetairesColors.secondary.gray}`
-            }}
-          >
-            Standard
-            <span className="text-xs block mt-1 font-normal">S-1: 40% | AS-1: 30% | S-2: 30%</span>
-          </button>
-          <button
-            onClick={() => onChangerPonderation('saisonnier')}
-            className="px-5 py-3 rounded-lg transition font-semibold"
-            style={{
-              backgroundColor: ponderationType === 'saisonnier' ? mousquetairesColors.primary.red : 'white',
-              color: ponderationType === 'saisonnier' ? mousquetairesColors.text.white : mousquetairesColors.text.secondary,
-              border: `2px solid ${ponderationType === 'saisonnier' ? mousquetairesColors.primary.red : mousquetairesColors.secondary.gray}`
-            }}
-          >
-            Saisonnier
-            <span className="text-xs block mt-1 font-normal">S-1: 30% | AS-1: 50% | S-2: 20%</span>
-          </button>
-          <button
-            onClick={() => onChangerPonderation('fortePromo')}
-            className="px-5 py-3 rounded-lg transition font-semibold"
-            style={{
-              backgroundColor: ponderationType === 'fortePromo' ? mousquetairesColors.primary.red : 'white',
-              color: ponderationType === 'fortePromo' ? mousquetairesColors.text.white : mousquetairesColors.text.secondary,
-              border: `2px solid ${ponderationType === 'fortePromo' ? mousquetairesColors.primary.red : mousquetairesColors.secondary.gray}`
-            }}
-          >
-            Forte Promo
-            <span className="text-xs block mt-1 font-normal">S-1: 60% | AS-1: 20% | S-2: 20%</span>
-          </button>
-        </div>
-        <p className="text-xs mt-3" style={{ color: mousquetairesColors.text.secondary }}>
-          S-1 = Semaine précédente | AS-1 = Même semaine année précédente | S-2 = Il y a 2 semaines
-        </p>
-      </div>
-
       {/* Message d'ordre d'upload */}
       <div className="mb-6 p-4 rounded-lg" style={{ backgroundColor: '#FFF3CD', border: `1px solid #FFC107` }}>
         <p className="text-sm" style={{ color: '#856404' }}>
@@ -246,10 +198,64 @@ export default function EtapeUpload({
         </div>
       </div>
 
-      {/* Séparateur */}
+      {/* Sélection du type de pondération - Visible seulement si les deux fichiers sont chargés */}
+      {frequentationData && ventesData && (
+        <>
+          {/* Séparateur */}
+          <div style={{ width: '100%', height: '1px', backgroundColor: mousquetairesColors.secondary.gray, margin: '2rem 0' }}></div>
+
+          <div className="mb-8 p-6 rounded-lg" style={{ backgroundColor: mousquetairesColors.secondary.beigeLight, border: `1px solid ${mousquetairesColors.secondary.gray}` }}>
+            <h3 className="text-base font-bold mb-4" style={{ color: mousquetairesColors.primary.redDark }}>
+              Type de pondération des données
+            </h3>
+            <div className="flex gap-3 flex-wrap">
+              <button
+                onClick={() => onChangerPonderation('standard')}
+                className="px-5 py-3 rounded-lg transition font-semibold"
+                style={{
+                  backgroundColor: ponderationType === 'standard' ? mousquetairesColors.primary.red : 'white',
+                  color: ponderationType === 'standard' ? mousquetairesColors.text.white : mousquetairesColors.text.secondary,
+                  border: `2px solid ${ponderationType === 'standard' ? mousquetairesColors.primary.red : mousquetairesColors.secondary.gray}`
+                }}
+              >
+                Standard
+                <span className="text-xs block mt-1 font-normal">S-1: 40% | AS-1: 30% | S-2: 30%</span>
+              </button>
+              <button
+                onClick={() => onChangerPonderation('saisonnier')}
+                className="px-5 py-3 rounded-lg transition font-semibold"
+                style={{
+                  backgroundColor: ponderationType === 'saisonnier' ? mousquetairesColors.primary.red : 'white',
+                  color: ponderationType === 'saisonnier' ? mousquetairesColors.text.white : mousquetairesColors.text.secondary,
+                  border: `2px solid ${ponderationType === 'saisonnier' ? mousquetairesColors.primary.red : mousquetairesColors.secondary.gray}`
+                }}
+              >
+                Saisonnier
+                <span className="text-xs block mt-1 font-normal">S-1: 30% | AS-1: 50% | S-2: 20%</span>
+              </button>
+              <button
+                onClick={() => onChangerPonderation('fortePromo')}
+                className="px-5 py-3 rounded-lg transition font-semibold"
+                style={{
+                  backgroundColor: ponderationType === 'fortePromo' ? mousquetairesColors.primary.red : 'white',
+                  color: ponderationType === 'fortePromo' ? mousquetairesColors.text.white : mousquetairesColors.text.secondary,
+                  border: `2px solid ${ponderationType === 'fortePromo' ? mousquetairesColors.primary.red : mousquetairesColors.secondary.gray}`
+                }}
+              >
+                Forte Promo
+                <span className="text-xs block mt-1 font-normal">S-1: 60% | AS-1: 20% | S-2: 20%</span>
+              </button>
+            </div>
+            <p className="text-xs mt-3" style={{ color: mousquetairesColors.text.secondary }}>
+              S-1 = Semaine précédente | AS-1 = Même semaine année précédente | S-2 = Il y a 2 semaines
+            </p>
+          </div>
+        </>
+      )}
+
       {/* Bouton suivant */}
       {frequentationData && ventesData && (
-        <div className="mt-8 flex justify-end">
+        <div className="mt-4 flex justify-end">
           <button
             onClick={onSuivant}
             className="flex items-center gap-3 px-8 py-4 rounded-lg transition font-bold text-lg"

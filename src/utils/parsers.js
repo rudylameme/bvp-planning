@@ -40,7 +40,7 @@ const diagnostiquerVentes = (allData) => {
     const firstCellText = allData[0][0].toString();
     console.log(`📍 Première ligne : "${firstCellText}"`);
 
-    const pdvMatch = firstCellText.match(/PDV:?\s*(\d+)\s*-\s*([^Date]+)/i);
+    const pdvMatch = firstCellText.match(/PDV:?\s*(\d+)\s*-\s*(.+?)(?:\s*Date|$)/i);
     if (pdvMatch) {
       console.log(`✅ Info PDV détectée : ${pdvMatch[1]} - ${pdvMatch[2].trim()}`);
     } else {
@@ -160,7 +160,7 @@ export const parseVentesExcel = (arrayBuffer) => {
   let pdvInfo = null;
   if (allData[0] && allData[0][0]) {
     const firstCellText = allData[0][0].toString();
-    const pdvMatch = firstCellText.match(/PDV:?\s*(\d+)\s*-\s*([^Date]+)/i);
+    const pdvMatch = firstCellText.match(/PDV:?\s*(\d+)\s*-\s*(.+?)(?:\s*Date|$)/i);
     if (pdvMatch) {
       pdvInfo = {
         numero: pdvMatch[1].trim(),
