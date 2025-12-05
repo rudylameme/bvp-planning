@@ -134,7 +134,8 @@ const appliquerVarianteJournaliere = (qteMathematique, ventesHistoriques, varian
 import { appliquerFermeturesEtReports } from './planningCalculator';
 
 /**
- * Recalcule le planning avec les variantes par rayon ET par jour
+ * Recalcule UNIQUEMENT le jour/rayon modifié dans le planning
+ * Conserve les valeurs existantes pour les autres jours/rayons
  *
  * @param {Object} planning - Planning actuel
  * @param {Array} produits - Liste des produits
@@ -152,148 +153,145 @@ export const recalculerPlanningAvecVariantes = (
   modificationsManuellesParRayonEtJour = {},
   configSemaine = null
 ) => {
-  const nouveauPlanning = JSON.parse(JSON.stringify({
-    ...planning,
-    jours: {}
-  }));
-
-  // Réinitialiser les jours
   const joursCapitalized = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
-  for (const jour of joursCapitalized) {
-    nouveauPlanning.jours[jour] = {};
-  }
-
   const poidsJours = frequentationData.poidsJours;
   const poidsTranchesParJour = frequentationData.poidsTranchesParJour ?? {};
 
-  // Reconstruire la structure par rayon/programme
-  const programmesParRayon = {};
+  // Cloner le planning existant (conserver les données existantes)
+  const nouveauPlanning = JSON.parse(JSON.stringify(planning));
 
-  const produitsActifs = produits.filter(p => p.actif && p.potentielHebdo > 0);
-
-  for (const produit of produitsActifs) {
-    const programme = produit.programme || `Autres ${produit.rayon}`;
-    const rayon = produit.rayon || 'AUTRE';
-
-    if (!programmesParRayon[rayon]) {
-      programmesParRayon[rayon] = {};
-    }
-
-    if (!programmesParRayon[rayon][programme]) {
-      programmesParRayon[rayon][programme] = [];
-    }
-
-    // Calculer le potentiel mathématique (Règle 1)
-    const potentielMath = calculerPotentielMathematique(produit.ventesParJour, poidsJours);
-
-    programmesParRayon[rayon][programme].push({
-      libelle: produit.libellePersonnalise,
-      itm8: produit.itm8,
-      codePLU: produit.codePLU,
-      potentielMathematique: potentielMath,
-      totalVentes: produit.totalVentes || 0,
-      ventesParJour: produit.ventesParJour,
-      unitesParVente: produit.unitesParVente ?? 1,
-      unitesParPlaque: produit.unitesParPlaque ?? 0
-    });
-  }
-
-  // Initialiser la structure du planning pour chaque jour
+  // Reconvertir les Maps (perdues lors du JSON.stringify)
   for (const jour of joursCapitalized) {
-    nouveauPlanning.jours[jour] = {};
-    for (const rayon in programmesParRayon) {
-      nouveauPlanning.jours[jour][rayon] = {};
-      for (const programme in programmesParRayon[rayon]) {
-        nouveauPlanning.jours[jour][rayon][programme] = {
-          produits: new Map(),
-          capacite: { matin: 0, midi: 0, soir: 0, total: 0 }
-        };
+    if (nouveauPlanning.jours[jour]) {
+      for (const rayon in nouveauPlanning.jours[jour]) {
+        for (const programme in nouveauPlanning.jours[jour][rayon]) {
+          const data = nouveauPlanning.jours[jour][rayon][programme];
+          if (data.produits && !(data.produits instanceof Map)) {
+            // Convertir l'objet en Map
+            const mapProduits = new Map();
+            if (Array.isArray(data.produits)) {
+              // Format sérialisé [[key, value], ...]
+              data.produits.forEach(([key, value]) => mapProduits.set(key, value));
+            } else {
+              // Format objet {key: value, ...}
+              Object.entries(data.produits).forEach(([key, value]) => mapProduits.set(key, value));
+            }
+            data.produits = mapProduits;
+          }
+        }
       }
     }
   }
 
-  // Traiter produit par produit pour gérer les reports correctement
-  for (const rayon in programmesParRayon) {
-    for (const programme in programmesParRayon[rayon]) {
-      const produitsDuProgramme = programmesParRayon[rayon][programme];
+  // Pour chaque rayon qui a des variantes définies, recalculer UNIQUEMENT ce rayon
+  for (const rayon in variantesParRayonEtJour) {
+    const variantesJours = variantesParRayonEtJour[rayon];
 
-      for (const produit of produitsDuProgramme) {
-        const potentielMath = produit.potentielMathematique;
+    // Récupérer les produits de ce rayon
+    const produitsRayon = produits.filter(p => p.actif && p.potentielHebdo > 0 && (p.rayon || 'AUTRE') === rayon);
 
-        // 1. Calculer les quantités de base (avec variantes) pour TOUTE la semaine
-        const quantitesBaseSemaine = {};
-        const ventesHistoriquesSemaine = {};
+    if (produitsRayon.length === 0) continue;
 
-        for (const jour of joursCapitalized) {
-          const jourLower = jour.toLowerCase();
+    // Pour chaque jour qui a une variante définie pour ce rayon
+    for (const jourLower in variantesJours) {
+      const variante = variantesJours[jourLower];
+      const jourCapitalized = jourLower.charAt(0).toUpperCase() + jourLower.slice(1);
+
+      // Vérifier si c'est un jour fermé
+      const estFermetureHebdo = configSemaine?.fermetureHebdo === jourLower;
+      const etatJour = configSemaine?.etatsJours?.[jourLower] || 'OUVERT';
+      const estFerme = estFermetureHebdo || etatJour === 'FERME';
+
+      // Pour chaque produit du rayon, recalculer la quantité de CE jour uniquement
+      for (const produit of produitsRayon) {
+        const programme = produit.programme || `Autres ${produit.rayon}`;
+        const libelle = produit.libellePersonnalise;
+
+        // Vérifier s'il y a une modification manuelle pour ce produit/jour
+        const modifManuelle = modificationsManuellesParRayonEtJour[rayon]?.[jourLower]?.[libelle];
+
+        let qteJour;
+
+        if (modifManuelle !== undefined && modifManuelle !== null) {
+          // Règle 4: Modification manuelle (écrase tout)
+          qteJour = modifManuelle;
+        } else if (estFerme) {
+          // Jour fermé : quantité = 0
+          qteJour = 0;
+        } else {
+          // Calculer selon la variante
+          const potentielMath = calculerPotentielMathematique(produit.ventesParJour, poidsJours);
           const poids = poidsJours[jourLower] || 0.14;
-
-          // Règle 1: Calcul mathématique
           const qteMathematique = Math.ceil(potentielMath * poids);
-
-          // Calculer les ventes historiques pour ce jour
           const ventesHistoriques = calculerVentesHistoriquesPourJour(produit.ventesParJour, jourLower);
-          ventesHistoriquesSemaine[jourLower] = ventesHistoriques;
 
-          // Récupérer la variante pour ce rayon/jour
-          const varianteJour = variantesParRayonEtJour[rayon]?.[jourLower] || 'sans';
+          qteJour = appliquerVarianteJournaliere(qteMathematique, ventesHistoriques, variante);
 
-          // Règles 2 & 3: Appliquer la variante
-          quantitesBaseSemaine[jourLower] = appliquerVarianteJournaliere(qteMathematique, ventesHistoriques, varianteJour);
+          // Appliquer fermeture partielle si nécessaire
+          if (etatJour === 'FERME_MATIN' || etatJour === 'FERME_APREM') {
+            let ratioConserve = etatJour === 'FERME_MATIN' ? 0.4 : 0.6;
+            if (frequentationData?.poidsTranchesDetail?.[jourLower]) {
+              const detailPoids = frequentationData.poidsTranchesDetail[jourLower];
+              const pMatin = (detailPoids['00_Autre'] || 0) + (detailPoids['09h_12h'] || 0);
+              const pMidi = detailPoids['12h_14h'] || 0;
+              const pSoir = (detailPoids['14h_16h'] || 0) + (detailPoids['16h_19h'] || 0) + (detailPoids['19h_23h'] || 0);
+              const totalPoids = detailPoids.total || (pMatin + pMidi + pSoir);
+              if (totalPoids > 0) {
+                ratioConserve = etatJour === 'FERME_MATIN'
+                  ? ((0.5 * pMidi) + pSoir) / totalPoids
+                  : (pMatin + (0.5 * pMidi)) / totalPoids;
+              }
+            }
+            qteJour = Math.ceil(qteJour * ratioConserve);
+          }
         }
 
-        // 2. Appliquer les fermetures et reports sur la semaine complète
-        // Cela modifie les quantités calculées précédemment
-        const quantitesFinalesSemaine = appliquerFermeturesEtReports(quantitesBaseSemaine, configSemaine);
+        // Distribuer sur les créneaux
+        const poidsTranchesJour = poidsTranchesParJour[jourLower] || { matin: 0.6, midi: 0.3, soir: 0.1 };
+        const qteMatin = Math.ceil(qteJour * poidsTranchesJour.matin);
+        const qteMidi = Math.ceil(qteJour * poidsTranchesJour.midi);
+        const qteSoir = Math.ceil(qteJour * poidsTranchesJour.soir);
 
-        // 3. Distribuer dans le planning jour par jour et appliquer les modifications manuelles
-        for (const jour of joursCapitalized) {
-          const jourLower = jour.toLowerCase();
+        const ventesHistoriques = calculerVentesHistoriquesPourJour(produit.ventesParJour, jourLower);
 
-          // Règle 4: Vérifier s'il y a une modification manuelle
-          const modifManuelle = modificationsManuellesParRayonEtJour[rayon]?.[jourLower]?.[produit.libelle];
+        const creneauxData = {
+          matin: qteMatin,
+          midi: qteMidi,
+          soir: qteSoir,
+          total: qteJour,
+          unitesParVente: produit.unitesParVente ?? 1,
+          unitesParPlaque: produit.unitesParPlaque ?? 0,
+          itm8: produit.itm8,
+          codePLU: produit.codePLU,
+          ventesHistoriques: ventesHistoriques,
+          modifieManuellement: modifManuelle !== undefined && modifManuelle !== null
+        };
 
-          let qteJour;
-          if (modifManuelle !== undefined && modifManuelle !== null) {
-            // Règle 4: Utiliser la modification manuelle (écrase tout, même les fermetures)
-            qteJour = modifManuelle;
-          } else {
-            // Sinon utiliser la quantité calculée (avec variantes + fermetures + reports)
-            qteJour = quantitesFinalesSemaine[jourLower] || 0;
+        // Mettre à jour uniquement ce produit pour ce jour
+        if (nouveauPlanning.jours[jourCapitalized]?.[rayon]?.[programme]) {
+          // Récupérer l'ancienne valeur pour mettre à jour la capacité
+          const ancienneData = nouveauPlanning.jours[jourCapitalized][rayon][programme].produits.get(libelle);
+
+          if (ancienneData) {
+            // Soustraire l'ancienne capacité
+            nouveauPlanning.jours[jourCapitalized][rayon][programme].capacite.matin -= ancienneData.matin;
+            nouveauPlanning.jours[jourCapitalized][rayon][programme].capacite.midi -= ancienneData.midi;
+            nouveauPlanning.jours[jourCapitalized][rayon][programme].capacite.soir -= ancienneData.soir;
+            nouveauPlanning.jours[jourCapitalized][rayon][programme].capacite.total -= ancienneData.total;
           }
 
-          const poidsTranchesJour = poidsTranchesParJour[jourLower] || { matin: 0.6, midi: 0.3, soir: 0.1 };
+          // Mettre la nouvelle valeur
+          nouveauPlanning.jours[jourCapitalized][rayon][programme].produits.set(libelle, creneauxData);
 
-          const qteMatin = Math.ceil(qteJour * poidsTranchesJour.matin);
-          const qteMidi = Math.ceil(qteJour * poidsTranchesJour.midi);
-          const qteSoir = Math.ceil(qteJour * poidsTranchesJour.soir);
-
-          const creneauxData = {
-            matin: qteMatin,
-            midi: qteMidi,
-            soir: qteSoir,
-            total: qteJour,
-            unitesParVente: produit.unitesParVente ?? 1,
-            unitesParPlaque: produit.unitesParPlaque ?? 0,
-            itm8: produit.itm8,
-            codePLU: produit.codePLU,
-            ventesHistoriques: ventesHistoriquesSemaine[jourLower],
-            modifieManuellement: modifManuelle !== undefined && modifManuelle !== null
-          };
-
-          nouveauPlanning.jours[jour][rayon][programme].produits.set(produit.libelle, creneauxData);
-
-          // Accumuler dans la capacité
-          nouveauPlanning.jours[jour][rayon][programme].capacite.matin += qteMatin;
-          nouveauPlanning.jours[jour][rayon][programme].capacite.midi += qteMidi;
-          nouveauPlanning.jours[jour][rayon][programme].capacite.soir += qteSoir;
-          nouveauPlanning.jours[jour][rayon][programme].capacite.total += qteJour;
+          // Ajouter la nouvelle capacité
+          nouveauPlanning.jours[jourCapitalized][rayon][programme].capacite.matin += qteMatin;
+          nouveauPlanning.jours[jourCapitalized][rayon][programme].capacite.midi += qteMidi;
+          nouveauPlanning.jours[jourCapitalized][rayon][programme].capacite.soir += qteSoir;
+          nouveauPlanning.jours[jourCapitalized][rayon][programme].capacite.total += qteJour;
         }
       }
     }
   }
-
-  nouveauPlanning.programmesParRayon = programmesParRayon;
 
   return nouveauPlanning;
 };

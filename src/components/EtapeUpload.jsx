@@ -58,6 +58,8 @@ export default function EtapeUpload({
         </p>
       </div>
 
+
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Upload Fréquentation */}
         <div
@@ -198,10 +200,49 @@ export default function EtapeUpload({
         </div>
       </div>
 
+
+
       {/* Sélection du type de pondération - Visible seulement si les deux fichiers sont chargés */}
       {frequentationData && ventesData && (
         <>
           {/* Séparateur */}
+          <div style={{ width: '100%', height: '1px', backgroundColor: mousquetairesColors.secondary.gray, margin: '2rem 0' }}></div>
+
+          {/* Choix de la base de pondération */}
+          <div className="mb-8 p-6 rounded-lg" style={{ backgroundColor: mousquetairesColors.secondary.beigeLight, border: `1px solid ${mousquetairesColors.secondary.gray}` }}>
+            <h3 className="text-base font-bold mb-4" style={{ color: mousquetairesColors.primary.redDark }}>
+              Base de calcul de la répartition
+            </h3>
+            <div className="flex gap-6">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="sourcePonderation"
+                  value="BVP"
+                  checked={!frequentationData?.source || frequentationData.source === 'BVP'}
+                  onChange={() => onChangerPonderation(ponderationType, 'BVP')}
+                  className="w-5 h-5 text-red-600 focus:ring-red-500"
+                />
+                <span className="font-medium">Taux de fréquentation BVP</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="sourcePonderation"
+                  value="PDV"
+                  checked={frequentationData?.source === 'PDV'}
+                  onChange={() => onChangerPonderation(ponderationType, 'PDV')}
+                  className="w-5 h-5 text-red-600 focus:ring-red-500"
+                />
+                <span className="font-medium">Taux de fréquentation PDV</span>
+              </label>
+            </div>
+            <p className="text-xs mt-3 text-gray-600">
+              <strong>BVP :</strong> Répartition basée sur les quantités vendues au rayon Boulangerie-Viennoiserie-Pâtisserie.<br />
+              <strong>PDV :</strong> Répartition basée sur le flux global du magasin (détection d'opportunités, vue historique détaillée).
+            </p>
+          </div>
+
           <div style={{ width: '100%', height: '1px', backgroundColor: mousquetairesColors.secondary.gray, margin: '2rem 0' }}></div>
 
           <div className="mb-8 p-6 rounded-lg" style={{ backgroundColor: mousquetairesColors.secondary.beigeLight, border: `1px solid ${mousquetairesColors.secondary.gray}` }}>
@@ -210,7 +251,7 @@ export default function EtapeUpload({
             </h3>
             <div className="flex gap-3 flex-wrap">
               <button
-                onClick={() => onChangerPonderation('standard')}
+                onClick={() => onChangerPonderation('standard', frequentationData?.source || 'BVP')}
                 className="px-5 py-3 rounded-lg transition font-semibold"
                 style={{
                   backgroundColor: ponderationType === 'standard' ? mousquetairesColors.primary.red : 'white',
@@ -222,7 +263,7 @@ export default function EtapeUpload({
                 <span className="text-xs block mt-1 font-normal">S-1: 40% | AS-1: 30% | S-2: 30%</span>
               </button>
               <button
-                onClick={() => onChangerPonderation('saisonnier')}
+                onClick={() => onChangerPonderation('saisonnier', frequentationData?.source || 'BVP')}
                 className="px-5 py-3 rounded-lg transition font-semibold"
                 style={{
                   backgroundColor: ponderationType === 'saisonnier' ? mousquetairesColors.primary.red : 'white',
@@ -234,7 +275,7 @@ export default function EtapeUpload({
                 <span className="text-xs block mt-1 font-normal">S-1: 30% | AS-1: 50% | S-2: 20%</span>
               </button>
               <button
-                onClick={() => onChangerPonderation('fortePromo')}
+                onClick={() => onChangerPonderation('fortePromo', frequentationData?.source || 'BVP')}
                 className="px-5 py-3 rounded-lg transition font-semibold"
                 style={{
                   backgroundColor: ponderationType === 'fortePromo' ? mousquetairesColors.primary.red : 'white',

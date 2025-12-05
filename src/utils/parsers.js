@@ -335,8 +335,9 @@ const diagnostiquerFrequentation = (allData) => {
  * Parse le fichier de fréquentation Excel avec pondération multi-semaines
  * @param {ArrayBuffer} arrayBuffer - Le contenu du fichier
  * @param {string} typePonderation - Type de pondération: 'standard', 'saisonnier', 'fortePromo'
+ * @param {string} sourcePonderation - Source des données: 'BVP' (Rayon) ou 'PDV' (Total Magasin)
  */
-export const parseFrequentationExcel = (arrayBuffer, typePonderation = 'standard') => {
+export const parseFrequentationExcel = (arrayBuffer, typePonderation = 'standard', sourcePonderation = 'BVP') => {
   const workbook = XLSX.read(arrayBuffer, { type: 'array' });
   const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
   const allData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
@@ -358,7 +359,7 @@ export const parseFrequentationExcel = (arrayBuffer, typePonderation = 'standard
     '7-dimanche': 'dimanche'
   };
 
-  // Initialisation des données pour les 3 semaines (utilisant Qte Tot BVP)
+  // Initialisation des données pour les 3 semaines
   const qteTotParJourS1 = {};
   const qteTotParJourAS1 = {};
   const qteTotParJourS2 = {};
@@ -410,16 +411,53 @@ export const parseFrequentationExcel = (arrayBuffer, typePonderation = 'standard
     headerRowIndex = 0;
   }
 
-  // Extraction des données (colonnes : 6=JOUR, 7=TRANCHE, J=9, P=15, V=21)
+  // Définition des colonnes
+  // BVP : J(9), P(15), V(21)
+  // PDV : M(12), S(18), Y(24)
+  const colsBVP = { S1: 9, AS1: 15, S2: 21 };
+  const colsPDV = { S1: 12, AS1: 18, S2: 24 };
+  const cols = sourcePonderation === 'PDV' ? colsPDV : colsBVP;
+
+  console.log(`📊 Source pondération: ${sourcePonderation} (Cols: ${cols.S1}, ${cols.AS1}, ${cols.S2})`);
+
+  // Données BVP séparées (toujours extraites pour l'historique)
+  const qteTotParJourS1_BVP = {};
+  const qteTotParJourAS1_BVP = {};
+  const qteTotParJourS2_BVP = {};
+  const qteTotParJourTrancheS1_BVP = {};
+  const qteTotParJourTrancheAS1_BVP = {};
+  const qteTotParJourTrancheS2_BVP = {};
+
+  Object.values(jourMap).forEach(jour => {
+    qteTotParJourS1_BVP[jour] = 0;
+    qteTotParJourAS1_BVP[jour] = 0;
+    qteTotParJourS2_BVP[jour] = 0;
+    qteTotParJourTrancheS1_BVP[jour] = {
+      '00_Autre': 0, '09h_12h': 0, '12h_14h': 0, '14h_16h': 0, '16h_19h': 0, '19h_23h': 0
+    };
+    qteTotParJourTrancheAS1_BVP[jour] = {
+      '00_Autre': 0, '09h_12h': 0, '12h_14h': 0, '14h_16h': 0, '16h_19h': 0, '19h_23h': 0
+    };
+    qteTotParJourTrancheS2_BVP[jour] = {
+      '00_Autre': 0, '09h_12h': 0, '12h_14h': 0, '14h_16h': 0, '16h_19h': 0, '19h_23h': 0
+    };
+  });
+
+  // Extraction des données
   for (let i = headerRowIndex + 1; i < allData.length; i++) {
     const row = allData[i];
-    if (!row || row.length < 22) continue;
+    if (!row || row.length < 25) continue; // Besoin d'aller jusqu'à Y(24) min
 
     const jourCell = row[6];
     const trancheCell = row[7];
-    const qteTotBVPS1 = parseFloat(row[9]) || 0;   // Colonne J (S-1) - Qte Tot BVP
-    const qteTotBVPAS1 = parseFloat(row[15]) || 0; // Colonne P (AS-1) - Qte Tot BVP
-    const qteTotBVPS2 = parseFloat(row[21]) || 0;  // Colonne V (S-2) - Qte Tot BVP
+    const qteS1 = parseFloat(row[cols.S1]) || 0;
+    const qteAS1 = parseFloat(row[cols.AS1]) || 0;
+    const qteS2 = parseFloat(row[cols.S2]) || 0;
+
+    // Toujours extraire les données BVP pour l'historique
+    const qteS1_BVP = parseFloat(row[colsBVP.S1]) || 0;
+    const qteAS1_BVP = parseFloat(row[colsBVP.AS1]) || 0;
+    const qteS2_BVP = parseFloat(row[colsBVP.S2]) || 0;
 
     if (!jourCell || !trancheCell) continue;
 
@@ -436,15 +474,26 @@ export const parseFrequentationExcel = (arrayBuffer, typePonderation = 'standard
     }
 
     if (jourKey) {
-      qteTotParJourS1[jourKey] += qteTotBVPS1;
-      qteTotParJourAS1[jourKey] += qteTotBVPAS1;
-      qteTotParJourS2[jourKey] += qteTotBVPS2;
+      // Données source sélectionnée (pour préconisation)
+      qteTotParJourS1[jourKey] += qteS1;
+      qteTotParJourAS1[jourKey] += qteAS1;
+      qteTotParJourS2[jourKey] += qteS2;
+
+      // Données BVP (pour historique - ce que l'équipe fait habituellement)
+      qteTotParJourS1_BVP[jourKey] += qteS1_BVP;
+      qteTotParJourAS1_BVP[jourKey] += qteAS1_BVP;
+      qteTotParJourS2_BVP[jourKey] += qteS2_BVP;
 
       // Pour l'analyse horaire, on utilise les 3 semaines
       if (qteTotParJourTrancheS1[jourKey][tranche] !== undefined) {
-        qteTotParJourTrancheS1[jourKey][tranche] += qteTotBVPS1;
-        qteTotParJourTrancheAS1[jourKey][tranche] += qteTotBVPAS1;
-        qteTotParJourTrancheS2[jourKey][tranche] += qteTotBVPS2;
+        qteTotParJourTrancheS1[jourKey][tranche] += qteS1;
+        qteTotParJourTrancheAS1[jourKey][tranche] += qteAS1;
+        qteTotParJourTrancheS2[jourKey][tranche] += qteS2;
+
+        // BVP séparé
+        qteTotParJourTrancheS1_BVP[jourKey][tranche] += qteS1_BVP;
+        qteTotParJourTrancheAS1_BVP[jourKey][tranche] += qteAS1_BVP;
+        qteTotParJourTrancheS2_BVP[jourKey][tranche] += qteS2_BVP;
       }
     }
   }
@@ -458,7 +507,7 @@ export const parseFrequentationExcel = (arrayBuffer, typePonderation = 'standard
 
   const weights = ponderations[typePonderation];
 
-  // Calcul des moyennes pondérées (basées sur Qte Tot BVP)
+  // Calcul des moyennes pondérées
   const qteTotParJour = {};
   let totalQteTot = 0;
 
@@ -482,6 +531,7 @@ export const parseFrequentationExcel = (arrayBuffer, typePonderation = 'standard
 
   // Calcul des poids par tranche horaire avec pondération des 3 semaines
   const poidsTranchesParJour = {};
+  const poidsTranchesDetail = {}; // Nouveau : détail précis pour les coupures 13h
   let totalQteTotMatinGlobal = 0;
   let totalQteTotMidiGlobal = 0;
   let totalQteTotSoirGlobal = 0;
@@ -504,6 +554,12 @@ export const parseFrequentationExcel = (arrayBuffer, typePonderation = 'standard
     const qteTotMidiJour = (tranchesPonderees['12h_14h'] || 0) + (tranchesPonderees['14h_16h'] || 0);
     const qteTotSoirJour = (tranchesPonderees['16h_19h'] || 0) + (tranchesPonderees['19h_23h'] || 0);
     const totalQteTotJour = qteTotMatinJour + qteTotMidiJour + qteTotSoirJour;
+
+    // Stocker le détail pondéré pour usage ultérieur (fermetures partielles)
+    poidsTranchesDetail[jour] = {
+      ...tranchesPonderees,
+      total: totalQteTotJour
+    };
 
     if (totalQteTotJour > 0) {
       poidsTranchesParJour[jour] = {
@@ -531,8 +587,47 @@ export const parseFrequentationExcel = (arrayBuffer, typePonderation = 'standard
     soir: totalQteTotTranchesGlobal > 0 ? totalQteTotSoirGlobal / totalQteTotTranchesGlobal : 0.1
   };
 
+  // ========== CALCUL DES POIDS BVP POUR L'HISTORIQUE ==========
+  // Ces poids représentent ce que l'équipe BVP fait habituellement
+  // Ils sont toujours calculés, même si la source sélectionnée est PDV
+  const poidsTranchesParJour_BVP = {};
+
+  Object.keys(qteTotParJourTrancheS1_BVP).forEach(jour => {
+    const tranchesS1 = qteTotParJourTrancheS1_BVP[jour];
+    const tranchesAS1 = qteTotParJourTrancheAS1_BVP[jour];
+    const tranchesS2 = qteTotParJourTrancheS2_BVP[jour];
+
+    // Appliquer la même pondération temporelle aux données BVP
+    const tranchesPonderees = {};
+    Object.keys(tranchesS1).forEach(tranche => {
+      tranchesPonderees[tranche] =
+        (tranchesS1[tranche] * weights.S1) +
+        (tranchesAS1[tranche] * weights.AS1) +
+        (tranchesS2[tranche] * weights.S2);
+    });
+
+    const qteTotMatinJour = (tranchesPonderees['00_Autre'] || 0) + (tranchesPonderees['09h_12h'] || 0);
+    const qteTotMidiJour = (tranchesPonderees['12h_14h'] || 0) + (tranchesPonderees['14h_16h'] || 0);
+    const qteTotSoirJour = (tranchesPonderees['16h_19h'] || 0) + (tranchesPonderees['19h_23h'] || 0);
+    const totalQteTotJour = qteTotMatinJour + qteTotMidiJour + qteTotSoirJour;
+
+    if (totalQteTotJour > 0) {
+      poidsTranchesParJour_BVP[jour] = {
+        matin: qteTotMatinJour / totalQteTotJour,
+        midi: qteTotMidiJour / totalQteTotJour,
+        soir: qteTotSoirJour / totalQteTotJour
+      };
+    } else {
+      poidsTranchesParJour_BVP[jour] = {
+        matin: 0.6,
+        midi: 0.3,
+        soir: 0.1
+      };
+    }
+  });
+
   if (totalQteTot === 0) {
-    alert('Aucune donnée de quantité totale BVP trouvée dans le fichier de fréquentation');
+    alert('Aucune donnée de quantité totale trouvée dans le fichier de fréquentation');
     return null;
   }
 
@@ -542,7 +637,10 @@ export const parseFrequentationExcel = (arrayBuffer, typePonderation = 'standard
     totalQteTot,
     poidsTranchesParJour,
     poidsTranchesGlobal,
+    poidsTranchesDetail,
+    poidsTranchesParJour_BVP, // Poids BVP pour l'historique (ce que l'équipe fait)
     type: typePonderation,
+    source: sourcePonderation,
     ponderations: weights
   };
 };

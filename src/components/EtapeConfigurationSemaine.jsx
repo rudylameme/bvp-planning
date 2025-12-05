@@ -59,63 +59,14 @@ export default function EtapeConfigurationSemaine({
     });
   };
 
-  const handleToggleFermetureExceptionnelle = (jour, index) => {
-    const fermeturesExceptionnelles = { ...configSemaine.fermeturesExceptionnelles };
-
-    if (fermeturesExceptionnelles[jour]?.active) {
-      // Désactiver
-      delete fermeturesExceptionnelles[jour];
-    } else {
-      // Activer avec reports par défaut
-      const reportsConfig = determinerJoursReport(jour, index);
-      fermeturesExceptionnelles[jour] = {
-        active: true,
-        date: weekDates[jour],
-        reports: {
-          [reportsConfig.jourReport1]: reportsConfig.pourcentageReport1,
-          [reportsConfig.jourReport2]: reportsConfig.pourcentageReport2
-        }
-      };
-    }
-
+  const handleChangeEtatJour = (jour, etat) => {
     setConfigSemaine({
       ...configSemaine,
-      fermeturesExceptionnelles
+      etatsJours: {
+        ...(configSemaine.etatsJours || {}),
+        [jour]: etat
+      }
     });
-
-    // Valider
-    validerReports(jour, fermeturesExceptionnelles);
-  };
-
-  const handleChangeReport = (jour, jourReport, value) => {
-    const pourcentage = parseInt(value) || 0;
-
-    const fermeturesExceptionnelles = { ...configSemaine.fermeturesExceptionnelles };
-    fermeturesExceptionnelles[jour].reports[jourReport] = pourcentage;
-
-    setConfigSemaine({
-      ...configSemaine,
-      fermeturesExceptionnelles
-    });
-
-    // Valider
-    validerReports(jour, fermeturesExceptionnelles);
-  };
-
-  const validerReports = (jour, fermeturesExceptionnelles) => {
-    const config = fermeturesExceptionnelles[jour];
-    if (!config) return;
-
-    const totalPourcentage = Object.values(config.reports).reduce((sum, val) => sum + val, 0);
-
-    const newErreurs = { ...erreurs };
-    if (totalPourcentage !== 100) {
-      newErreurs[jour] = `La somme doit faire 100% (actuellement ${totalPourcentage}%)`;
-    } else {
-      delete newErreurs[jour];
-    }
-
-    setErreurs(newErreurs);
   };
 
   const handleExporter = () => {
@@ -255,75 +206,107 @@ export default function EtapeConfigurationSemaine({
         </div>
       </div>
 
-      {/* Section 3: Fermetures exceptionnelles */}
+      {/* Section 3: Configuration des jours (Ouverture / Fermeture) */}
       <div className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-6 mb-6">
         <h3 className="text-xl font-semibold mb-2" style={{ color: mousquetairesColors.primary.redDark }}>
-          Fermetures exceptionnelles (jours fériés)
+          Configuration des jours d'ouverture
         </h3>
         <p className="text-sm text-gray-600 mb-4">
-          Les quantités seront reportées automatiquement sur les jours adjacents
+          Définissez les jours de fermeture complète ou partielle (matin/après-midi).
         </p>
 
-        <div className="space-y-4">
-          {jours.map((jour, index) => {
-            const date = weekDates[jour];
-            const fermetureConfig = configSemaine.fermeturesExceptionnelles?.[jour];
-            const estActif = fermetureConfig?.active;
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse border border-gray-200">
+            <thead>
+              <tr>
+                <th className="p-3 border border-gray-200 bg-red-700 text-white font-bold w-32">
+                  Période Fermée
+                </th>
+                {jours.map(jour => (
+                  <th key={jour} className="p-3 border border-gray-200 bg-red-700 text-white font-bold capitalize min-w-[100px]">
+                    {jour}
+                    <div className="text-xs font-normal opacity-80 mt-1">{weekDates[jour]}</div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {/* Ligne Matin */}
+              <tr>
+                <td className="p-3 border border-gray-200 font-bold bg-gray-50 text-gray-700">
+                  Matin
+                  <span className="block text-xs font-normal text-gray-500">Fermé le matin</span>
+                </td>
+                {jours.map(jour => {
+                  const isActive = configSemaine.etatsJours?.[jour] === 'FERME_MATIN';
+                  return (
+                    <td
+                      key={jour}
+                      onClick={() => handleChangeEtatJour(jour, isActive ? 'OUVERT' : 'FERME_MATIN')}
+                      className={`p-3 border border-gray-200 text-center cursor-pointer transition-colors duration-200 ${isActive ? 'bg-orange-100 hover:bg-orange-200' : 'hover:bg-gray-50'
+                        }`}
+                    >
+                      {isActive && (
+                        <span className="inline-block px-3 py-1 rounded-full bg-orange-500 text-white font-bold text-sm">
+                          OUI
+                        </span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
 
-            return (
-              <div key={jour} className="border-b border-gray-200 pb-4 last:border-b-0">
-                <div className="flex items-center gap-4">
-                  <input
-                    type="checkbox"
-                    id={`ferie-${jour}`}
-                    checked={estActif || false}
-                    onChange={() => handleToggleFermetureExceptionnelle(jour, index)}
-                    className="w-5 h-5 text-amber-600 focus:ring-amber-500 rounded cursor-pointer"
-                  />
-                  <label
-                    htmlFor={`ferie-${jour}`}
-                    className="font-medium capitalize cursor-pointer text-gray-800 flex-1"
-                  >
-                    {jour} {date} - Fermeture exceptionnelle
-                  </label>
-                </div>
+              {/* Ligne Après-midi */}
+              <tr>
+                <td className="p-3 border border-gray-200 font-bold bg-gray-50 text-gray-700">
+                  Après-midi
+                  <span className="block text-xs font-normal text-gray-500">Fermé l'après-midi</span>
+                </td>
+                {jours.map(jour => {
+                  const isActive = configSemaine.etatsJours?.[jour] === 'FERME_APREM';
+                  return (
+                    <td
+                      key={jour}
+                      onClick={() => handleChangeEtatJour(jour, isActive ? 'OUVERT' : 'FERME_APREM')}
+                      className={`p-3 border border-gray-200 text-center cursor-pointer transition-colors duration-200 ${isActive ? 'bg-blue-100 hover:bg-blue-200' : 'hover:bg-gray-50'
+                        }`}
+                    >
+                      {isActive && (
+                        <span className="inline-block px-3 py-1 rounded-full bg-blue-500 text-white font-bold text-sm">
+                          OUI
+                        </span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
 
-                {estActif && (
-                  <div className="ml-9 mt-3 p-4 rounded-lg" style={{ backgroundColor: mousquetairesColors.secondary.beigeLight }}>
-                    <p className="text-sm font-medium mb-3" style={{ color: mousquetairesColors.primary.redDark }}>
-                      Report des quantités prévues :
-                    </p>
-                    <div className="flex gap-6 flex-wrap">
-                      {Object.entries(fermetureConfig.reports).map(([jourReport, pourcentage]) => (
-                        <div key={jourReport} className="flex items-center gap-2">
-                          <label className="text-sm capitalize font-medium min-w-[80px]">
-                            {jourReport} :
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            value={pourcentage}
-                            onChange={(e) => handleChangeReport(jour, jourReport, e.target.value)}
-                            className="w-20 border-2 border-gray-300 rounded-lg px-3 py-1 text-center font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500"
-                          />
-                          <span className="text-sm font-medium">%</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Validation */}
-                    {erreurs[jour] && (
-                      <div className="mt-3 flex items-start gap-2 text-sm text-red-700 bg-red-50 p-3 rounded-lg">
-                        <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
-                        <p>{erreurs[jour]}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+              {/* Ligne Journée */}
+              <tr>
+                <td className="p-3 border border-gray-200 font-bold bg-gray-50 text-gray-700">
+                  Journée
+                  <span className="block text-xs font-normal text-gray-500">Fermeture complète</span>
+                </td>
+                {jours.map(jour => {
+                  const isActive = configSemaine.etatsJours?.[jour] === 'FERME';
+                  return (
+                    <td
+                      key={jour}
+                      onClick={() => handleChangeEtatJour(jour, isActive ? 'OUVERT' : 'FERME')}
+                      className={`p-3 border border-gray-200 text-center cursor-pointer transition-colors duration-200 ${isActive ? 'bg-red-100 hover:bg-red-200' : 'hover:bg-gray-50'
+                        }`}
+                    >
+                      {isActive && (
+                        <span className="inline-block px-3 py-1 rounded-full bg-red-600 text-white font-bold text-sm">
+                          OUI
+                        </span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 

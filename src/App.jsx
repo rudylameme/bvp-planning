@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Upload, ChevronRight, Download, FileUp, RotateCcw, Monitor, Tablet, Calendar } from 'lucide-react';
+import { Upload, ChevronRight, Download, FileUp, Monitor, Tablet, Calendar } from 'lucide-react';
 import EtapeUpload from './components/EtapeUpload';
 import EtapePersonnalisation from './components/EtapePersonnalisation';
 import EtapeConfigurationSemaine from './components/EtapeConfigurationSemaine';
@@ -8,7 +8,7 @@ import { parseVentesExcel, parseFrequentationExcel } from './utils/parsers';
 import { classerProduit } from './utils/classification';
 import { calculerPlanning } from './services/planningCalculator';
 import { chargerReferentielITM8, rechercherParITM8, mapRayonVersFamille, isReferentielCharge, reinitialiserProgrammes } from './services/referentielITM8';
-import { trouverVenteMax, calculerPotentielDepuisVenteMax } from './services/potentielCalculator';
+import { trouverVenteMax, calculerPotentielDepuisVenteMax, calculerStatsVentes } from './services/potentielCalculator';
 import { mousquetairesColors } from './styles/mousquetaires-theme';
 
 function App() {
@@ -23,14 +23,15 @@ function App() {
   const [ponderationType, setPonderationType] = useState('standard'); // 'standard', 'saisonnier', 'fortePromo'
   const [frequentationFile, setFrequentationFile] = useState(null);
   const [referentielCharge, setReferentielCharge] = useState(false);
-  const [forceTabletMode, setForceTabletMode] = useState(false); // Mode tablette forcé manuellement
+  const [forcedViewMode, setForcedViewMode] = useState(null); // null = auto, 'desktop' = forcé desktop, 'tablet' = forcé tablette
 
   // Configuration de la semaine (nouvelle étape)
   const [configSemaine, setConfigSemaine] = useState({
     numeroSemaine: null,
     annee: null,
     fermetureHebdo: '', // 'lundi', 'mardi', etc. ou ''
-    fermeturesExceptionnelles: {} // { jour: { active, date, reports: { jourReport: pourcentage } } }
+    fermeturesExceptionnelles: {}, // { jour: { active, date, reports: { jourReport: pourcentage } } }
+    etatsJours: {} // { lundi: 'OUVERT', ... }
   });
 
   // Charger le référentiel ITM8 au démarrage
@@ -49,7 +50,7 @@ function App() {
   }, []);
 
   // Handler pour l'upload de fréquentation avec choix de pondération
-  const handleFrequentationUpload = (e, newPonderationType = null) => {
+  const handleFrequentationUpload = (e, newPonderationType = null, newSource = null) => {
     const newFile = e?.target?.files?.[0];
     const file = newFile || frequentationFile;
     if (!file) return;
@@ -60,11 +61,13 @@ function App() {
     }
 
     const typePonderation = newPonderationType || ponderationType;
+    // Si newSource est fourni, on l'utilise, sinon on garde l'existant (ou 'BVP' par défaut)
+    const source = newSource || (frequentationData?.source || 'BVP');
 
     const loadFile = async () => {
       try {
         const arrayBuffer = await file.arrayBuffer();
-        const parsed = parseFrequentationExcel(arrayBuffer, typePonderation);
+        const parsed = parseFrequentationExcel(arrayBuffer, typePonderation, source);
         if (parsed) {
           setFrequentationData(parsed);
           setPonderationType(typePonderation);
@@ -80,9 +83,9 @@ function App() {
   };
 
   // Changer le type de pondération et recalculer
-  const changerPonderation = (newType) => {
+  const changerPonderation = (newType, newSource = null) => {
     if (frequentationFile) {
-      const resultat = handleFrequentationUpload(null, newType);
+      const resultat = handleFrequentationUpload(null, newType, newSource);
       if (resultat?.then) {
         resultat.then((parsedFrequentation) => {
           if (parsedFrequentation && planning && produits.length > 0) {
@@ -134,6 +137,9 @@ function App() {
     const { venteMax, dateVenteMax } = trouverVenteMax(ventesParJour);
     const potentielCalcule = calculerPotentielDepuisVenteMax(venteMax, dateVenteMax, frequentationData, libelle);
 
+    // Calcul des statistiques multi-semaines
+    const stats = calculerStatsVentes(ventesParJour);
+
     return {
       id: idCounter,
       libelle,
@@ -148,6 +154,7 @@ function App() {
       ventesParJour,
       totalVentes,
       potentielHebdo: potentielCalcule,
+      stats, // Statistiques multi-semaines
       actif: true,
       custom: false,
       reconnu
@@ -449,45 +456,22 @@ function App() {
                 <div>
                   <h1 className="text-3xl font-bold" style={{ color: mousquetairesColors.primary.redDark }}>Planning BVP</h1>
                   <p className="text-sm" style={{ color: mousquetairesColors.text.secondary }}>Boulangerie - Viennoiserie - Pâtisserie</p>
+                  {pdvInfo && (
+                    <p className="text-3xl font-bold mt-1" style={{ color: mousquetairesColors.primary.redDark }}>
+                      {pdvInfo.numero} - {pdvInfo.nom}
+                    </p>
+                  )}
                 </div>
               </div>
-              <button
-                onClick={recommencer}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg transition"
-                style={{
-                  backgroundColor: mousquetairesColors.secondary.beige,
-                  color: mousquetairesColors.primary.redDark,
-                  border: `2px solid ${mousquetairesColors.primary.red}`
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = mousquetairesColors.primary.red;
-                  e.currentTarget.style.color = mousquetairesColors.text.white;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = mousquetairesColors.secondary.beige;
-                  e.currentTarget.style.color = mousquetairesColors.primary.redDark;
-                }}
-              >
-                <RotateCcw size={20} />
-                Nouveau
-              </button>
             </div>
           </div>
-
-          {/* Informations PDV */}
-          {pdvInfo && (
-            <div className="px-6 py-3" style={{ backgroundColor: mousquetairesColors.secondary.beigeLight }}>
-              <p className="text-sm font-semibold" style={{ color: mousquetairesColors.primary.redDark }}>
-                Point de vente : {pdvInfo.numero} - {pdvInfo.nom}
-              </p>
-            </div>
-          )}
 
           {/* Indicateur d'étapes */}
           <div className="flex items-center justify-between px-6 py-6">
             <div className="flex items-center gap-4">
-              <div
-                className="flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all"
+              <button
+                onClick={() => setEtape('upload')}
+                className="flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all cursor-pointer"
                 style={{
                   backgroundColor: etape === 'upload' ? mousquetairesColors.primary.red : mousquetairesColors.secondary.beige,
                   color: etape === 'upload' ? mousquetairesColors.text.white : mousquetairesColors.text.secondary,
@@ -496,38 +480,55 @@ function App() {
               >
                 <Upload size={20} />
                 <span>1. Chargement</span>
-              </div>
+              </button>
               <ChevronRight style={{ color: mousquetairesColors.secondary.gray }} />
-              <div
+              <button
+                onClick={() => {
+                  if (frequentationData && ventesData) {
+                    setEtape('personnalisation');
+                  }
+                }}
+                disabled={!frequentationData || !ventesData}
                 className="flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all"
                 style={{
                   backgroundColor: etape === 'personnalisation' ? mousquetairesColors.primary.red : mousquetairesColors.secondary.beige,
                   color: etape === 'personnalisation' ? mousquetairesColors.text.white : mousquetairesColors.text.secondary,
-                  border: etape === 'personnalisation' ? 'none' : `1px solid ${mousquetairesColors.secondary.gray}`
+                  border: etape === 'personnalisation' ? 'none' : `1px solid ${mousquetairesColors.secondary.gray}`,
+                  opacity: (!frequentationData || !ventesData) ? 0.5 : 1,
+                  cursor: (!frequentationData || !ventesData) ? 'not-allowed' : 'pointer'
                 }}
               >
                 <FileUp size={20} />
                 <span>2. Personnalisation</span>
-              </div>
+              </button>
               <ChevronRight style={{ color: mousquetairesColors.secondary.gray }} />
-              <div
+              <button
+                onClick={() => {
+                  if (frequentationData && ventesData) {
+                    setEtape('configsemaine');
+                  }
+                }}
+                disabled={!frequentationData || !ventesData}
                 className="flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all"
                 style={{
                   backgroundColor: etape === 'configsemaine' ? mousquetairesColors.primary.red : mousquetairesColors.secondary.beige,
                   color: etape === 'configsemaine' ? mousquetairesColors.text.white : mousquetairesColors.text.secondary,
-                  border: etape === 'configsemaine' ? 'none' : `1px solid ${mousquetairesColors.secondary.gray}`
+                  border: etape === 'configsemaine' ? 'none' : `1px solid ${mousquetairesColors.secondary.gray}`,
+                  opacity: (!frequentationData || !ventesData) ? 0.5 : 1,
+                  cursor: (!frequentationData || !ventesData) ? 'not-allowed' : 'pointer'
                 }}
               >
                 <Calendar size={20} />
                 <span>3. Semaine</span>
-              </div>
+              </button>
               <ChevronRight style={{ color: mousquetairesColors.secondary.gray }} />
               <div
                 className="flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all"
                 style={{
                   backgroundColor: etape === 'planning' ? mousquetairesColors.primary.red : mousquetairesColors.secondary.beige,
                   color: etape === 'planning' ? mousquetairesColors.text.white : mousquetairesColors.text.secondary,
-                  border: etape === 'planning' ? 'none' : `1px solid ${mousquetairesColors.secondary.gray}`
+                  border: etape === 'planning' ? 'none' : `1px solid ${mousquetairesColors.secondary.gray}`,
+                  opacity: !planning ? 0.5 : 1
                 }}
               >
                 <Download size={20} />
@@ -538,16 +539,16 @@ function App() {
             {/* Bouton toggle Desktop / Tablette - Visible seulement sur la page Planning */}
             {etape === 'planning' && (
               <button
-                onClick={() => setForceTabletMode(!forceTabletMode)}
+                onClick={() => setForcedViewMode(forcedViewMode === 'tablet' ? 'desktop' : 'tablet')}
                 className="px-4 py-2 rounded-lg transition font-semibold flex items-center gap-2"
                 style={{
-                  backgroundColor: forceTabletMode ? mousquetairesColors.primary.red : mousquetairesColors.secondary.beige,
-                  color: forceTabletMode ? mousquetairesColors.text.white : mousquetairesColors.primary.redDark,
-                  border: `2px solid ${forceTabletMode ? mousquetairesColors.primary.red : mousquetairesColors.secondary.gray}`
+                  backgroundColor: forcedViewMode === 'tablet' ? mousquetairesColors.primary.red : mousquetairesColors.secondary.beige,
+                  color: forcedViewMode === 'tablet' ? mousquetairesColors.text.white : mousquetairesColors.primary.redDark,
+                  border: `2px solid ${forcedViewMode === 'tablet' ? mousquetairesColors.primary.red : mousquetairesColors.secondary.gray}`
                 }}
-                title={forceTabletMode ? "Basculer en mode Desktop" : "Basculer en mode Tablette"}
+                title={forcedViewMode === 'tablet' ? "Basculer en mode Desktop" : "Basculer en mode Tablette"}
               >
-                {forceTabletMode ? (
+                {forcedViewMode === 'tablet' ? (
                   <>
                     <Tablet className="w-5 h-5" />
                     Tablette
@@ -615,10 +616,10 @@ function App() {
             produits={produits}
             frequentationData={frequentationData}
             configSemaine={configSemaine}
-            onRetour={() => setEtape('personnalisation')}
+            onRetour={() => setEtape('configsemaine')}
             onPersonnaliser={() => setEtape('personnalisation')}
             onPlanningChange={setPlanning}
-            forceTabletMode={forceTabletMode}
+            forcedViewMode={forcedViewMode}
           />
         )}
       </div>

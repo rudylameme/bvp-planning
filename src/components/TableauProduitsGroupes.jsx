@@ -1,6 +1,50 @@
-import { Edit3, Star, ChevronDown, ChevronRight, CheckSquare, Square } from 'lucide-react';
+import { Edit3, Star, ChevronDown, ChevronRight, CheckSquare, Square, TrendingUp, TrendingDown, Minus, Info } from 'lucide-react';
 import { useState } from 'react';
 import { getNomProgrammeAffiche } from '../services/referentielITM8';
+
+/**
+ * Badge de tendance (croissance/déclin/stable)
+ */
+const BadgeTendance = ({ tendance, variation }) => {
+  if (!tendance) return <span className="text-gray-400 text-xs">-</span>;
+
+  const config = {
+    croissance: { icon: TrendingUp, color: 'text-green-600 bg-green-100', label: 'Croissance' },
+    declin: { icon: TrendingDown, color: 'text-red-600 bg-red-100', label: 'Déclin' },
+    stable: { icon: Minus, color: 'text-gray-600 bg-gray-100', label: 'Stable' }
+  };
+
+  const { icon: Icon, color } = config[tendance] || config.stable;
+  const variationStr = variation > 0 ? `+${variation}%` : `${variation}%`;
+
+  return (
+    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs ${color}`} title={variationStr}>
+      <Icon size={12} />
+      <span>{variationStr}</span>
+    </span>
+  );
+};
+
+/**
+ * Badge de fiabilité (score de confiance 0-100)
+ */
+const BadgeFiabilite = ({ scoreConfiance }) => {
+  if (scoreConfiance === undefined) return <span className="text-gray-400 text-xs">-</span>;
+
+  let color;
+  if (scoreConfiance >= 70) color = 'bg-green-500';
+  else if (scoreConfiance >= 40) color = 'bg-yellow-500';
+  else color = 'bg-red-500';
+
+  return (
+    <span
+      className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-white text-xs font-bold ${color}`}
+      title={`Score de confiance: ${scoreConfiance}%`}
+    >
+      {scoreConfiance}
+    </span>
+  );
+};
 
 export default function TableauProduitsGroupes({
   produits,
@@ -18,8 +62,21 @@ export default function TableauProduitsGroupes({
   rayonsDisponibles = [],
   programmesDisponibles = []
 }) {
-  // Récupérer tous les rayons uniques
-  const rayonsUniques = [...new Set(produits.map(p => p.rayon).filter(Boolean))].sort();
+  // Ordre des rayons souhaité : BOULANGERIE, VIENNOISERIE, SNACKING, PATISSERIE, AUTRE
+  const ordreRayons = {
+    'BOULANGERIE': 1,
+    'VIENNOISERIE': 2,
+    'SNACKING': 3,
+    'PATISSERIE': 4,
+    'AUTRE': 5
+  };
+
+  // Récupérer tous les rayons uniques et les trier selon l'ordre souhaité
+  const rayonsUniques = [...new Set(produits.map(p => p.rayon).filter(Boolean))].sort((a, b) => {
+    const ordreA = ordreRayons[a] || 99;
+    const ordreB = ordreRayons[b] || 99;
+    return ordreA - ordreB;
+  });
 
   const [rayonsOuverts, setRayonsOuverts] = useState(
     Object.fromEntries(rayonsUniques.map(r => [r, true]))
@@ -125,7 +182,9 @@ export default function TableauProduitsGroupes({
                     </>
                   )}
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Potentiel Hebdo</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Volume</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700" title="Moyenne hebdomadaire sur la période analysée">Moy. Hebdo</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700" title="Tendance des ventes">Tendance</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700" title="Score de confiance (0-100)">Fiabilité</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700">Actif</th>
                 </tr>
               </thead>
@@ -223,8 +282,22 @@ export default function TableauProduitsGroupes({
                           min="0"
                         />
                       </td>
-                      <td className="px-4 py-2 text-gray-600 text-sm">
-                        {produit.totalVentes.toFixed(0)}
+                      <td className="px-4 py-2 text-gray-600 text-sm" title={`Total: ${produit.totalVentes.toFixed(0)} sur ${produit.stats?.nombreSemaines || 1} sem.`}>
+                        {produit.stats?.moyenneHebdo ? produit.stats.moyenneHebdo.toFixed(0) : produit.totalVentes.toFixed(0)}
+                      </td>
+                      <td className="px-4 py-2 text-center">
+                        {produit.stats?.nombreSemaines >= 2 ? (
+                          <BadgeTendance tendance={produit.stats.tendance} variation={produit.stats.variationTendance} />
+                        ) : (
+                          <span className="text-gray-400 text-xs">-</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-center">
+                        {produit.stats?.nombreSemaines >= 2 ? (
+                          <BadgeFiabilite scoreConfiance={produit.stats.scoreConfiance} />
+                        ) : (
+                          <span className="text-gray-400 text-xs">-</span>
+                        )}
                       </td>
                       <td className="px-4 py-2 text-center">
                         <input

@@ -70,7 +70,8 @@ export default function ImpressionPanel({
   selectedJour,
   planningData,
   pdvInfo,
-  modeAffichage = 'plaques' // 'plaques' ou 'unites'
+  modeAffichage = 'plaques', // 'plaques' ou 'unites'
+  configSemaine = null
 }) {
   if (!isVisible) return null;
 
@@ -200,7 +201,7 @@ export default function ImpressionPanel({
           <div className="h-full overflow-y-auto p-6 bg-gray-50 print:h-auto print:overflow-visible print:p-0 print:bg-white">
             <div className="bg-white rounded shadow-sm p-6 print-content print:p-0 print:shadow-none print:rounded-none">
               {selectedJour ? (
-                <PlanningJour selectedJour={selectedJour} planningData={planningData} pdvInfo={pdvInfo} nextWeek={nextWeek} modeAffichage={modeAffichage} />
+                <PlanningJour selectedJour={selectedJour} planningData={planningData} pdvInfo={pdvInfo} nextWeek={nextWeek} modeAffichage={modeAffichage} configSemaine={configSemaine} />
               ) : (
                 <PlanningHebdo planningData={planningData} />
               )}
@@ -213,20 +214,91 @@ export default function ImpressionPanel({
 }
 
 // Composant pour le planning d'un jour (format compact A4 paysage)
-function PlanningJour({ selectedJour, planningData, pdvInfo, nextWeek, modeAffichage = 'plaques' }) {
+function PlanningJour({ selectedJour, planningData, pdvInfo, nextWeek, modeAffichage = 'plaques', configSemaine = null }) {
   /**
    * Formate une quantité selon le mode d'affichage choisi
+   * Ajoute le nombre d'articles entre parenthèses si c'est un lot (unitesParVente > 1)
    */
   const formaterQuantite = (ventes, unitesParVente, unitesParPlaque) => {
+    const unites = unitesParVente || 1;
+    const suffixeArticles = unites > 1 ? ` (=${ventes * unites})` : '';
+
     if (modeAffichage === 'unites') {
       // Mode unités : afficher les unités brutes
-      const unitesProduction = ventes * (unitesParVente || 1);
+      const unitesProduction = ventes * unites;
       return `${unitesProduction}`;
     } else {
       // Mode plaques : utiliser la fonction de conversion existante
-      return convertirEnPlaques(ventes, unitesParVente, unitesParPlaque);
+      const plaques = convertirEnPlaques(ventes, unitesParVente, unitesParPlaque);
+      // Si c'est un lot, ajouter le nombre d'articles
+      if (unites > 1 && !plaques.includes('Pl.')) {
+        return `${plaques}${suffixeArticles}`;
+      }
+      return plaques;
     }
   };
+
+  /**
+   * Formate une quantité avec le nombre d'articles si lot (pour l'impression)
+   */
+  const formaterAvecArticles = (qte, unitesParVente) => {
+    const unites = unitesParVente || 1;
+    if (unites > 1) {
+      const nbArticles = qte * unites;
+      return (
+        <span>
+          <span className="quantity-number">{qte}</span>
+          <span className="text-[9px] text-gray-500 ml-0.5">(={nbArticles})</span>
+        </span>
+      );
+    }
+    return <span className="quantity-number">{qte}</span>;
+  };
+
+  /**
+   * Calcule la date complète du jour sélectionné à partir de configSemaine
+   */
+  const getDateComplete = () => {
+    if (!configSemaine?.numeroSemaine || !configSemaine?.annee) {
+      return null;
+    }
+
+    // Mapping jour -> index (0 = lundi)
+    const joursIndex = {
+      'Lundi': 0,
+      'Mardi': 1,
+      'Mercredi': 2,
+      'Jeudi': 3,
+      'Vendredi': 4,
+      'Samedi': 5,
+      'Dimanche': 6
+    };
+
+    const jourIndex = joursIndex[selectedJour] ?? 0;
+
+    // Calculer le premier jour de la semaine (lundi)
+    // Semaine ISO : le 4 janvier est toujours dans la semaine 1
+    const jan4 = new Date(configSemaine.annee, 0, 4);
+    const dayOfWeek = jan4.getDay() || 7; // Dimanche = 7
+    const mondayWeek1 = new Date(jan4);
+    mondayWeek1.setDate(jan4.getDate() - dayOfWeek + 1);
+
+    // Calculer le lundi de la semaine demandée
+    const mondayTarget = new Date(mondayWeek1);
+    mondayTarget.setDate(mondayWeek1.getDate() + (configSemaine.numeroSemaine - 1) * 7);
+
+    // Ajouter l'index du jour
+    const dateJour = new Date(mondayTarget);
+    dateJour.setDate(mondayTarget.getDate() + jourIndex);
+
+    // Formater : "Lundi 24 novembre 2025"
+    const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+    const dateFormatee = dateJour.toLocaleDateString('fr-FR', options);
+    // Mettre la première lettre en majuscule
+    return dateFormatee.charAt(0).toUpperCase() + dateFormatee.slice(1);
+  };
+
+  const dateComplete = getDateComplete();
 
   // Préparer les données pour affichage en tableau unique compact
   const rayonsData = [];
@@ -248,30 +320,35 @@ function PlanningJour({ selectedJour, planningData, pdvInfo, nextWeek, modeAffic
 
   return (
     <div className="text-xs">
-      {/* En-tête ultra compact sur une seule ligne */}
+      {/* En-tête amélioré */}
       <div className="text-[8px] mb-1 pb-0.5 border-b border-black">
-        <strong>Planning {selectedJour}</strong> |
-        {pdvInfo && ` PDV ${pdvInfo.numero} - ${pdvInfo.nom} | `}
-        Impression: {new Date().toLocaleDateString('fr-FR')} |
-        Semaine du {nextWeek.start} au {nextWeek.end}
-        {planningData?.stats?.ponderationType && ` | Pondération: ${planningData.stats.ponderationType}`}
+        <div className="flex items-baseline gap-2">
+          <span>Planning</span>
+          <span style={{ fontSize: '16px', fontWeight: 'bold' }}>{selectedJour}</span>
+          {dateComplete && <span style={{ fontSize: '12px', fontWeight: 'bold' }}> - {dateComplete}</span>}
+        </div>
+        <div>
+          {pdvInfo && `PDV ${pdvInfo.numero} - ${pdvInfo.nom} | `}
+          Impression: {new Date().toLocaleDateString('fr-FR')}
+          {planningData?.stats?.ponderationType && ` | Pondération: ${planningData.stats.ponderationType}`}
+        </div>
       </div>
 
       {/* Tableau unique compact - optimisé noir et blanc */}
       <table className="w-full border-collapse border border-black" style={{ fontSize: '8px' }}>
         <thead>
           <tr className="bg-gray-100">
-            <th className="border border-black px-0.5 py-0.5 w-4 text-center text-[7px]">Rayon</th>
-            <th className="border border-black px-0.5 py-0.5 w-4 text-center text-[7px]">Prog</th>
-            <th className="border border-black px-1 py-0.5 w-9 text-center text-[7px]">Code PLU</th>
-            <th className="border border-black px-1 py-0.5 text-left text-[7px]" style={{ width: '420px' }}>Article</th>
-            <th className="border border-black px-1 py-0.5 w-16 text-center text-[7px]">Remarque</th>
-            <th className="border border-black px-1 py-0.5 text-center text-[7px]" style={{ width: '60px' }}>Matin<br/>9h-12h</th>
-            <th className="border border-black px-1 py-0.5 text-center text-[7px]" style={{ width: '60px' }}>Midi<br/>12h-16h</th>
-            <th className="border border-black px-1 py-0.5 text-center text-[7px]" style={{ width: '60px' }}>Soir<br/>16h-23h</th>
-            <th className="border border-black px-1 py-0.5 w-16 text-center text-[7px]">Stock<br/>rayon</th>
-            <th className="border border-black px-1 py-0.5 w-16 text-center text-[7px]">A cuire</th>
-            <th className="border border-black px-1 py-0.5 text-left text-[7px]" style={{ width: '100px' }}>Pertes</th>
+            <th className="border border-black px-0.5 py-1 w-4 text-center text-[14px] font-bold">Rayon</th>
+            <th className="border border-black px-0.5 py-1 w-4 text-center text-[14px] font-bold">Prog</th>
+            <th className="border border-black px-1 py-1 w-12 text-center text-[14px] font-bold">Code PLU</th>
+            <th className="border border-black px-1 py-1 text-left text-[14px] font-bold" style={{ width: '380px' }}>Article</th>
+            <th className="border border-black px-1 py-1 w-16 text-center text-[14px] font-bold">Remarque</th>
+            <th className="border border-black px-1 py-1 text-center text-[14px] font-bold" style={{ width: '60px' }}>Matin<br/><span className="text-[10px]">9h-12h</span></th>
+            <th className="border border-black px-1 py-1 text-center text-[14px] font-bold" style={{ width: '60px' }}>Midi<br/><span className="text-[10px]">12h-16h</span></th>
+            <th className="border border-black px-1 py-1 text-center text-[14px] font-bold" style={{ width: '60px' }}>Soir<br/><span className="text-[10px]">16h-23h</span></th>
+            <th className="border border-black px-1 py-1 w-16 text-center text-[14px] font-bold">Stock<br/><span className="text-[10px]">rayon</span></th>
+            <th className="border border-black px-1 py-1 w-16 text-center text-[14px] font-bold">A cuire</th>
+            <th className="border border-black px-1 py-1 text-left text-[14px] font-bold" style={{ width: '100px' }}>Pertes</th>
           </tr>
         </thead>
         <tbody>
@@ -286,37 +363,55 @@ function PlanningJour({ selectedJour, planningData, pdvInfo, nextWeek, modeAffic
                   <td className="border border-black px-0.5 py-0.5 text-center font-bold bg-gray-100 text-[5px]">
                     {getNomProgrammeAffiche(programme)}
                   </td>
-                  <td className="border border-black px-1 py-0.5 text-center text-[10px]">{creneaux.codePLU || ''}</td>
+                  <td className="border border-black px-1 py-0.5 text-center text-[18px] font-bold">{creneaux.codePLU || ''}</td>
                   <td className="border border-black px-1 py-0.5 text-[21px]"><span className="product-name">{produit}</span></td>
                   <td className="border border-black px-1 py-0.5"></td>
                   <td className="border border-black px-1 py-0.5 text-center font-semibold">
                     {(() => {
                       const texte = formaterQuantite(creneaux.matin, creneaux.unitesParVente, creneaux.unitesParPlaque);
+                      const unites = creneaux.unitesParVente || 1;
                       if (texte.includes('Pl.')) {
                         const [nombre, unite] = texte.split(' ');
-                        return <span><span className="quantity-number">{nombre}</span> <span className="quantity-unit">{unite}</span></span>;
+                        return (
+                          <span>
+                            <span className="quantity-number">{nombre}</span> <span className="quantity-unit">{unite}</span>
+                            {unites > 1 && <span className="text-[8px] text-gray-500 block">(={creneaux.matin * unites})</span>}
+                          </span>
+                        );
                       }
-                      return <span className="quantity-number">{texte}</span>;
+                      return formaterAvecArticles(creneaux.matin, creneaux.unitesParVente);
                     })()}
                   </td>
                   <td className="border border-black px-1 py-0.5 text-center font-semibold">
                     {(() => {
                       const texte = formaterQuantite(creneaux.midi, creneaux.unitesParVente, creneaux.unitesParPlaque);
+                      const unites = creneaux.unitesParVente || 1;
                       if (texte.includes('Pl.')) {
                         const [nombre, unite] = texte.split(' ');
-                        return <span><span className="quantity-number">{nombre}</span> <span className="quantity-unit">{unite}</span></span>;
+                        return (
+                          <span>
+                            <span className="quantity-number">{nombre}</span> <span className="quantity-unit">{unite}</span>
+                            {unites > 1 && <span className="text-[8px] text-gray-500 block">(={creneaux.midi * unites})</span>}
+                          </span>
+                        );
                       }
-                      return <span className="quantity-number">{texte}</span>;
+                      return formaterAvecArticles(creneaux.midi, creneaux.unitesParVente);
                     })()}
                   </td>
                   <td className="border border-black px-1 py-0.5 text-center font-semibold">
                     {(() => {
                       const texte = formaterQuantite(creneaux.soir, creneaux.unitesParVente, creneaux.unitesParPlaque);
+                      const unites = creneaux.unitesParVente || 1;
                       if (texte.includes('Pl.')) {
                         const [nombre, unite] = texte.split(' ');
-                        return <span><span className="quantity-number">{nombre}</span> <span className="quantity-unit">{unite}</span></span>;
+                        return (
+                          <span>
+                            <span className="quantity-number">{nombre}</span> <span className="quantity-unit">{unite}</span>
+                            {unites > 1 && <span className="text-[8px] text-gray-500 block">(={creneaux.soir * unites})</span>}
+                          </span>
+                        );
                       }
-                      return <span className="quantity-number">{texte}</span>;
+                      return formaterAvecArticles(creneaux.soir, creneaux.unitesParVente);
                     })()}
                   </td>
                   <td className="border border-black px-1 py-0.5 text-right pr-1 text-[7px]"></td>

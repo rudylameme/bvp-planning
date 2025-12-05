@@ -1,26 +1,23 @@
 import { ChevronLeft, Printer, TrendingUp, Settings } from 'lucide-react';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import StatistiquesPanel from './StatistiquesPanel';
 import ImpressionPanel from './ImpressionPanel';
 import PlanningVueTablet from './PlanningVueTablet';
 import TouchButton from './TouchButton';
 import { convertirEnPlaques } from '../utils/conversionUtils';
 import { recalculerPlanningAvecVariantes } from '../services/planningRecalculator';
-import { useDeviceType } from '../hooks/useDeviceType';
 import { getNomProgrammeAffiche } from '../services/referentielITM8';
 import { mousquetairesColors } from '../styles/mousquetaires-theme';
 
-export default function EtapePlanning({ planning, pdvInfo, produits, frequentationData, configSemaine, onRetour, onPersonnaliser, onPlanningChange, forceTabletMode = false }) {
+export default function EtapePlanning({ planning, pdvInfo, produits, frequentationData, configSemaine, onRetour, onPersonnaliser, onPlanningChange, forcedViewMode = null }) {
   const [selectedJour, setSelectedJour] = useState(null);
   const [showStats, setShowStats] = useState(false);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
   const [modeAffichage, setModeAffichage] = useState('plaques'); // 'unites' ou 'plaques'
 
-  // Détection du type d'appareil pour adapter l'interface
-  const { deviceType, isTouchDevice } = useDeviceType();
-
-  // Mode effectif : manuel si forcé (via prop du parent), sinon automatique
-  const modeTabletActif = forceTabletMode || deviceType === 'mobile' || deviceType === 'tablet';
+  // Mode tablette UNIQUEMENT si explicitement demandé via le bouton
+  // Plus de détection automatique - le mode desktop est le défaut
+  const modeTabletActif = forcedViewMode === 'tablet';
 
   // Initialiser les variantes par défaut : Forte (lundi-jeudi), Faible (vendredi-dimanche)
   const getVariantesParDefaut = () => {
@@ -151,6 +148,41 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
   };
 
   /**
+   * Affiche une quantité avec le nombre d'articles si c'est un lot (unitesParVente > 1)
+   * En mode Plaques: affiche les plaques + (=articles)
+   * En mode Unités: affiche les ventes + (=articles)
+   */
+  const afficherAvecArticles = (qte, unitesParVente, unitesParPlaque = 0) => {
+    const unites = unitesParVente || 1;
+    const nbArticles = qte * unites;
+
+    if (modeAffichage === 'plaques' && unitesParPlaque > 0) {
+      // Mode plaques : afficher en plaques
+      const plaques = convertirEnPlaques(qte, unitesParVente, unitesParPlaque);
+      if (unites > 1) {
+        return (
+          <span>
+            {plaques}
+            <span className="text-[9px] text-gray-500 ml-0.5">(={nbArticles})</span>
+          </span>
+        );
+      }
+      return plaques;
+    }
+
+    // Mode unités ou pas de plaque : afficher en ventes
+    if (unites > 1) {
+      return (
+        <span>
+          {qte}
+          <span className="text-[9px] text-gray-500 ml-0.5">(={nbArticles})</span>
+        </span>
+      );
+    }
+    return qte;
+  };
+
+  /**
    * Calcule le total de plaques pour un programme de cuisson (par créneau)
    * Additionne les plaques ARRONDIES de chaque produit (ce que l'opérateur va cuire réellement)
    * EXCLUT les produits sans plaque (unitesParPlaque = 0) car ils ne passent pas en cuisson
@@ -234,6 +266,7 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
         planningData={planningLocal}
         pdvInfo={pdvInfo}
         modeAffichage={modeAffichage}
+        configSemaine={configSemaine}
       />
 
       <div className="min-h-screen bg-gray-50 print:hidden">
@@ -309,13 +342,39 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
         {/* Content */}
         <div className="max-w-7xl mx-auto p-4">
           {/* Statistiques */}
-          <StatistiquesPanel planning={planningLocal} isVisible={showStats} />
+          <div data-stats-panel>
+            <StatistiquesPanel planning={planningLocal} isVisible={showStats} />
+          </div>
 
           {/* Vue hebdomadaire - Nouveau tableau */}
           {!selectedJour && (
             <div className="bg-white rounded-lg shadow-md p-6 mb-6">
               <div className="mb-4">
-                <h2 className="text-xl font-semibold mb-3">Planning Hebdomadaire</h2>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-xl font-semibold">Planning Hebdomadaire</h2>
+
+                  {/* Toggle Unités / Plaques */}
+                  <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                    <button
+                      onClick={() => setModeAffichage('unites')}
+                      className={`px-4 py-2 rounded-lg transition ${modeAffichage === 'unites'
+                        ? 'bg-white text-blue-600 font-semibold shadow-sm'
+                        : 'text-gray-600 hover:text-gray-800'
+                        }`}
+                    >
+                      Unités
+                    </button>
+                    <button
+                      onClick={() => setModeAffichage('plaques')}
+                      className={`px-4 py-2 rounded-lg transition ${modeAffichage === 'plaques'
+                        ? 'bg-white text-blue-600 font-semibold shadow-sm'
+                        : 'text-gray-600 hover:text-gray-800'
+                        }`}
+                    >
+                      Plaques
+                    </button>
+                  </div>
+                </div>
 
                 {/* Légendes */}
                 <div className="flex items-center justify-between gap-6 text-xs">
@@ -403,8 +462,8 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
                                       <button
                                         onClick={() => handleChangeVariante(rayon, jourLower, 'sans')}
                                         className={`w-6 h-6 rounded flex items-center justify-center text-[11px] font-bold transition-all ${varianteActuelle === 'sans'
-                                            ? 'bg-purple-600 text-white scale-110'
-                                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                          ? 'bg-purple-600 text-white scale-110'
+                                          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                                           }`}
                                         title="Sans limite"
                                       >
@@ -413,8 +472,8 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
                                       <button
                                         onClick={() => handleChangeVariante(rayon, jourLower, 'forte')}
                                         className={`w-6 h-6 rounded flex items-center justify-center text-[11px] font-bold transition-all ${varianteActuelle === 'forte'
-                                            ? 'bg-green-600 text-white scale-110'
-                                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                          ? 'bg-green-600 text-white scale-110'
+                                          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                                           }`}
                                         title="Forte: +20% max"
                                       >
@@ -423,8 +482,8 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
                                       <button
                                         onClick={() => handleChangeVariante(rayon, jourLower, 'faible')}
                                         className={`w-6 h-6 rounded flex items-center justify-center text-[11px] font-bold transition-all ${varianteActuelle === 'faible'
-                                            ? 'bg-orange-600 text-white scale-110'
-                                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                          ? 'bg-orange-600 text-white scale-110'
+                                          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                                           }`}
                                         title="Faible: +10% max"
                                       >
@@ -476,13 +535,17 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
                                   const jourData = planningLocal.jours[jour]?.[rayon];
                                   let qteJour = 0;
                                   let ventesHistoJour = 0;
+                                  let unitesParVenteJour = 1;
 
+                                  let unitesParPlaqueJour = 0;
                                   if (jourData) {
                                     for (const programme of Object.values(jourData)) {
                                       const produit = programme.produits.get(produitLibelle);
                                       if (produit) {
                                         qteJour = produit.total;
-                                        ventesHistoJour = produit.ventesHistoriques || 0;
+                                        ventesHistoJour = Math.round(produit.ventesHistoriques || 0);
+                                        unitesParVenteJour = produit.unitesParVente || 1;
+                                        unitesParPlaqueJour = produit.unitesParPlaque || 0;
                                         break;
                                       }
                                     }
@@ -515,7 +578,7 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
                                         {/* Historique */}
                                         <div className="flex items-center gap-0.5 justify-center">
                                           <span className="text-[9px] text-gray-500 w-7">Histo</span>
-                                          <span className="w-14 text-xs text-gray-600">{ventesHistoJour}</span>
+                                          <span className="w-14 text-xs text-gray-600">{afficherAvecArticles(ventesHistoJour, unitesParVenteJour, unitesParPlaqueJour)}</span>
                                         </div>
                                         {/* Écart en pourcentage */}
                                         {ventesHistoJour > 0 && (
@@ -558,8 +621,8 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
                     <button
                       onClick={() => setModeAffichage('unites')}
                       className={`px-4 py-2 rounded-lg transition ${modeAffichage === 'unites'
-                          ? 'bg-white text-blue-600 font-semibold shadow-sm'
-                          : 'text-gray-600 hover:text-gray-800'
+                        ? 'bg-white text-blue-600 font-semibold shadow-sm'
+                        : 'text-gray-600 hover:text-gray-800'
                         }`}
                     >
                       Unités
@@ -567,8 +630,8 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
                     <button
                       onClick={() => setModeAffichage('plaques')}
                       className={`px-4 py-2 rounded-lg transition ${modeAffichage === 'plaques'
-                          ? 'bg-white text-blue-600 font-semibold shadow-sm'
-                          : 'text-gray-600 hover:text-gray-800'
+                        ? 'bg-white text-blue-600 font-semibold shadow-sm'
+                        : 'text-gray-600 hover:text-gray-800'
                         }`}
                     >
                       Plaques
@@ -613,73 +676,244 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
                         <div className="overflow-x-auto">
                           <table className="w-full border-collapse text-sm min-w-full">
                             <thead className="sticky top-0 bg-gray-100 z-10">
-                              <tr>
-                                <th className="border border-gray-800 p-3 text-left bg-gray-100 min-w-[250px] max-w-[300px]">
-                                  Produit
-                                </th>
-                                <th className="border border-gray-800 p-3 text-center bg-gray-100 min-w-[80px]">
-                                  Matin<br />
-                                  <span className="text-xs text-gray-600">9h-12h</span>
-                                </th>
-                                <th className="border border-gray-800 p-3 text-center bg-gray-100 min-w-[80px]">
-                                  Midi<br />
-                                  <span className="text-xs text-gray-600">12h-16h</span>
-                                </th>
-                                <th className="border border-gray-800 p-3 text-center bg-yellow-100 min-w-[100px]">
-                                  Soir (à ajuster)<br />
-                                  <span className="text-xs text-gray-600">16h-23h</span>
-                                </th>
-                                <th className="border border-gray-800 p-3 text-center bg-amber-100 min-w-[120px]">
-                                  Ajustement<br />
-                                  <span className="text-xs text-gray-600">Stock rayon</span>
-                                </th>
-                              </tr>
+                              {/* Mode PDV : En-têtes avec créneaux horaires - format 3 lignes par produit */}
+                              {frequentationData?.source === 'PDV' ? (
+                                <tr>
+                                  <th className="border border-gray-800 p-3 text-left bg-gray-100 min-w-[200px] max-w-[300px]">
+                                    Produit
+                                  </th>
+                                  <th className="border border-gray-800 p-2 text-center bg-gray-100 min-w-[60px]"></th>
+                                  <th className="border border-gray-800 p-2 text-center bg-green-100 min-w-[80px]">
+                                    Matin<br />
+                                    <span className="text-xs text-gray-600">9h-12h</span>
+                                  </th>
+                                  <th className="border border-gray-800 p-2 text-center bg-yellow-100 min-w-[80px]">
+                                    Midi<br />
+                                    <span className="text-xs text-gray-600">12h-16h</span>
+                                  </th>
+                                  <th className="border border-gray-800 p-2 text-center bg-orange-100 min-w-[80px]">
+                                    Après-midi<br />
+                                    <span className="text-xs text-gray-600">16h-23h</span>
+                                  </th>
+                                  <th className="border border-gray-800 p-2 text-center bg-blue-100 min-w-[80px]">
+                                    Total
+                                  </th>
+                                  <th className="border border-gray-800 p-3 text-center bg-amber-100 min-w-[100px]">
+                                    Ajustement<br />
+                                    <span className="text-xs text-gray-600">Stock rayon</span>
+                                  </th>
+                                </tr>
+                              ) : (
+                                /* Mode BVP : En-têtes simples sans historique détaillé */
+                                <tr>
+                                  <th className="border border-gray-800 p-3 text-left bg-gray-100 min-w-[200px] max-w-[250px]">
+                                    Produit
+                                  </th>
+                                  <th className="border border-gray-800 p-3 text-center bg-gray-100 min-w-[70px]">
+                                    Matin<br />
+                                    <span className="text-xs text-gray-600">9h-12h</span>
+                                  </th>
+                                  <th className="border border-gray-800 p-3 text-center bg-gray-100 min-w-[70px]">
+                                    Midi<br />
+                                    <span className="text-xs text-gray-600">12h-16h</span>
+                                  </th>
+                                  <th className="border border-gray-800 p-3 text-center bg-yellow-100 min-w-[80px]">
+                                    Soir<br />
+                                    <span className="text-xs text-gray-600">16h-23h</span>
+                                  </th>
+                                  <th className="border border-gray-800 p-3 text-center bg-blue-100 min-w-[70px]">
+                                    Total<br />
+                                    <span className="text-xs text-gray-600">Préco</span>
+                                  </th>
+                                  <th className="border border-gray-800 p-3 text-center bg-amber-100 min-w-[100px]">
+                                    Ajustement<br />
+                                    <span className="text-xs text-gray-600">Stock rayon</span>
+                                  </th>
+                                </tr>
+                              )}
                             </thead>
                             <tbody>
                               {/* Produits triés par volume */}
-                              {Array.from(data.produits || []).map(([produit, creneaux]) => (
-                                <tr key={produit} className="hover:bg-gray-50">
-                                  <td className="border border-gray-800 p-3 text-sm font-medium text-left max-w-[300px] truncate" title={produit}>
-                                    {produit}
-                                  </td>
-                                  <td className="border border-gray-800 p-3 text-center font-bold text-green-700">
-                                    {formaterQuantite(creneaux.matin, creneaux.unitesParVente, creneaux.unitesParPlaque)}
-                                  </td>
-                                  <td className="border border-gray-800 p-3 text-center font-bold text-yellow-700">
-                                    {formaterQuantite(creneaux.midi, creneaux.unitesParVente, creneaux.unitesParPlaque)}
-                                  </td>
-                                  <td className="border border-gray-800 p-3 text-center font-bold text-orange-700 bg-yellow-50">
-                                    {formaterQuantite(creneaux.soir, creneaux.unitesParVente, creneaux.unitesParPlaque)}
-                                  </td>
-                                  <td className="border border-gray-800 p-3 text-center bg-amber-50">
-                                    <div className="flex flex-col items-center gap-1">
-                                      <div className="text-xs text-gray-600">Stock rayon:</div>
-                                      <div className="w-12 h-6 border border-gray-400 bg-white"></div>
-                                      <div className="text-xs text-gray-600">À cuire:</div>
-                                      <div className="w-12 h-6 border border-gray-400 bg-white"></div>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
+                              {Array.from(data.produits || []).map(([produit, creneaux]) => {
+                                const totalPreco = creneaux.total || (creneaux.matin + creneaux.midi + creneaux.soir);
+                                const ventesHisto = Math.round(creneaux.ventesHistoriques || 0);
+                                const ecart = ventesHisto > 0 ? ((totalPreco - ventesHisto) / ventesHisto) * 100 : 0;
+
+                                // Pour mode PDV : calculer historique par créneau
+                                // IMPORTANT: Utiliser les poids BVP pour l'historique (ce que l'équipe fait)
+                                // et les poids de la source sélectionnée pour la préconisation (ce que l'outil propose)
+                                const jourLower = selectedJour.toLowerCase();
+                                // Historique : toujours en poids BVP (distribution actuelle de l'équipe)
+                                const poidsTranchesHisto = frequentationData?.poidsTranchesParJour_BVP?.[jourLower] || frequentationData?.poidsTranchesParJour?.[jourLower] || { matin: 0.6, midi: 0.3, soir: 0.1 };
+                                const histoMatin = Math.round(ventesHisto * poidsTranchesHisto.matin);
+                                const histoMidi = Math.round(ventesHisto * poidsTranchesHisto.midi);
+                                const histoSoir = Math.max(0, ventesHisto - histoMatin - histoMidi); // Reste pour éviter erreurs d'arrondi
+
+                                // Calculer progression par créneau
+                                const progMatin = histoMatin > 0 ? ((creneaux.matin - histoMatin) / histoMatin) * 100 : 0;
+                                const progMidi = histoMidi > 0 ? ((creneaux.midi - histoMidi) / histoMidi) * 100 : 0;
+                                const progSoir = histoSoir > 0 ? ((creneaux.soir - histoSoir) / histoSoir) * 100 : 0;
+
+                                // Couleur progression
+                                const getProgColor = (prog) => {
+                                  if (prog > 20) return 'text-green-700';
+                                  if (prog > 0) return 'text-blue-600';
+                                  if (prog < -10) return 'text-red-600';
+                                  if (prog < 0) return 'text-orange-600';
+                                  return 'text-gray-600';
+                                };
+
+                                // Couleur de fond selon l'écart total
+                                let bgEcart = 'bg-white';
+                                if (ecart > 20) bgEcart = 'bg-green-100';
+                                else if (ecart > 10) bgEcart = 'bg-blue-50';
+                                else if (ecart < -10) bgEcart = 'bg-red-100';
+                                else if (ecart < 0) bgEcart = 'bg-orange-50';
+
+                                return frequentationData?.source === 'PDV' ? (
+                                  /* Mode PDV : Affichage détaillé avec 3 lignes par produit (Préco/Histo/%) */
+                                  <React.Fragment key={produit}>
+                                    {/* Ligne 1 : Préco (préconisation) */}
+                                    <tr className="hover:bg-gray-50 border-t-2 border-gray-400">
+                                      <td rowSpan="3" className="border border-gray-800 p-2 text-sm font-medium text-left max-w-[300px] align-middle" title={produit}>
+                                        {produit}
+                                      </td>
+                                      <td className="border border-gray-800 p-1 text-center text-blue-600 font-semibold text-xs bg-blue-50">
+                                        Préco
+                                      </td>
+                                      <td className="border border-gray-800 p-1 text-center font-bold text-blue-700 bg-green-50">
+                                        {afficherAvecArticles(creneaux.matin, creneaux.unitesParVente, creneaux.unitesParPlaque)}
+                                      </td>
+                                      <td className="border border-gray-800 p-1 text-center font-bold text-blue-700 bg-yellow-50">
+                                        {afficherAvecArticles(creneaux.midi, creneaux.unitesParVente, creneaux.unitesParPlaque)}
+                                      </td>
+                                      <td className="border border-gray-800 p-1 text-center font-bold text-blue-700 bg-orange-50">
+                                        {afficherAvecArticles(creneaux.soir, creneaux.unitesParVente, creneaux.unitesParPlaque)}
+                                      </td>
+                                      <td className="border border-gray-800 p-1 text-center font-bold text-blue-700 bg-blue-100">
+                                        {afficherAvecArticles(totalPreco, creneaux.unitesParVente, creneaux.unitesParPlaque)}
+                                      </td>
+                                      <td rowSpan="3" className="border border-gray-800 p-2 text-center bg-amber-50 align-middle">
+                                        <div className="flex flex-col items-center gap-1">
+                                          <div className="text-xs text-gray-600">Stock:</div>
+                                          <div className="w-10 h-5 border border-gray-400 bg-white"></div>
+                                          <div className="text-xs text-gray-600">À cuire:</div>
+                                          <div className="w-10 h-5 border border-gray-400 bg-white"></div>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                    {/* Ligne 2 : Histo (historique BVP) */}
+                                    <tr className="hover:bg-gray-50">
+                                      <td className="border border-gray-800 p-1 text-center text-gray-600 text-xs">
+                                        Histo
+                                      </td>
+                                      <td className="border border-gray-800 p-1 text-center text-gray-600 bg-green-50/30">
+                                        {afficherAvecArticles(histoMatin, creneaux.unitesParVente, creneaux.unitesParPlaque)}
+                                      </td>
+                                      <td className="border border-gray-800 p-1 text-center text-gray-600 bg-yellow-50/30">
+                                        {afficherAvecArticles(histoMidi, creneaux.unitesParVente, creneaux.unitesParPlaque)}
+                                      </td>
+                                      <td className="border border-gray-800 p-1 text-center text-gray-600 bg-orange-50/30">
+                                        {afficherAvecArticles(histoSoir, creneaux.unitesParVente, creneaux.unitesParPlaque)}
+                                      </td>
+                                      <td className="border border-gray-800 p-1 text-center text-gray-600 bg-blue-50">
+                                        {afficherAvecArticles(ventesHisto, creneaux.unitesParVente, creneaux.unitesParPlaque)}
+                                      </td>
+                                    </tr>
+                                    {/* Ligne 3 : Progression (%) */}
+                                    <tr className="hover:bg-gray-50">
+                                      <td className="border border-gray-800 p-1 text-center text-gray-500 text-xs">
+                                        %
+                                      </td>
+                                      <td className={`border border-gray-800 p-1 text-center text-xs font-semibold ${getProgColor(progMatin)}`}>
+                                        {histoMatin > 0 ? `${progMatin >= 0 ? '+' : ''}${progMatin.toFixed(0)}%` : '-'}
+                                      </td>
+                                      <td className={`border border-gray-800 p-1 text-center text-xs font-semibold ${getProgColor(progMidi)}`}>
+                                        {histoMidi > 0 ? `${progMidi >= 0 ? '+' : ''}${progMidi.toFixed(0)}%` : '-'}
+                                      </td>
+                                      <td className={`border border-gray-800 p-1 text-center text-xs font-semibold ${getProgColor(progSoir)}`}>
+                                        {histoSoir > 0 ? `${progSoir >= 0 ? '+' : ''}${progSoir.toFixed(0)}%` : '-'}
+                                      </td>
+                                      <td className={`border border-gray-800 p-1 text-center text-xs font-semibold ${ecart >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                        {ventesHisto > 0 ? `${ecart >= 0 ? '+' : ''}${ecart.toFixed(0)}%` : '-'}
+                                      </td>
+                                    </tr>
+                                  </React.Fragment>
+                                ) : (
+                                  /* Mode BVP : Affichage simple sans historique */
+                                  <tr key={produit} className="hover:bg-gray-50">
+                                    <td className="border border-gray-800 p-2 text-sm font-medium text-left max-w-[250px] truncate" title={produit}>
+                                      {produit}
+                                    </td>
+                                    <td className="border border-gray-800 p-2 text-center font-bold text-green-700">
+                                      {formaterQuantite(creneaux.matin, creneaux.unitesParVente, creneaux.unitesParPlaque)}
+                                    </td>
+                                    <td className="border border-gray-800 p-2 text-center font-bold text-yellow-700">
+                                      {formaterQuantite(creneaux.midi, creneaux.unitesParVente, creneaux.unitesParPlaque)}
+                                    </td>
+                                    <td className="border border-gray-800 p-2 text-center font-bold text-orange-700 bg-yellow-50">
+                                      {formaterQuantite(creneaux.soir, creneaux.unitesParVente, creneaux.unitesParPlaque)}
+                                    </td>
+                                    <td className="border border-gray-800 p-2 text-center font-bold text-blue-700 bg-blue-50">
+                                      {totalPreco}
+                                    </td>
+                                    <td className="border border-gray-800 p-2 text-center bg-amber-50">
+                                      <div className="flex flex-col items-center gap-1">
+                                        <div className="text-xs text-gray-600">Stock:</div>
+                                        <div className="w-10 h-5 border border-gray-400 bg-white"></div>
+                                        <div className="text-xs text-gray-600">À cuire:</div>
+                                        <div className="w-10 h-5 border border-gray-400 bg-white"></div>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
 
                               {/* Ligne de capacité totale pour ce programme */}
-                              <tr className="bg-blue-50 font-bold border-t-4 border-blue-600">
-                                <td className="border border-gray-800 p-3 text-sm text-right">
-                                  CAPACITÉ {getNomProgrammeAffiche(programme)}
-                                </td>
-                                <td className="border border-gray-800 p-3 text-center text-blue-700">
-                                  {formaterPlaques(calculerTotalPlaques(data.produits, 'matin'))}
-                                </td>
-                                <td className="border border-gray-800 p-3 text-center text-blue-700">
-                                  {formaterPlaques(calculerTotalPlaques(data.produits, 'midi'))}
-                                </td>
-                                <td className="border border-gray-800 p-3 text-center text-blue-700 bg-blue-100">
-                                  {formaterPlaques(calculerTotalPlaques(data.produits, 'soir'))}
-                                </td>
-                                <td className="border border-gray-800 p-3 text-center text-blue-700 bg-blue-100">
-                                  Total: {calculerTotalJournalier(data.produits)}
-                                </td>
-                              </tr>
+                              {frequentationData?.source === 'PDV' ? (
+                                <tr className="bg-blue-50 font-bold border-t-4 border-blue-600">
+                                  <td className="border border-gray-800 p-2 text-sm text-right">
+                                    CAPACITÉ {getNomProgrammeAffiche(programme)}
+                                  </td>
+                                  <td className="border border-gray-800 p-2 text-center text-blue-700"></td>
+                                  <td className="border border-gray-800 p-2 text-center text-blue-700">
+                                    {formaterPlaques(calculerTotalPlaques(data.produits, 'matin'))}
+                                  </td>
+                                  <td className="border border-gray-800 p-2 text-center text-blue-700">
+                                    {formaterPlaques(calculerTotalPlaques(data.produits, 'midi'))}
+                                  </td>
+                                  <td className="border border-gray-800 p-2 text-center text-blue-700 bg-blue-100">
+                                    {formaterPlaques(calculerTotalPlaques(data.produits, 'soir'))}
+                                  </td>
+                                  <td className="border border-gray-800 p-2 text-center text-blue-700 bg-blue-100">
+                                    {calculerTotalJournalier(data.produits)}
+                                  </td>
+                                  <td className="border border-gray-800 p-2 text-center text-blue-700 bg-blue-100">
+                                    Total
+                                  </td>
+                                </tr>
+                              ) : (
+                                <tr className="bg-blue-50 font-bold border-t-4 border-blue-600">
+                                  <td className="border border-gray-800 p-2 text-sm text-right">
+                                    CAPACITÉ {getNomProgrammeAffiche(programme)}
+                                  </td>
+                                  <td className="border border-gray-800 p-2 text-center text-blue-700">
+                                    {formaterPlaques(calculerTotalPlaques(data.produits, 'matin'))}
+                                  </td>
+                                  <td className="border border-gray-800 p-2 text-center text-blue-700">
+                                    {formaterPlaques(calculerTotalPlaques(data.produits, 'midi'))}
+                                  </td>
+                                  <td className="border border-gray-800 p-2 text-center text-blue-700 bg-blue-100">
+                                    {formaterPlaques(calculerTotalPlaques(data.produits, 'soir'))}
+                                  </td>
+                                  <td className="border border-gray-800 p-2 text-center text-blue-700 bg-blue-100">
+                                    {calculerTotalJournalier(data.produits)}
+                                  </td>
+                                  <td className="border border-gray-800 p-2 text-center text-blue-700 bg-blue-100">
+                                    Total
+                                  </td>
+                                </tr>
+                              )}
                             </tbody>
                           </table>
                         </div>
@@ -712,8 +946,8 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
                     <button
                       onClick={() => setModeAffichage('unites')}
                       className={`px-4 py-2 rounded-lg transition min-h-[44px] ${modeAffichage === 'unites'
-                          ? 'bg-white text-blue-600 font-semibold shadow'
-                          : 'text-gray-600'
+                        ? 'bg-white text-blue-600 font-semibold shadow'
+                        : 'text-gray-600'
                         }`}
                     >
                       Unités
@@ -721,8 +955,8 @@ export default function EtapePlanning({ planning, pdvInfo, produits, frequentati
                     <button
                       onClick={() => setModeAffichage('plaques')}
                       className={`px-4 py-2 rounded-lg transition min-h-[44px] ${modeAffichage === 'plaques'
-                          ? 'bg-white text-blue-600 font-semibold shadow'
-                          : 'text-gray-600'
+                        ? 'bg-white text-blue-600 font-semibold shadow'
+                        : 'text-gray-600'
                         }`}
                     >
                       Plaques

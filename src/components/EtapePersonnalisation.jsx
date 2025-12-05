@@ -32,7 +32,7 @@ export default function EtapePersonnalisation({
   const refReglages = useRef(null);
   const [showAttributionManuelle, setShowAttributionManuelle] = useState(false);
   const [showGestionProgrammes, setShowGestionProgrammes] = useState(false);
-  const [modeCalculPotentiel, setModeCalculPotentiel] = useState('mathematique'); // 'mathematique' | 'forte-progression' | 'prudent'
+  const [modeCalculPotentiel, setModeCalculPotentiel] = useState('mathematique'); // 'mathematique' | 'forte-progression' | 'prudent' | 'moyenne-stats'
   const [modeExpert, setModeExpert] = useState(false); // Mode expert pour afficher colonnes techniques
   const [refreshKey, setRefreshKey] = useState(0); // Clé pour forcer le rafraîchissement après modification des programmes
 
@@ -40,12 +40,28 @@ export default function EtapePersonnalisation({
   const produitsNonReconnus = produits.filter(p => !p.reconnu && !p.custom);
   const nbProduitsNonReconnus = produitsNonReconnus.length;
 
+  // Statistiques multi-semaines
+  const produitsAvecStats = produits.filter(p => p.stats && p.stats.nombreSemaines >= 2);
+  const hasMultiWeekStats = produitsAvecStats.length > 0;
+
+  // Résumé des tendances
+  const statsResume = hasMultiWeekStats ? {
+    enCroissance: produitsAvecStats.filter(p => p.stats.tendance === 'croissance').length,
+    enDeclin: produitsAvecStats.filter(p => p.stats.tendance === 'declin').length,
+    stables: produitsAvecStats.filter(p => p.stats.tendance === 'stable').length,
+    fiables: produitsAvecStats.filter(p => p.stats.scoreConfiance >= 70).length,
+    variables: produitsAvecStats.filter(p => p.stats.scoreConfiance < 40).length,
+    moyenneConfiance: Math.round(produitsAvecStats.reduce((sum, p) => sum + p.stats.scoreConfiance, 0) / produitsAvecStats.length),
+    nombreSemainesMax: Math.max(...produitsAvecStats.map(p => p.stats.nombreSemaines))
+  } : null;
+
   // Calculer automatiquement les potentiels à partir des ventes
   const calculerPotentielsAuto = (mode = modeCalculPotentiel) => {
     const messages = {
       'mathematique': 'Mode Mathématique : Calcul brut sans limite\nFormule : Vente MAX ÷ Poids du jour',
       'forte-progression': 'Mode Forte Progression : Limite à +20% de progression\n• Si progression > 20% → limité à +20%\n• Si baisse → garde le volume actuel',
-      'prudent': 'Mode Prudent : Limite à +10% de progression\n• Si progression > 10% → limité à +10%\n• Si baisse → garde le volume actuel'
+      'prudent': 'Mode Prudent : Limite à +10% de progression\n• Si progression > 10% → limité à +10%\n• Si baisse → garde le volume actuel',
+      'moyenne-stats': 'Mode Moyenne Multi-Semaines : Plus stable\n• Utilise la moyenne des ventes max sur plusieurs semaines\n• Recommandé avec 3+ semaines de données'
     };
 
     if (!confirm(`Voulez-vous calculer automatiquement les potentiels hebdomadaires ?\n\n${messages[mode]}\n\nCela écrasera les potentiels actuels.`)) {
@@ -219,6 +235,66 @@ export default function EtapePersonnalisation({
             >
               Attribuer (optionnel)
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Panneau d'analyse multi-semaines */}
+      {hasMultiWeekStats && statsResume && (
+        <div className="mb-6 p-4 rounded-lg" style={{ backgroundColor: '#f0f9ff', border: '1px solid #0ea5e9' }}>
+          <div className="flex items-start justify-between flex-wrap gap-4">
+            <div>
+              <h3 className="font-bold text-blue-800 mb-2 flex items-center gap-2">
+                <span className="text-lg">📊</span>
+                Analyse multi-semaines ({statsResume.nombreSemainesMax} semaines de données)
+              </h3>
+              <div className="flex flex-wrap gap-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-green-100 text-green-700 font-bold text-xs">
+                    {statsResume.enCroissance}
+                  </span>
+                  <span className="text-green-700">en croissance</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-red-100 text-red-700 font-bold text-xs">
+                    {statsResume.enDeclin}
+                  </span>
+                  <span className="text-red-700">en déclin</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-gray-100 text-gray-700 font-bold text-xs">
+                    {statsResume.stables}
+                  </span>
+                  <span className="text-gray-700">stables</span>
+                </div>
+                <div className="border-l border-blue-300 pl-4 flex items-center gap-2">
+                  <span className="text-blue-800 font-semibold">Confiance moyenne: {statsResume.moyenneConfiance}%</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-semibold text-blue-800">Mode de calcul des potentiels:</label>
+              <select
+                value={modeCalculPotentiel}
+                onChange={(e) => setModeCalculPotentiel(e.target.value)}
+                className="px-3 py-2 border border-blue-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="mathematique">Mathématique (max absolu)</option>
+                <option value="moyenne-stats">Moyenne multi-semaines (recommandé)</option>
+                <option value="forte-progression">Forte progression (+20% max)</option>
+                <option value="prudent">Prudent (+10% max)</option>
+              </select>
+              <button
+                onClick={() => calculerPotentielsAuto(modeCalculPotentiel)}
+                className="px-4 py-2 rounded-lg font-semibold text-sm transition"
+                style={{
+                  backgroundColor: '#0ea5e9',
+                  color: 'white'
+                }}
+              >
+                Recalculer les potentiels
+              </button>
+            </div>
           </div>
         </div>
       )}

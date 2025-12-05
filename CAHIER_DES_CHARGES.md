@@ -635,9 +635,9 @@ AUTRE :
 Potentiel Mathématique = Vente MAX ÷ Poids du jour de cette vente
 ```
 
-#### 3 Modes de Calcul Disponibles
+#### 4 Modes de Calcul Disponibles
 
-L'application propose 3 modes de calcul pour s'adapter aux différentes stratégies commerciales :
+L'application propose 4 modes de calcul pour s'adapter aux différentes stratégies commerciales :
 
 **1. Mode "Mathématique" (par défaut)**
 ```
@@ -672,6 +672,24 @@ Si progression négative :
 - Limite la croissance à +10% maximum
 - Approche conservatrice pour minimiser le gaspillage
 - Recommandé pour les produits matures ou les périodes incertaines
+
+**4. Mode "Moyenne Multi-Semaines" (recommandé avec 3+ semaines)**
+```
+Potentiel = Moyenne des ventes MAX par semaine ÷ Poids du jour le plus fréquenté
+
+Exemple avec 4 semaines de données :
+┌─────────────┬─────┬─────┬─────┬─────┬─────────────┐
+│ Produit     │ S1  │ S2  │ S3  │ S4  │ Moy. Max    │
+├─────────────┼─────┼─────┼─────┼─────┼─────────────┤
+│ Baguette    │ 75  │ 80  │ 78  │ 82  │ 79          │
+└─────────────┴─────┴─────┴─────┴─────┴─────────────┘
+
+Potentiel = 79 ÷ 0.20 = 395 unités/semaine
+```
+- Utilise la **moyenne des ventes max** de chaque semaine (au lieu du max absolu)
+- Plus stable que le mode mathématique (évite les pics exceptionnels)
+- Nécessite minimum 2 semaines de données pour être pertinent
+- Recommandé comme mode par défaut avec un historique suffisant
 
 #### Exemple Détaillé avec les 3 Modes
 ```
@@ -872,7 +890,92 @@ Programme "Cuisson Baguette" :
 → CAPACITÉ : 12 Pl. (charge totale du four)
 ```
 
-### 6.6 Gestion des Produits Actifs/Inactifs
+### 6.6 Analyse Statistique Multi-Semaines
+
+#### Principe
+L'application analyse automatiquement les données de ventes sur plusieurs semaines pour fournir des indicateurs de tendance et de fiabilité pour chaque produit.
+
+#### Statistiques Calculées par Produit
+
+| Indicateur | Description | Calcul |
+|------------|-------------|--------|
+| **nombreSemaines** | Nombre de semaines de données | Comptage des semaines ISO distinctes |
+| **moyenneHebdo** | Volume moyen par semaine | Σ ventes ÷ nombreSemaines |
+| **moyenneVentesMax** | Moyenne des pics de vente | Moyenne des ventes max de chaque semaine |
+| **tendance** | Évolution des ventes | Comparaison 1ère moitié vs 2ème moitié |
+| **variabilité** | Coefficient de variation | (Écart-type ÷ Moyenne) × 100 |
+| **scoreConfiance** | Score de fiabilité 0-100 | Calcul composite (voir ci-dessous) |
+
+#### Calcul de la Tendance
+```
+tendance = Moyenne(2ème moitié semaines) - Moyenne(1ère moitié semaines)
+                           ÷ Moyenne(1ère moitié semaines) × 100
+
+Si variation > +10% : tendance = "croissance" (↗️)
+Si variation < -10% : tendance = "déclin" (↘️)
+Sinon              : tendance = "stable" (↔️)
+```
+
+#### Calcul du Score de Confiance
+Le score de confiance (0-100) est calculé à partir de 3 composantes :
+
+```
+Score = Score_Semaines + Score_Variabilité + Score_Couverture
+
+Score_Semaines (max 30 pts) :
+- 1 semaine  : 10 pts
+- 2 semaines : 20 pts
+- 3+ semaines : 30 pts
+
+Score_Variabilité (max 40 pts) :
+- Variabilité < 20%  : 40 pts
+- Variabilité 20-50% : 25 pts
+- Variabilité > 50%  : 10 pts
+
+Score_Couverture (max 30 pts) :
+- Ventes tous les jours : 30 pts
+- Proportionnel au ratio jours vendus / jours total
+```
+
+#### Affichage dans le Tableau des Produits
+
+**Colonne "Moy. Hebdo"** : Remplace "Volume" (qui affichait le cumul)
+- Affiche la moyenne hebdomadaire réelle
+- Tooltip : "Total: X sur N semaines"
+
+**Colonne "Tendance"** :
+- ↗️ +X% (vert) : Produit en croissance
+- ↘️ -X% (rouge) : Produit en déclin
+- ↔️ 0% (gris) : Produit stable
+
+**Colonne "Fiabilité"** :
+- Cercle vert (70-100) : Données fiables
+- Cercle jaune (40-69) : Données modérées
+- Cercle rouge (0-39) : Données variables
+
+#### Exemple Concret
+```
+Produit : Croissant Beurre (4 semaines de données)
+
+Ventes hebdo : S1=450, S2=480, S3=510, S4=520
+Ventes max   : S1=75,  S2=80,  S3=82,  S4=85
+
+Statistiques calculées :
+- nombreSemaines    : 4
+- moyenneHebdo      : 490 unités
+- moyenneVentesMax  : 80.5 unités
+- tendance          : "croissance" (+15%)
+- variabilité       : 8%
+- scoreConfiance    : 85 (vert)
+
+Interprétation :
+✅ Produit très fiable (85/100)
+✅ En croissance régulière (+15%)
+✅ Faible variabilité (8%)
+→ Le mode "Moyenne multi-semaines" donnera un potentiel stable
+```
+
+### 6.7 Gestion des Produits Actifs/Inactifs
 
 #### Produit Actif
 ```
@@ -2878,10 +2981,20 @@ Potentiel = Vente MAX ÷ Poids du jour
 ---
 
 **Document rédigé le** : 29 octobre 2025
-**Version Application** : 1.3
-**Dernière mise à jour** : 19 novembre 2025
+**Version Application** : 1.4
+**Dernière mise à jour** : 28 novembre 2025
 
 ### Historique des Versions
+
+**Version 1.4** (28 novembre 2025) - Analyse Multi-Semaines :
+- **Nouveau mode de calcul "Moyenne Multi-Semaines"** : Utilise la moyenne des ventes max par semaine au lieu du max absolu pour des potentiels plus stables
+- **Statistiques automatiques par produit** : nombreSemaines, moyenneHebdo, moyenneVentesMax, tendance, variabilité, scoreConfiance
+- **Nouvelles colonnes dans le tableau des produits** :
+  - Colonne "Moy. Hebdo" (remplace "Volume" qui affichait le cumul multi-semaines)
+  - Colonne "Tendance" : indicateur visuel ↗️ croissance / ↔️ stable / ↘️ déclin avec pourcentage
+  - Colonne "Fiabilité" : score de confiance 0-100 (cercle coloré vert/jaune/rouge)
+- **Service `calculerStatsVentes()`** : calcul automatique des statistiques lors de l'import des ventes
+- **Compatibilité multi-semaines** : Chargement d'un fichier de ventes couvrant plusieurs semaines pour une meilleure fiabilité des prévisions
 
 **Version 1.3** (19 novembre 2025) - Améliorations UX et Parsing :
 - Bouton toggle Desktop/Tablette manuel dans le header (à côté des étapes)
