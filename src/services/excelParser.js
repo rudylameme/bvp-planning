@@ -21,6 +21,53 @@ export async function parseVentesExcel(file) {
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
+        // Chercher le nom du magasin dans les premières lignes
+        // Formats courants : "10679 - SAS CHAMAFFI Date : 25/11/2025 Heure : 16:09:34"
+        let nomMagasin = null;
+        let codeMagasin = null;
+
+        for (let i = 0; i < Math.min(rows.length, 10); i++) {
+          const row = rows[i];
+          if (!row) continue;
+
+          for (const cell of row) {
+            const cellStr = String(cell || '').trim();
+            if (!cellStr) continue;
+
+            // Pattern: "10679 - SAS CHAMAFFI Date : ..." (code numérique suivi de nom, puis Date/Heure)
+            // On isole le code et le nom avant "Date :"
+            const codeNomDateMatch = cellStr.match(/^(\d{4,6})\s*[-–]\s*([^D]+?)(?:\s*Date\s*:|$)/i);
+            if (codeNomDateMatch) {
+              codeMagasin = codeNomDateMatch[1];
+              nomMagasin = codeNomDateMatch[2].trim();
+              break;
+            }
+
+            // Pattern: "PDV: 12345 - Nom Magasin" ou "PDV 12345 - Nom Magasin"
+            const pdvMatch = cellStr.match(/PDV[:\s]*(\d+)\s*[-–]\s*([^D]+?)(?:\s*Date\s*:|$)/i);
+            if (pdvMatch) {
+              codeMagasin = pdvMatch[1];
+              nomMagasin = pdvMatch[2].trim();
+              break;
+            }
+
+            // Pattern: "INTERMARCHE xxx" ou "ITM xxx"
+            const itmMatch = cellStr.match(/^(INTERMARCHE|ITM|INTERMARCHÉ)\s+([^D]+?)(?:\s*Date\s*:|$)/i);
+            if (itmMatch) {
+              nomMagasin = itmMatch[0].replace(/\s*Date\s*:.*/i, '').trim();
+              break;
+            }
+
+            // Pattern: "Magasin: xxx"
+            const magasinMatch = cellStr.match(/^Magasin[:\s]+([^D]+?)(?:\s*Date\s*:|$)/i);
+            if (magasinMatch) {
+              nomMagasin = magasinMatch[1].trim();
+              break;
+            }
+          }
+          if (nomMagasin) break;
+        }
+
         // Trouver la ligne d'en-tête (celle avec "ITM8" ou "Libellé")
         let headerRowIndex = 0;
         for (let i = 0; i < Math.min(rows.length, 20); i++) {
@@ -131,7 +178,12 @@ export async function parseVentesExcel(file) {
           dateDebut: formatDateFR(dates[0]),
           dateFin: formatDateFR(dates[dates.length - 1]),
           caTotalRayon: Math.round(caTotalGlobal * 100) / 100,
-          nombreProduits: Object.keys(parProduit).length
+          nombreProduits: Object.keys(parProduit).length,
+          // Info magasin extraite du fichier
+          magasin: nomMagasin ? {
+            nom: nomMagasin,
+            code: codeMagasin || ''
+          } : null
         });
 
       } catch (error) {

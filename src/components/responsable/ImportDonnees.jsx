@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Upload, FileSpreadsheet, Check, AlertCircle } from 'lucide-react';
 import { parseVentesExcel, parseFrequentationExcel } from '../../services/excelParser';
 
@@ -21,7 +21,7 @@ const getNumeroSemaineFromDateFR = (dateFR) => {
   return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
 };
 
-export default function ImportDonnees({ onImportComplete }) {
+export default function ImportDonnees({ onImportReady }) {
   const [fichierFrequentation, setFichierFrequentation] = useState(null);
   const [fichierVentes, setFichierVentes] = useState(null);
   const [statusFrequentation, setStatusFrequentation] = useState(null);
@@ -65,7 +65,8 @@ export default function ImportDonnees({ onImportComplete }) {
         nombreSemaines: data.nombreSemaines,
         dateDebut: data.dateDebut,
         dateFin: data.dateFin,
-        caTotalRayon: data.caTotalRayon
+        caTotalRayon: data.caTotalRayon,
+        magasin: data.magasin // Nom et code du magasin extraits du fichier
       });
       setStatusVentes({
         type: 'success',
@@ -76,31 +77,24 @@ export default function ImportDonnees({ onImportComplete }) {
     }
   }, []);
 
-  // Validation et passage à l'étape suivante
-  const handleValider = async () => {
-    if (!fichierVentes) {
-      setStatusVentes({ type: 'error', message: 'Veuillez importer le fichier des ventes' });
-      return;
-    }
-
-    setIsProcessing(true);
-
-    try {
-      // Combiner les données
+  // Notifier le parent quand les données sont prêtes
+  useEffect(() => {
+    if (fichierVentes) {
+      // Combiner les données et les stocker pour le wizard
       const donneesImportees = {
         frequentation: fichierFrequentation,
         ventes: fichierVentes,
         nombreSemaines: fichierVentes.nombreSemaines,
-        caTotalRayon: fichierVentes.caTotalRayon
+        caTotalRayon: fichierVentes.caTotalRayon,
+        magasin: fichierVentes.magasin
       };
-
-      onImportComplete(donneesImportees);
-    } catch (error) {
-      setStatusVentes({ type: 'error', message: error.message });
-    } finally {
-      setIsProcessing(false);
+      window.__importDonneesReady = donneesImportees;
+      onImportReady(true); // Activer le bouton Suivant
+    } else {
+      window.__importDonneesReady = null;
+      onImportReady(false);
     }
-  };
+  }, [fichierVentes, fichierFrequentation, onImportReady]);
 
   const renderStatus = (status) => {
     if (!status) return null;
@@ -218,6 +212,9 @@ export default function ImportDonnees({ onImportComplete }) {
             <div className="mt-3 p-3 bg-emerald-50 rounded-lg text-sm">
               <p className="font-medium text-emerald-800">Données détectées :</p>
               <ul className="mt-1 text-emerald-700 space-y-0.5">
+                {infoVentes.magasin && (
+                  <li>🏪 Magasin : <strong>{infoVentes.magasin.code ? `${infoVentes.magasin.code} - ` : ''}{infoVentes.magasin.nom}</strong></li>
+                )}
                 <li>📦 Produits : <strong>{infoVentes.nombreProduits}</strong></li>
                 <li>📅 Période : <strong>{infoVentes.nombreSemaines}</strong> semaine(s) {(() => {
                   const semDebut = getNumeroSemaineFromDateFR(infoVentes.dateDebut);
@@ -237,30 +234,6 @@ export default function ImportDonnees({ onImportComplete }) {
         </div>
       </div>
 
-      {/* Bouton Valider - Charte Mousquetaires: amber pour action principale */}
-      <div className="mt-8 flex justify-end">
-        <button
-          onClick={handleValider}
-          disabled={!fichierVentes || isProcessing}
-          className={`px-6 py-3 rounded-lg font-semibold flex items-center gap-2 focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 ${
-            fichierVentes && !isProcessing
-              ? 'bg-amber-700 text-white hover:bg-amber-800'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
-        >
-          {isProcessing ? (
-            <>
-              <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
-              Traitement...
-            </>
-          ) : (
-            <>
-              <Check size={20} />
-              Valider et continuer
-            </>
-          )}
-        </button>
-      </div>
     </div>
   );
 }
