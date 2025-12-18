@@ -4,7 +4,8 @@ const STEPS = [
   { id: 1, label: 'Import', icon: '📥' },
   { id: 2, label: 'Configuration', icon: '⚙️' },
   { id: 3, label: 'Pilotage CA', icon: '📊' },
-  { id: 4, label: 'Terminé', icon: '✓' },
+  { id: 4, label: 'Promos', icon: '🏷️' },
+  { id: 5, label: 'Export', icon: '📤' },
 ];
 
 export default function ProgressBar({ currentStep }) {

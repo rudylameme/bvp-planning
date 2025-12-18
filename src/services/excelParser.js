@@ -95,6 +95,23 @@ export async function parseVentesExcel(file) {
             h.includes('valeur prix vente') ||
             (h.includes('valeur') && h.includes('vente')) ||
             h.includes('montant')
+          ),
+          // Colonnes optionnelles pour les marges (si présentes)
+          prixAchatHT: headers.findIndex(h =>
+            h.includes('prix achat') ||
+            h.includes('pa ht') ||
+            h.includes('paht') ||
+            h.includes('coût') ||
+            h.includes('cout')
+          ),
+          tauxMarge: headers.findIndex(h =>
+            h.includes('marge') ||
+            h.includes('taux marge') ||
+            h.includes('tx marge')
+          ),
+          tva: headers.findIndex(h =>
+            h.includes('tva') ||
+            h.includes('taxe')
           )
         };
 
@@ -127,6 +144,17 @@ export async function parseVentesExcel(file) {
             ? Number(row[colIndex.valeurPrixVente]) || 0
             : 0;
 
+          // Données optionnelles de marge (si présentes dans le fichier)
+          const prixAchatHT = colIndex.prixAchatHT !== -1
+            ? Number(row[colIndex.prixAchatHT]) || null
+            : null;
+          const tauxMarge = colIndex.tauxMarge !== -1
+            ? Number(row[colIndex.tauxMarge]) || null
+            : null;
+          const tva = colIndex.tva !== -1
+            ? Number(row[colIndex.tva]) || 5.5  // TVA alimentaire par défaut
+            : null;
+
           if (!libelle || !dateRaw) continue;
 
           // Parser la date
@@ -152,8 +180,24 @@ export async function parseVentesExcel(file) {
               itm8,
               ean,
               libelle,
-              ventes: []
+              ventes: [],
+              // Données de marge (si disponibles)
+              prixAchatHT: null,
+              tauxMarge: null,
+              tva: null
             };
+          }
+
+          // Mettre à jour les données de marge si disponibles
+          // (prend la première valeur non-nulle trouvée)
+          if (prixAchatHT && !parProduit[cleProduit].prixAchatHT) {
+            parProduit[cleProduit].prixAchatHT = prixAchatHT;
+          }
+          if (tauxMarge && !parProduit[cleProduit].tauxMarge) {
+            parProduit[cleProduit].tauxMarge = tauxMarge;
+          }
+          if (tva && !parProduit[cleProduit].tva) {
+            parProduit[cleProduit].tva = tva;
           }
 
           parProduit[cleProduit].ventes.push({
@@ -172,6 +216,18 @@ export async function parseVentesExcel(file) {
         // Trier les dates pour avoir la période
         const dates = Array.from(toutesLesDates).sort();
 
+        // Vérifier si des données de marge sont disponibles
+        const produitsAvecMarge = Object.values(parProduit).filter(
+          p => p.prixAchatHT !== null || p.tauxMarge !== null
+        );
+        const donneesMargeDisponibles = produitsAvecMarge.length > 0;
+
+        if (donneesMargeDisponibles) {
+          console.log(`✅ Données de marge trouvées pour ${produitsAvecMarge.length} produits`);
+        } else {
+          console.log('⚠️ Aucune donnée de marge dans le fichier - utilisation de l\'estimation par défaut (40%)');
+        }
+
         resolve({
           parProduit,
           nombreSemaines,
@@ -183,7 +239,10 @@ export async function parseVentesExcel(file) {
           magasin: nomMagasin ? {
             nom: nomMagasin,
             code: codeMagasin || ''
-          } : null
+          } : null,
+          // Indicateur de disponibilité des données de marge
+          donneesMargeDisponibles,
+          nombreProduitsAvecMarge: produitsAvecMarge.length
         });
 
       } catch (error) {

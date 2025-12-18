@@ -172,9 +172,8 @@ export default function StepSemaine({
 
     newHoraires[jour].ferme = toutFerme;
     newHoraires[jour].exceptionnel = auMoinsUnExceptionnel;
-    // Compatibilité ancienne structure
-    newHoraires[jour].matin = nouveauEtatMatin === ETATS_CRENEAU.OUVERT;
-    newHoraires[jour].apresmidi = nouveauEtatAprem === ETATS_CRENEAU.OUVERT;
+    // Note: Ne PAS écraser matin/apresmidi avec des booléens car ça détruirait
+    // la nouvelle structure V2 { statut: '...' }
 
     onHorairesChange(newHoraires);
   };

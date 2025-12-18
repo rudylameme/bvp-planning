@@ -1,6 +1,87 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle, Download, Share2, RefreshCw, ArrowLeft, FileJson, Copy, Check } from 'lucide-react';
-import { exporterFichierMagasin } from '../../services/fichierMagasin';
+import { CheckCircle, Download, RefreshCw, ArrowLeft, FileJson, Copy, Check } from 'lucide-react';
+
+// Liste des jours de la semaine
+const JOURS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+
+/**
+ * Construit la structure de fréquentation pour le fichier .bvp.json
+ * Regroupe les tranches horaires en 4 créneaux: avant12h, 12h-14h, 14h-16h, apres16h
+ */
+const construireFrequentation = (frequentationData, baseCalcul) => {
+  if (!frequentationData) {
+    return null;
+  }
+
+  const parJour = {};
+  let totalSemaine = 0;
+
+  JOURS.forEach(jour => {
+    // Récupérer les données du jour selon la base de calcul (BVP ou PDV)
+    const jourDetailBvp = frequentationData.detailParJourHoraire?.[jour];
+    const jourTotalBvp = frequentationData.parJourDetail?.[jour]?.bvp || 0;
+    const jourTotalPdv = frequentationData.parJourDetail?.[jour]?.pdv || 0;
+
+    // Choisir la base selon le paramètre
+    const totalJour = baseCalcul === 'BVP' ? jourTotalBvp : jourTotalPdv;
+
+    // Construire les tranches regroupées (les données source ont: matin, midi, apresMidi)
+    // On les transforme en: avant12h, 12h-14h, 14h-16h, apres16h
+    const tranches = {
+      'avant12h': { qte: 0, poids: 0 },
+      '12h-14h': { qte: 0, poids: 0 },
+      '14h-16h': { qte: 0, poids: 0 },
+      'apres16h': { qte: 0, poids: 0 }
+    };
+
+    if (jourDetailBvp) {
+      const dataSource = baseCalcul === 'BVP' ? 'bvp' : 'pdv';
+
+      // matin (09h_12h) -> avant12h
+      tranches['avant12h'].qte = Math.round(jourDetailBvp.matin?.[dataSource] || 0);
+
+      // midi (12h_14h + 14h_16h) -> on sépare en 12h-14h et 14h-16h
+      // Comme on n'a pas le détail, on répartit 50/50 le midi
+      const midiTotal = jourDetailBvp.midi?.[dataSource] || 0;
+      tranches['12h-14h'].qte = Math.round(midiTotal * 0.5);
+      tranches['14h-16h'].qte = Math.round(midiTotal * 0.5);
+
+      // apresMidi (16h_19h + 19h_23h) -> apres16h
+      tranches['apres16h'].qte = Math.round(jourDetailBvp.apresMidi?.[dataSource] || 0);
+    }
+
+    // Calculer le total du jour
+    const totalJourCalc = Object.values(tranches).reduce((sum, t) => sum + t.qte, 0);
+
+    // Calculer les poids par tranche
+    Object.keys(tranches).forEach(tranche => {
+      tranches[tranche].poids = totalJourCalc > 0
+        ? Math.round((tranches[tranche].qte / totalJourCalc) * 100) / 100
+        : 0;
+    });
+
+    parJour[jour] = {
+      total: Math.round(totalJour) || totalJourCalc,
+      poids: 0, // Sera calculé après
+      tranches
+    };
+
+    totalSemaine += parJour[jour].total;
+  });
+
+  // Calculer les poids par jour
+  JOURS.forEach(jour => {
+    parJour[jour].poids = totalSemaine > 0
+      ? Math.round((parJour[jour].total / totalSemaine) * 100) / 100
+      : 0;
+  });
+
+  return {
+    base: baseCalcul,
+    parJour,
+    totalSemaine: Math.round(totalSemaine)
+  };
+};
 
 export default function WizardTermine({
   donneesMagasin,
@@ -8,6 +89,8 @@ export default function WizardTermine({
   semaine,
   annee,
   horaires,
+  promosActives = [],
+  periodePromo = null,
   onModifier,
   onNouvelleSemaine
 }) {
@@ -28,9 +111,15 @@ export default function WizardTermine({
         0
       );
 
+      // Construire les données de fréquentation
+      const baseCalcul = donneesMagasin?.baseCalcul || 'PDV';
+      const frequentationData = donneesMagasin?.importDonnees?.frequentation;
+      const frequentation = construireFrequentation(frequentationData, baseCalcul);
+
       const fichier = {
-        version: '2.0',
-        dateGeneration: new Date().toISOString(),
+        schemaVersion: '2.0',
+        createdAt: new Date().toISOString(),
+        createdBy: 'BVP Planning V2.0',
         magasin: {
           nom: donneesMagasin?.magasin?.nom || 'Mon Magasin',
           code: donneesMagasin?.magasin?.code || ''
@@ -40,14 +129,45 @@ export default function WizardTermine({
           annee,
           dateDebut: getDateOfISOWeek(semaine, annee).toISOString().split('T')[0],
           dateFin: getEndOfWeek(semaine, annee).toISOString().split('T')[0],
-          horaires
+          horaires,
+          // Paramètres de calcul
+          baseCalcul,
+          limitesProgression: donneesMagasin?.limitesProgression || {},
+          repartitionParFamille: donneesMagasin?.repartitionParFamille || {}
         },
+        // Données de fréquentation par jour et par tranche horaire
+        frequentation,
         objectifs: {
           caPrevi,
           caHisto,
           progression: caHisto > 0 ? ((caPrevi - caHisto) / caHisto) * 100 : 0,
           afficherCAEquipe: false
         },
+        // Animation commerciale (promos de la semaine)
+        animationCommerciale: promosActives.length > 0 ? {
+          // Période par défaut (pour référence)
+          periodeDefautDebut: periodePromo?.debut || null,
+          periodeDefautFin: periodePromo?.fin || null,
+          promos: promosActives.map(promo => ({
+            plu: promo.plu,
+            itm8: promo.itm8,
+            libelle: promo.libelle,
+            prixNormalTTC: promo.prixNormalTTC,
+            prixPromoTTC: promo.prixPromoTTC,
+            avantageClient: promo.avantageClient,
+            tauxMargePromo: promo.tauxMargePromo,
+            elasticite: promo.elasticite,
+            // Quantités selon durée promo
+            qteNormaleHebdo: promo.qteNormaleHebdo,
+            qteNormalePeriode: promo.qteNormalePeriode,
+            nbJoursPromo: promo.nbJoursPromo,
+            qteObjectif: promo.qteObjectif,
+            qteSupplementaire: promo.qteSupplementaire,
+            // Dates spécifiques au produit
+            dateDebut: promo.dateDebut,
+            dateFin: promo.dateFin
+          }))
+        } : null,
         produits: produitsActifs.map(p => ({
           id: p.id,
           libelle: p.libelle,
@@ -55,6 +175,8 @@ export default function WizardTermine({
           itm8: p.itm8,
           actif: true,
           potentiel: p.potentielHebdo,
+          // Historique des ventes hebdo (arrondi à l'entier)
+          historiqueHebdo: p.moyenneHebdo ? Math.round(p.moyenneHebdo) : null,
           famille: p.rayon,
           programme: p.programme,
           plu: p.plu,
@@ -180,10 +302,10 @@ export default function WizardTermine({
           <CheckCircle className="w-10 h-10 text-green-500" />
         </div>
         <h2 className="text-2xl font-bold text-[#58595B] mb-2">
-          Configuration terminée !
+          Fichier prêt pour l'équipe !
         </h2>
         <p className="text-gray-500">
-          Votre fichier est prêt pour l'équipe
+          Transmettez ce fichier à votre équipe pour générer le planning
         </p>
       </div>
 
