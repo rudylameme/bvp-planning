@@ -73,52 +73,60 @@ const calculerPotentielMathematique = (ventesParJour, poidsJours) => {
  *
  * @param {number} qteMathematique - Quantité calculée mathématiquement
  * @param {number} ventesHistoriques - Ventes historiques du jour
- * @param {string} variante - 'sans' | 'forte' | 'faible'
+ * @param {string} variante - 'sans' | 'forte' | 'faible' | 'personnalisee'
+ * @param {number} [limitePerso] - Pourcentage max de progression si variante='personnalisee' (ex: 15 pour +15%)
  * @returns {number} Quantité finale après application des règles
  */
-const appliquerVarianteJournaliere = (qteMathematique, ventesHistoriques, variante) => {
+const appliquerVarianteJournaliere = (qteMathematique, ventesHistoriques, variante, limitePerso) => {
   // Règle 2 modifiée: Protection contre les zéros
   // Si pas d'historique ET pas de calcul mathématique → minimum de sécurité de 2 unités
   if (ventesHistoriques === 0 && qteMathematique === 0) {
     return 2;
   }
 
+  // Plancher : le résultat ne peut pas descendre en dessous de 95% de l'historique
+  const plancher = ventesHistoriques > 0 ? Math.ceil(ventesHistoriques * 0.95) : 0;
+
   // Règle 2: Le minimum est toujours les ventes historiques (si > 0)
   if (qteMathematique < ventesHistoriques) {
-    return ventesHistoriques;
+    return Math.max(ventesHistoriques, plancher);
   }
 
   // Règle 3: Application des limites selon variante
   if (variante === 'sans') {
-    // Pas de limite
-    return qteMathematique;
+    return Math.max(qteMathematique, plancher);
   }
 
   // Protection contre division par zéro pour le calcul de progression
   if (ventesHistoriques === 0) {
-    // Si pas d'historique mais calcul mathématique > 0, on utilise le calcul
     return qteMathematique;
   }
 
   const progression = (qteMathematique - ventesHistoriques) / ventesHistoriques;
 
   if (variante === 'forte') {
-    // Limite +20%
     if (progression > 0.20) {
-      return Math.ceil(ventesHistoriques * 1.20);
+      return Math.max(Math.ceil(ventesHistoriques * 1.20), plancher);
     }
-    return qteMathematique;
+    return Math.max(qteMathematique, plancher);
   }
 
   if (variante === 'faible') {
-    // Limite +10%
     if (progression > 0.10) {
-      return Math.ceil(ventesHistoriques * 1.10);
+      return Math.max(Math.ceil(ventesHistoriques * 1.10), plancher);
     }
-    return qteMathematique;
+    return Math.max(qteMathematique, plancher);
   }
 
-  return qteMathematique;
+  if (variante === 'personnalisee' && typeof limitePerso === 'number') {
+    const limiteRatio = limitePerso / 100;
+    if (progression > limiteRatio) {
+      return Math.max(Math.ceil(ventesHistoriques * (1 + limiteRatio)), plancher);
+    }
+    return Math.max(qteMathematique, plancher);
+  }
+
+  return Math.max(qteMathematique, plancher);
 };
 
 /**
@@ -194,7 +202,10 @@ export const recalculerPlanningAvecVariantes = (
 
     // Pour chaque jour qui a une variante définie pour ce rayon
     for (const jourLower in variantesJours) {
-      const variante = variantesJours[jourLower];
+      const varianteRaw = variantesJours[jourLower];
+      // Support objet { type: 'personnalisee', limite: 15 } ou string simple
+      const variante = typeof varianteRaw === 'object' ? varianteRaw.type : varianteRaw;
+      const limitePerso = typeof varianteRaw === 'object' ? varianteRaw.limite : undefined;
       const jourCapitalized = jourLower.charAt(0).toUpperCase() + jourLower.slice(1);
 
       // Vérifier si c'est un jour fermé
@@ -225,7 +236,7 @@ export const recalculerPlanningAvecVariantes = (
           const qteMathematique = Math.ceil(potentielMath * poids);
           const ventesHistoriques = calculerVentesHistoriquesPourJour(produit.ventesParJour, jourLower);
 
-          qteJour = appliquerVarianteJournaliere(qteMathematique, ventesHistoriques, variante);
+          qteJour = appliquerVarianteJournaliere(qteMathematique, ventesHistoriques, variante, limitePerso);
 
           // Appliquer fermeture partielle si nécessaire
           if (etatJour === 'FERME_MATIN' || etatJour === 'FERME_APREM') {
@@ -246,11 +257,53 @@ export const recalculerPlanningAvecVariantes = (
           }
         }
 
-        // Distribuer sur les créneaux
+        // Distribuer sur les créneaux avec les nouvelles règles par seuil de quantité
         const poidsTranchesJour = poidsTranchesParJour[jourLower] || { matin: 0.6, midi: 0.3, soir: 0.1 };
-        const qteMatin = Math.ceil(qteJour * poidsTranchesJour.matin);
-        const qteMidi = Math.ceil(qteJour * poidsTranchesJour.midi);
-        const qteSoir = Math.ceil(qteJour * poidsTranchesJour.soir);
+        let qteMatin, qteMidi, qteSoir;
+
+        // Nouvelles règles de distribution basées sur la quantité journalière
+        if (qteJour < 6) {
+          // < 6 unités : 2 distributions (70% ouverture + 30% créneau le plus fréquenté)
+          // Trouver le créneau le plus fréquenté (hors matin)
+          const creneauMax = poidsTranchesJour.midi > poidsTranchesJour.soir ? 'midi' : 'soir';
+          qteMatin = Math.ceil(qteJour * 0.70);
+          if (creneauMax === 'midi') {
+            qteMidi = Math.ceil(qteJour * 0.30);
+            qteSoir = 0;
+          } else {
+            qteMidi = 0;
+            qteSoir = Math.ceil(qteJour * 0.30);
+          }
+        } else if (qteJour <= 10) {
+          // 6-10 unités : 3 distributions (60% + 20% + 20%)
+          qteMatin = Math.ceil(qteJour * 0.60);
+          qteMidi = Math.ceil(qteJour * 0.20);
+          qteSoir = Math.ceil(qteJour * 0.20);
+        } else if (qteJour <= 20) {
+          // 10-20 unités : 3 distributions (40% + 30% + 30%)
+          qteMatin = Math.ceil(qteJour * 0.40);
+          qteMidi = Math.ceil(qteJour * 0.30);
+          qteSoir = Math.ceil(qteJour * 0.30);
+        } else {
+          // > 20 unités : Distribution classique par poids de fréquentation
+          qteMatin = Math.ceil(qteJour * poidsTranchesJour.matin);
+          qteMidi = Math.ceil(qteJour * poidsTranchesJour.midi);
+          qteSoir = Math.ceil(qteJour * poidsTranchesJour.soir);
+        }
+
+        // Ajuster si le total dépasse (arrondi vers le haut)
+        const totalCreneaux = qteMatin + qteMidi + qteSoir;
+        if (totalCreneaux > qteJour && qteJour > 0) {
+          // Réduire le créneau avec le plus grand excédent
+          const exces = totalCreneaux - qteJour;
+          if (qteSoir >= exces) {
+            qteSoir -= exces;
+          } else if (qteMidi >= exces) {
+            qteMidi -= exces;
+          } else {
+            qteMatin -= exces;
+          }
+        }
 
         const ventesHistoriques = calculerVentesHistoriquesPourJour(produit.ventesParJour, jourLower);
 

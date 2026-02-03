@@ -133,8 +133,18 @@ export const chargerReferentielITM8 = async (filePath) => {
       }
     });
 
+    // Créer un index par libellé normalisé pour la recherche par nom
+    const libelleMap = new Map();
+    itm8Map.forEach((info) => {
+      const libelleNorm = info.libelle.toLowerCase().trim();
+      if (libelleNorm && !libelleMap.has(libelleNorm)) {
+        libelleMap.set(libelleNorm, info);
+      }
+    });
+
     referentielCache = {
       itm8Map,
+      libelleMap,
       rayons: Array.from(rayonsSet).sort(),
       programmes: Array.from(programmesSet).sort()
     };
@@ -163,6 +173,17 @@ export const rechercherParITM8 = (itm8) => {
   }
 
   return referentielCache.itm8Map.get(itm8) || null;
+};
+
+/**
+ * Recherche un produit par son libellé (correspondance exacte normalisée)
+ * @param {string} libelle - Libellé du produit
+ * @returns {ProductInfo|null}
+ */
+export const rechercherParLibelle = (libelle) => {
+  if (!referentielCache || !referentielCache.libelleMap) return null;
+  const libelleNorm = (libelle || '').toLowerCase().trim();
+  return referentielCache.libelleMap.get(libelleNorm) || null;
 };
 
 /**

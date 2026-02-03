@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Upload, ChevronRight, Download, FileUp, Monitor, Tablet, Calendar } from 'lucide-react';
+import { Upload, ChevronRight, Download, FileUp, Monitor, Tablet, Calendar, Home } from 'lucide-react';
 import EtapeUpload from './components/EtapeUpload';
 import EtapePersonnalisation from './components/EtapePersonnalisation';
 import EtapeConfigurationSemaine from './components/EtapeConfigurationSemaine';
 import EtapePlanning from './components/EtapePlanning';
+import AccueilGlobal from './components/AccueilGlobal';
+import BenchmarkModule from './components/benchmark/BenchmarkModule';
 import { parseVentesExcel, parseFrequentationExcel } from './utils/parsers';
 import { classerProduit } from './utils/classification';
 import { calculerPlanning } from './services/planningCalculator';
@@ -12,8 +14,9 @@ import { trouverVenteMax, calculerPotentielDepuisVenteMax, calculerStatsVentes }
 import { mousquetairesColors } from './styles/mousquetaires-theme';
 
 function App() {
-  // État principal
-  const [etape, setEtape] = useState('upload'); // 'upload', 'personnalisation', 'configsemaine', 'planning'
+  // État principal - V4 : ajout de 'accueil' et 'benchmark'
+  const [etape, setEtape] = useState('accueil'); // 'accueil', 'benchmark', 'upload', 'personnalisation', 'configsemaine', 'planning'
+  const [donneesBenchmark, setDonneesBenchmark] = useState(null); // Données du benchmark pour le planning
   const [frequentationData, setFrequentationData] = useState(null);
   const [ventesData, setVentesData] = useState(null);
   const [produits, setProduits] = useState([]);
@@ -438,6 +441,43 @@ function App() {
     reinitialiserProgrammes();
   };
 
+  // Retour à l'accueil global V4
+  const retourAccueil = () => {
+    setEtape('accueil');
+    setDonneesBenchmark(null);
+  };
+
+  // Navigation du benchmark vers le planning
+  const handleNaviguerPlanningDepuisBenchmark = (donnees) => {
+    console.log('🔄 Navigation benchmark → planning avec données:', donnees);
+    setDonneesBenchmark(donnees);
+    // TODO: Utiliser les données de fréquentation du benchmark pour pré-remplir le planning
+    setEtape('upload');
+  };
+
+  // ========== RENDU V4 ==========
+
+  // Écran d'accueil global
+  if (etape === 'accueil') {
+    return (
+      <AccueilGlobal
+        onChoixBenchmark={() => setEtape('benchmark')}
+        onChoixPlanning={() => setEtape('upload')}
+      />
+    );
+  }
+
+  // Module Benchmark
+  if (etape === 'benchmark') {
+    return (
+      <BenchmarkModule
+        onNaviguerPlanning={handleNaviguerPlanningDepuisBenchmark}
+        onRetourAccueilGlobal={retourAccueil}
+      />
+    );
+  }
+
+  // ========== RENDU V3 (Planning) ==========
   return (
     <div className="min-h-screen p-8 print:p-0 print:bg-white" style={{ backgroundColor: mousquetairesColors.secondary.beigeLight }}>
       <div className="max-w-7xl mx-auto print:max-w-none print:mx-0">
@@ -469,6 +509,20 @@ function App() {
           {/* Indicateur d'étapes */}
           <div className="flex items-center justify-between px-6 py-6">
             <div className="flex items-center gap-4">
+              {/* Bouton Accueil V4 */}
+              <button
+                onClick={retourAccueil}
+                className="flex items-center gap-2 px-4 py-3 rounded-lg font-semibold transition-all cursor-pointer hover:bg-gray-100"
+                style={{
+                  backgroundColor: mousquetairesColors.secondary.beige,
+                  color: mousquetairesColors.text.secondary,
+                  border: `1px solid ${mousquetairesColors.secondary.gray}`
+                }}
+                title="Retour à l'accueil"
+              >
+                <Home size={20} />
+              </button>
+              <ChevronRight style={{ color: mousquetairesColors.secondary.gray }} />
               <button
                 onClick={() => setEtape('upload')}
                 className="flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all cursor-pointer"

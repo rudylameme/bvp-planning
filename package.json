@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:v4": "vite --config vite.config.v4.js",
     "build": "vite build",
+    "build:manager": "vite build --config vite.config.manager.js",
+    "build:equipe": "vite build --config vite.config.equipe.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -17,6 +20,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
+    "@rollup/rollup-linux-arm64-gnu": "^4.55.2",
     "@types/react": "^19.1.16",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.4",

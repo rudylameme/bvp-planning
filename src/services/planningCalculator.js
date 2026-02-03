@@ -48,7 +48,8 @@ export const calculerRedistribution = (joursOuverture, potentielsBase) => {
 
       if (creneauConfig?.statut === 'ferme_exceptionnel') {
         const potentielARedistribuer = potentielsBase[jour]?.[creneau] || 0;
-        const redistribution = creneauConfig.redistribution || { memeJourAutreCreneau: 85, jourSuivant: 15 };
+        // Redistribution par défaut: 75% même jour autre créneau, 25% jour suivant
+        const redistribution = creneauConfig.redistribution || { memeJourAutreCreneau: 75, jourSuivant: 25 };
 
         // Mettre le créneau fermé à 0
         potentielsFinals[jour][creneau] = 0;
@@ -112,8 +113,8 @@ export const convertirJoursOuvertureV2VersV1 = (joursOuvertureV2) => {
     // Gérer les fermetures exceptionnelles (avec redistribution)
     if (matinStatut === 'ferme_exceptionnel' || apremStatut === 'ferme_exceptionnel') {
       const jourSuivant = getJourSuivant(jour);
-      const redistMatin = config.matin?.redistribution || { memeJourAutreCreneau: 85, jourSuivant: 15 };
-      const redistAprem = config.apresMidi?.redistribution || { memeJourAutreCreneau: 85, jourSuivant: 15 };
+      const redistMatin = config.matin?.redistribution || { memeJourAutreCreneau: 75, jourSuivant: 25 };
+      const redistAprem = config.apresMidi?.redistribution || { memeJourAutreCreneau: 75, jourSuivant: 25 };
 
       // Moyenne des redistributions si les deux sont exceptionnels
       const redistribution = (matinStatut === 'ferme_exceptionnel' && apremStatut === 'ferme_exceptionnel')
@@ -392,20 +393,23 @@ export const calculerPlanning = (frequentationData, produits, configSemaine = nu
     }
 
     // Fonction pour appliquer la variante par défaut (comme dans le recalculator)
-    const appliquerVarianteJournaliere = (qteMathematique, ventesHistoriques, variante) => {
+    const appliquerVarianteJournaliere = (qteMathematique, ventesHistoriques, variante, limitePerso) => {
       // Protection contre les zéros
       if (ventesHistoriques === 0 && qteMathematique === 0) {
         return 2;
       }
 
+      // Plancher : le résultat ne peut pas descendre en dessous de 95% de l'historique
+      const plancher = ventesHistoriques > 0 ? Math.ceil(ventesHistoriques * 0.95) : 0;
+
       // Le minimum est toujours les ventes historiques (si > 0)
       if (qteMathematique < ventesHistoriques) {
-        return ventesHistoriques;
+        return Math.max(ventesHistoriques, plancher);
       }
 
       // Application des limites selon variante
       if (variante === 'sans') {
-        return qteMathematique;
+        return Math.max(qteMathematique, plancher);
       }
 
       // Protection contre division par zéro
@@ -416,22 +420,28 @@ export const calculerPlanning = (frequentationData, produits, configSemaine = nu
       const progression = (qteMathematique - ventesHistoriques) / ventesHistoriques;
 
       if (variante === 'forte') {
-        // Limite +20%
         if (progression > 0.20) {
-          return Math.ceil(ventesHistoriques * 1.20);
+          return Math.max(Math.ceil(ventesHistoriques * 1.20), plancher);
         }
-        return qteMathematique;
+        return Math.max(qteMathematique, plancher);
       }
 
       if (variante === 'faible') {
-        // Limite +10%
         if (progression > 0.10) {
-          return Math.ceil(ventesHistoriques * 1.10);
+          return Math.max(Math.ceil(ventesHistoriques * 1.10), plancher);
         }
-        return qteMathematique;
+        return Math.max(qteMathematique, plancher);
       }
 
-      return qteMathematique;
+      if (variante === 'personnalisee' && typeof limitePerso === 'number') {
+        const limiteRatio = limitePerso / 100;
+        if (progression > limiteRatio) {
+          return Math.max(Math.ceil(ventesHistoriques * (1 + limiteRatio)), plancher);
+        }
+        return Math.max(qteMathematique, plancher);
+      }
+
+      return Math.max(qteMathematique, plancher);
     };
 
     // Variantes par défaut : Forte (lundi-jeudi), Faible (vendredi-dimanche)
@@ -527,16 +537,56 @@ export const calculerPlanning = (frequentationData, produits, configSemaine = nu
             }
           }
 
-          // 3. Distribuer dans le planning jour par jour
+          // 3. Distribuer dans le planning jour par jour avec les règles par seuil
           for (const jour of joursCapitalized) {
             const jourLower = jour.toLowerCase();
             const qteJour = quantitesFinalesSemaine[jourLower] || 0;
             const dist = distributionTranches[jourLower];
 
-            const qteMatin = Math.ceil(qteJour * dist.matin);
-            const qteMidi = Math.ceil(qteJour * dist.midi);
-            // Le reste sur le soir pour éviter les écarts d'arrondi, sauf si soir doit être 0
-            const qteSoir = (dist.soir === 0) ? 0 : (qteJour - qteMatin - qteMidi);
+            let qteMatin, qteMidi, qteSoir;
+
+            // Nouvelles règles de distribution basées sur la quantité journalière
+            if (qteJour < 6) {
+              // < 6 unités : 2 distributions (70% ouverture + 30% créneau le plus fréquenté)
+              const creneauMax = dist.midi > dist.soir ? 'midi' : 'soir';
+              qteMatin = Math.ceil(qteJour * 0.70);
+              if (creneauMax === 'midi') {
+                qteMidi = Math.ceil(qteJour * 0.30);
+                qteSoir = 0;
+              } else {
+                qteMidi = 0;
+                qteSoir = Math.ceil(qteJour * 0.30);
+              }
+            } else if (qteJour <= 10) {
+              // 6-10 unités : 3 distributions (60% + 20% + 20%)
+              qteMatin = Math.ceil(qteJour * 0.60);
+              qteMidi = Math.ceil(qteJour * 0.20);
+              qteSoir = Math.ceil(qteJour * 0.20);
+            } else if (qteJour <= 20) {
+              // 10-20 unités : 3 distributions (40% + 30% + 30%)
+              qteMatin = Math.ceil(qteJour * 0.40);
+              qteMidi = Math.ceil(qteJour * 0.30);
+              qteSoir = Math.ceil(qteJour * 0.30);
+            } else {
+              // > 20 unités : Distribution classique par poids
+              qteMatin = Math.ceil(qteJour * dist.matin);
+              qteMidi = Math.ceil(qteJour * dist.midi);
+              // Le reste sur le soir pour éviter les écarts d'arrondi, sauf si soir doit être 0
+              qteSoir = (dist.soir === 0) ? 0 : (qteJour - qteMatin - qteMidi);
+            }
+
+            // Ajuster si le total dépasse (arrondi vers le haut)
+            const totalCreneaux = qteMatin + qteMidi + qteSoir;
+            if (totalCreneaux > qteJour && qteJour > 0) {
+              const exces = totalCreneaux - qteJour;
+              if (qteSoir >= exces) {
+                qteSoir -= exces;
+              } else if (qteMidi >= exces) {
+                qteMidi -= exces;
+              } else {
+                qteMatin -= exces;
+              }
+            }
 
             // Calculer les ventes historiques pour ce jour
             const ventesHistoriques = calculerVentesHistoriquesPourJour(produit.ventesParJour, jourLower);

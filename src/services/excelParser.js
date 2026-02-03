@@ -36,7 +36,7 @@ export async function parseVentesExcel(file) {
 
             // Pattern: "10679 - SAS CHAMAFFI Date : ..." (code numérique suivi de nom, puis Date/Heure)
             // On isole le code et le nom avant "Date :"
-            const codeNomDateMatch = cellStr.match(/^(\d{4,6})\s*[-–]\s*([^D]+?)(?:\s*Date\s*:|$)/i);
+            const codeNomDateMatch = cellStr.match(/^(\d{4,6})\s*[-–]\s*(.+?)(?:\s+Date\s*:|$)/i);
             if (codeNomDateMatch) {
               codeMagasin = codeNomDateMatch[1];
               nomMagasin = codeNomDateMatch[2].trim();
@@ -44,7 +44,8 @@ export async function parseVentesExcel(file) {
             }
 
             // Pattern: "PDV: 12345 - Nom Magasin" ou "PDV 12345 - Nom Magasin"
-            const pdvMatch = cellStr.match(/PDV[:\s]*(\d+)\s*[-–]\s*([^D]+?)(?:\s*Date\s*:|$)/i);
+            // Utilise une approche différente: capture tout jusqu'à "Date :" puis extrait code et nom
+            const pdvMatch = cellStr.match(/PDV[:\s]*(\d+)\s*[-–]\s*(.+?)(?:\s+Date\s*:|$)/i);
             if (pdvMatch) {
               codeMagasin = pdvMatch[1];
               nomMagasin = pdvMatch[2].trim();
@@ -90,11 +91,30 @@ export async function parseVentesExcel(file) {
           ean: headers.findIndex(h => h.includes('ean')),
           libelle: headers.findIndex(h => h.includes('libellé') || h.includes('libelle')),
           date: headers.findIndex(h => h === 'date'),
-          quantite: headers.findIndex(h => h.includes('quantité') || h.includes('quantite') || h.includes('qte')),
+          quantite: headers.findIndex(h =>
+            (h.includes('quantité') || h.includes('quantite') || h.includes('qte')) &&
+            !h.includes('casse') // Exclure les colonnes de casse
+          ),
           valeurPrixVente: headers.findIndex(h =>
             h.includes('valeur prix vente') ||
             (h.includes('valeur') && h.includes('vente')) ||
+            (h.includes('ventes') && h.includes('pv')) ||
             h.includes('montant')
+          ),
+          // Colonnes de CASSE (nouveau format)
+          casseQte: headers.findIndex(h =>
+            (h.includes('casse') && (h.includes('qté') || h.includes('quantité') || h.includes('qte'))) ||
+            h === 'casse qté' ||
+            h === 'qté casse'
+          ),
+          cassePaHT: headers.findIndex(h =>
+            (h.includes('casse') && h.includes('pa')) ||
+            h.includes('casse pa ht')
+          ),
+          tauxCasse: headers.findIndex(h =>
+            h.includes('taux de casse') ||
+            h.includes('taux casse') ||
+            h.includes('% casse')
           ),
           // Colonnes optionnelles pour les marges (si présentes)
           prixAchatHT: headers.findIndex(h =>
@@ -114,6 +134,13 @@ export async function parseVentesExcel(file) {
             h.includes('taxe')
           )
         };
+
+        // Log des colonnes détectées (pour debug)
+        console.log('📊 Colonnes détectées:', {
+          ventes: colIndex.quantite !== -1 ? headers[colIndex.quantite] : 'non trouvée',
+          casseQte: colIndex.casseQte !== -1 ? headers[colIndex.casseQte] : 'non trouvée',
+          tauxCasse: colIndex.tauxCasse !== -1 ? headers[colIndex.tauxCasse] : 'non trouvée'
+        });
 
         // Vérifier les colonnes obligatoires
         if (colIndex.libelle === -1) {
@@ -142,6 +169,17 @@ export async function parseVentesExcel(file) {
           const quantite = Number(row[colIndex.quantite]) || 0;
           const valeurPrixVente = colIndex.valeurPrixVente !== -1
             ? Number(row[colIndex.valeurPrixVente]) || 0
+            : 0;
+
+          // Données de CASSE (si présentes dans le fichier)
+          const casseQte = colIndex.casseQte !== -1
+            ? Number(row[colIndex.casseQte]) || 0
+            : 0;
+          const cassePaHT = colIndex.cassePaHT !== -1
+            ? Number(row[colIndex.cassePaHT]) || 0
+            : 0;
+          const tauxCasse = colIndex.tauxCasse !== -1
+            ? Number(row[colIndex.tauxCasse]) || 0
             : 0;
 
           // Données optionnelles de marge (si présentes dans le fichier)
@@ -181,12 +219,22 @@ export async function parseVentesExcel(file) {
               ean,
               libelle,
               ventes: [],
+              // Données de casse (nouvelles colonnes)
+              casseTotale: 0,
+              cassePaHTTotal: 0,
+              valeurPrixVenteTotal: 0, // Pour calcul taux de casse
+              tauxCasseMoyen: 0,
               // Données de marge (si disponibles)
               prixAchatHT: null,
               tauxMarge: null,
               tva: null
             };
           }
+
+          // Accumuler les données de casse et ventes
+          parProduit[cleProduit].casseTotale += casseQte;
+          parProduit[cleProduit].cassePaHTTotal += cassePaHT;
+          parProduit[cleProduit].valeurPrixVenteTotal += valeurPrixVente;
 
           // Mettre à jour les données de marge si disponibles
           // (prend la première valeur non-nulle trouvée)
@@ -203,7 +251,11 @@ export async function parseVentesExcel(file) {
           parProduit[cleProduit].ventes.push({
             date,
             quantite,
-            valeurPrixVente
+            valeurPrixVente,
+            // Données de casse pour cette date
+            casseQte,
+            cassePaHT,
+            tauxCasse
           });
         }
 
@@ -215,6 +267,30 @@ export async function parseVentesExcel(file) {
 
         // Trier les dates pour avoir la période
         const dates = Array.from(toutesLesDates).sort();
+
+        // Calculer le taux de casse pour chaque produit
+        // Formule correcte Mousquetaires: PA HT Casse / PV TTC Ventes
+        let cassePaHTGlobale = 0;
+        let pvTTCVentesGlobale = 0;
+        Object.values(parProduit).forEach(produit => {
+          cassePaHTGlobale += produit.cassePaHTTotal;
+          pvTTCVentesGlobale += produit.valeurPrixVenteTotal;
+          // Calculer le taux de casse du produit (PA HT Casse / PV TTC Ventes)
+          if (produit.valeurPrixVenteTotal > 0 && produit.cassePaHTTotal > 0) {
+            produit.tauxCasseMoyen = Math.round((produit.cassePaHTTotal / produit.valeurPrixVenteTotal) * 10000) / 100;
+          }
+        });
+
+        // Vérifier si des données de casse sont disponibles
+        const produitsAvecCasse = Object.values(parProduit).filter(p => p.casseTotale > 0);
+        const donneesCasseDisponibles = produitsAvecCasse.length > 0;
+
+        if (donneesCasseDisponibles) {
+          console.log(`✅ Données de casse trouvées pour ${produitsAvecCasse.length} produits`);
+          console.log(`   Casse PA HT totale: ${cassePaHTGlobale.toFixed(2)} €`);
+        } else {
+          console.log('ℹ️ Aucune donnée de casse dans le fichier');
+        }
 
         // Vérifier si des données de marge sont disponibles
         const produitsAvecMarge = Object.values(parProduit).filter(
@@ -242,7 +318,15 @@ export async function parseVentesExcel(file) {
           } : null,
           // Indicateur de disponibilité des données de marge
           donneesMargeDisponibles,
-          nombreProduitsAvecMarge: produitsAvecMarge.length
+          nombreProduitsAvecMarge: produitsAvecMarge.length,
+          // Données de casse globales (formule: PA HT Casse / PV TTC Ventes)
+          donneesCasseDisponibles,
+          cassePaHTGlobale,
+          pvTTCVentesGlobale,
+          nombreProduitsAvecCasse: produitsAvecCasse.length,
+          tauxCasseGlobal: pvTTCVentesGlobale > 0
+            ? Math.round((cassePaHTGlobale / pvTTCVentesGlobale) * 10000) / 100
+            : 0
         });
 
       } catch (error) {

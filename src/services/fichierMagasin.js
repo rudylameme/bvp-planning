@@ -12,8 +12,8 @@ const FICHIER_VERSION = '2.1';
 const defaultCreneau = {
   statut: 'ouvert',
   redistribution: {
-    memeJourAutreCreneau: 85,
-    jourSuivant: 15
+    memeJourAutreCreneau: 75,
+    jourSuivant: 25
   }
 };
 
@@ -58,11 +58,11 @@ function migrateJoursOuverture(joursOuverture) {
     nouveauFormat[jour] = {
       matin: {
         statut: estOuvert ? 'ouvert' : 'ferme_habituel',
-        redistribution: { memeJourAutreCreneau: 85, jourSuivant: 15 }
+        redistribution: { memeJourAutreCreneau: 75, jourSuivant: 25 }
       },
       apresMidi: {
         statut: estOuvert ? 'ouvert' : 'ferme_habituel',
-        redistribution: { memeJourAutreCreneau: 85, jourSuivant: 15 }
+        redistribution: { memeJourAutreCreneau: 75, jourSuivant: 25 }
       }
     };
   });

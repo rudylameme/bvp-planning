@@ -55,17 +55,21 @@ export default function ImportFichierEquipe({ onFichierCharge }) {
       const contenu = await file.text();
       const data = JSON.parse(contenu);
 
-      // Valider la structure du fichier
-      if (!data.version || !data.magasin || !data.configuration || !data.produits) {
+      // Valider la structure du fichier (accepter version ou schemaVersion)
+      const version = data.version || data.schemaVersion;
+      if (!version || !data.magasin || !data.configuration || !data.produits) {
         setErreur('Le fichier ne semble pas être un fichier BVP Planning valide');
         return;
       }
 
-      // Vérifier la version
-      if (!data.version.startsWith('2.')) {
-        setErreur('Ce fichier a été créé avec une ancienne version. Demandez un nouveau fichier à votre responsable.');
+      // Vérifier la version (accepter 2.x et 3.x)
+      if (!version.startsWith('2.') && !version.startsWith('3.')) {
+        setErreur('Ce fichier a été créé avec une version incompatible. Demandez un nouveau fichier à votre responsable.');
         return;
       }
+
+      // Normaliser la version pour la suite
+      data.version = version;
 
       setFichierCharge(data);
       setEtape('confirmation');
@@ -206,10 +210,10 @@ export default function ImportFichierEquipe({ onFichierCharge }) {
             <div>
               <p className="text-xs text-gray-500">Semaine</p>
               <p className="font-semibold text-[#58595B]">
-                Semaine {fichierCharge.configuration.semaine} / {fichierCharge.configuration.annee}
+                Semaine {fichierCharge.semaine?.numero || fichierCharge.configuration?.semaine} / {fichierCharge.semaine?.annee || fichierCharge.configuration?.annee}
               </p>
               <p className="text-xs text-gray-400">
-                {formatDate(fichierCharge.configuration.dateDebut)} → {formatDate(fichierCharge.configuration.dateFin)}
+                {formatDate(fichierCharge.semaine?.dateDebut || fichierCharge.configuration?.dateDebut)} → {formatDate(fichierCharge.semaine?.dateFin || fichierCharge.configuration?.dateFin)}
               </p>
             </div>
           </div>
@@ -231,7 +235,7 @@ export default function ImportFichierEquipe({ onFichierCharge }) {
         {/* Date de génération */}
         <div className="mt-4 pt-4 border-t border-gray-200">
           <p className="text-xs text-gray-400">
-            Fichier généré le {formatDate(fichierCharge.dateGeneration)}
+            Fichier généré le {formatDate(fichierCharge.createdAt || fichierCharge.dateGeneration)}
           </p>
         </div>
       </div>

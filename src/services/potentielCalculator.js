@@ -10,33 +10,25 @@ import { getJourSemaine } from '../utils/dateUtils';
  * @returns {number} Nombre de semaines
  */
 export function detecterNombreSemaines(ventesParProduit) {
-  // Collecter toutes les dates uniques
-  const datesUniques = new Set();
+  // Collecter toutes les semaines ISO distinctes
+  const semainesDistinctes = new Set();
 
   Object.values(ventesParProduit).forEach(ventes => {
     if (Array.isArray(ventes)) {
       ventes.forEach(v => {
         if (v.date) {
-          datesUniques.add(v.date);
+          const date = new Date(v.date);
+          if (!isNaN(date.getTime())) {
+            const semaine = getNumeroSemaineISO(date);
+            const annee = date.getFullYear();
+            semainesDistinctes.add(`${annee}-W${String(semaine).padStart(2, '0')}`);
+          }
         }
       });
     }
   });
 
-  if (datesUniques.size === 0) return 1;
-
-  // Trier les dates
-  const dates = Array.from(datesUniques).sort();
-  const dateDebut = new Date(dates[0]);
-  const dateFin = new Date(dates[dates.length - 1]);
-
-  // Calculer le nombre de jours
-  const diffJours = Math.ceil((dateFin - dateDebut) / (1000 * 60 * 60 * 24)) + 1;
-
-  // Convertir en semaines (arrondi supérieur, minimum 1)
-  const nombreSemaines = Math.max(1, Math.ceil(diffJours / 7));
-
-  return nombreSemaines;
+  return Math.max(1, semainesDistinctes.size);
 }
 
 /**
@@ -80,8 +72,28 @@ export function calculerMoyenneHebdo(ventesProduit, nombreSemaines) {
     return 0;
   }
 
-  const totalVentes = ventesProduit.reduce((sum, v) => sum + (v.quantite || 0), 0);
-  return Math.round(totalVentes / nombreSemaines);
+  // Grouper par jour de la semaine (0=dim..6=sam)
+  const parJour = {};
+  ventesProduit.forEach(v => {
+    if (!v.date) return;
+    const d = new Date(v.date);
+    if (isNaN(d.getTime())) return;
+    const jour = d.getDay();
+    if (!parJour[jour]) parJour[jour] = { total: 0, count: 0 };
+    parJour[jour].total += (v.quantite || 0);
+    parJour[jour].count += 1;
+  });
+
+  // Somme des moyennes de chaque jour
+  const jours = Object.values(parJour);
+  if (jours.length === 0) {
+    // Fallback
+    const totalVentes = ventesProduit.reduce((sum, v) => sum + (v.quantite || 0), 0);
+    return Math.round(totalVentes / nombreSemaines);
+  }
+
+  const moyHebdo = jours.reduce((sum, { total, count }) => sum + (count > 0 ? total / count : 0), 0);
+  return Math.round(moyHebdo);
 }
 
 /**
@@ -548,15 +560,17 @@ export const calculerPotentielAvecStats = (stats, frequentationData, modeBase = 
  * Calcule les potentiels pour tous les produits avec mode de progression
  * @param {Array} produits - Liste des produits
  * @param {Object} frequentationData - Données de fréquentation
- * @param {string} mode - Mode de calcul: 'mathematique' | 'forte-progression' | 'prudent' | 'moyenne-stats'
+ * @param {string} mode - Mode de calcul: 'mathematique' | 'forte-progression' | 'prudent' | 'moyenne-stats' | 'personnalisee'
+ * @param {number} [limitePerso] - Pourcentage max si mode='personnalisee' (ex: 15 pour +15%)
  * @returns {Array} Produits avec potentiels calculés
  */
-export const calculerPotentielsPourTous = (produits, frequentationData, mode = 'mathematique') => {
+export const calculerPotentielsPourTous = (produits, frequentationData, mode = 'mathematique', limitePerso) => {
   const limites = {
     'mathematique': null,          // Pas de limite
     'forte-progression': 0.20,     // +20% max
     'prudent': 0.10,               // +10% max
-    'moyenne-stats': null          // Utilise moyenne des max (multi-semaines)
+    'moyenne-stats': null,         // Utilise moyenne des max (multi-semaines)
+    'personnalisee': typeof limitePerso === 'number' ? limitePerso / 100 : 0.15
   };
 
   const limiteProgression = limites[mode];
@@ -598,6 +612,9 @@ export const calculerPotentielsPourTous = (produits, frequentationData, mode = '
     // Volume actuel (moyenne hebdo si stats dispo, sinon total)
     const volumeActuel = produit.stats?.moyenneHebdo || produit.totalVentes || 0;
 
+    // Plancher : le potentiel ne peut pas descendre en dessous de 95% de l'historique
+    const plancher = volumeActuel > 0 ? Math.ceil(volumeActuel * 0.95) : 0;
+
     // Appliquer la limite de progression selon le mode
     let potentielFinal = potentielMathematique;
 
@@ -611,8 +628,10 @@ export const calculerPotentielsPourTous = (produits, frequentationData, mode = '
         // Pas de baisse : garder le volume actuel
         potentielFinal = Math.ceil(volumeActuel);
       }
-      // Sinon : progression entre 0 et la limite → garder le calcul mathématique
     }
+
+    // Appliquer le plancher dans tous les cas
+    potentielFinal = Math.max(potentielFinal, plancher);
 
     return {
       ...produit,
