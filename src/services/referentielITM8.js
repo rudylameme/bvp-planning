@@ -17,6 +17,7 @@ let referentielCache = null;
  *
  * ProductInfo: {
  *   itm8: number,
+ *   ean13: string (code EAN13, peut contenir plusieurs codes séparés par ";"),
  *   libelle: string,
  *   rayon: string,
  *   programme: string,
@@ -96,7 +97,10 @@ export const chargerReferentielITM8 = async (filePath) => {
       const unitesParPlaque = Number(unitesParPlaqueRaw) || 0;
 
       // Code PLU pour les étiquettes
-      const codePLU = (row['Code PLU'] || '').toString().trim();
+      const codePLU = (row['Code PLU'] || row['PLU'] || '').toString().trim();
+
+      // Code EAN13 (peut contenir plusieurs codes séparés par ";")
+      const ean13Raw = (row['EAN13'] || '').toString().trim();
 
       // DEBUG: Afficher les 3 premiers produits avec leurs valeurs
       if (index < 3) {
@@ -104,6 +108,7 @@ export const chargerReferentielITM8 = async (filePath) => {
         console.log(`   - unit / lot (raw): "${unitesParVenteRaw}" → ${unitesParVente}`);
         console.log(`   - Nombre d'unit par plaque (raw): "${unitesParPlaqueRaw}" → ${unitesParPlaque}`);
         console.log(`   - Code PLU: "${codePLU}"`);
+        console.log(`   - EAN13: "${ean13Raw}"`);
 
         // DEBUG SUPPLÉMENTAIRE: afficher TOUTES les colonnes pour le produit 1
         if (index === 0) {
@@ -117,6 +122,7 @@ export const chargerReferentielITM8 = async (filePath) => {
       if (itm8 && rayon && programme) {
         itm8Map.set(itm8, {
           itm8,
+          ean13: ean13Raw,
           libelle: row['Libellé produit'] || '',
           rayon,
           programme,
@@ -142,15 +148,29 @@ export const chargerReferentielITM8 = async (filePath) => {
       }
     });
 
+    // Créer un index par EAN13 pour la recherche par code EAN
+    const eanMap = new Map();
+    itm8Map.forEach((info) => {
+      if (info.ean13) {
+        // Gérer les EAN multiples séparés par ";"
+        const eanCodes = info.ean13.split(';').map(e => e.trim()).filter(e => e);
+        eanCodes.forEach(ean => {
+          eanMap.set(ean, info);
+        });
+      }
+    });
+
     referentielCache = {
       itm8Map,
       libelleMap,
+      eanMap,
       rayons: Array.from(rayonsSet).sort(),
       programmes: Array.from(programmesSet).sort()
     };
 
     console.log('✅ Référentiel chargé avec succès');
     console.log(`   - ${itm8Map.size} ITM8 uniques`);
+    console.log(`   - ${eanMap.size} EAN13 indexés`);
     console.log(`   - ${rayonsSet.size} rayons: ${Array.from(rayonsSet).join(', ')}`);
     console.log(`   - ${programmesSet.size} programmes: ${Array.from(programmesSet).join(', ')}`);
 
@@ -173,6 +193,17 @@ export const rechercherParITM8 = (itm8) => {
   }
 
   return referentielCache.itm8Map.get(itm8) || null;
+};
+
+/**
+ * Recherche un produit par son code EAN13
+ * @param {string|number} ean - Code EAN13
+ * @returns {ProductInfo|null}
+ */
+export const rechercherParEAN = (ean) => {
+  if (!referentielCache || !referentielCache.eanMap) return null;
+  const eanNorm = (ean || '').toString().trim();
+  return referentielCache.eanMap.get(eanNorm) || null;
 };
 
 /**

@@ -25,7 +25,7 @@
  */
 
 import * as XLSX from 'xlsx';
-import { rechercherParLibelle, isReferentielCharge, mapRayonVersFamille } from './referentielITM8';
+import { rechercherParLibelle, rechercherParEAN, isReferentielCharge, mapRayonVersFamille } from './referentielITM8';
 
 // Cache pour éviter de relire les fichiers
 const cache = {
@@ -781,8 +781,18 @@ export function formaterPourPilotageCA(data) {
   const { produits, statistiques } = data;
 
   return produits.map((p, index) => {
-    // Chercher dans le référentiel ITM8 par libellé pour enrichir les données
-    const infoRef = isReferentielCharge() ? rechercherParLibelle(p.libelle) : null;
+    // Chercher dans le référentiel : priorité EAN (correspondance exacte), puis fallback libellé
+    let infoRef = null;
+    if (isReferentielCharge()) {
+      // Priorité 1 : lookup par EAN (fiable, correspondance exacte)
+      if (p.codeEAN) {
+        infoRef = rechercherParEAN(p.codeEAN);
+      }
+      // Priorité 2 : fallback par libellé (si EAN non trouvé dans le référentiel)
+      if (!infoRef) {
+        infoRef = rechercherParLibelle(p.libelle);
+      }
+    }
 
     // Déterminer le rayon : priorité au référentiel, sinon heuristique
     let rayon = 'AUTRE';
@@ -809,11 +819,19 @@ export function formaterPourPilotageCA(data) {
     return {
       id: index + 1,
       codeEAN: p.codeEAN,
-      itm8: infoRef ? infoRef.itm8 : p.codeEAN,
-      plu: infoRef && infoRef.codePLU ? infoRef.codePLU : p.codeEAN,
+      ean13: infoRef ? infoRef.ean13 : p.codeEAN,
+      itm8: infoRef ? infoRef.itm8 : '',
+      plu: infoRef && infoRef.codePLU ? infoRef.codePLU : '',
+      codePLU: infoRef ? infoRef.codePLU : '',
       libelle: p.libelle,
       rayon,
       famille: rayon,
+      // Données du référentiel (programme cuisson, unités)
+      programme: infoRef ? infoRef.programme : '',
+      unitesParVente: infoRef ? infoRef.unitesParVente : 1,
+      unitesParPlaque: infoRef ? infoRef.unitesParPlaque : 0,
+      // Flag de reconnaissance
+      reconnu: !!infoRef,
       // Nouvelles colonnes selon le mockup
       moyHebdo: p.moyHebdo || Math.round(p.ventesQte),
       potentiel: p.potentiel || Math.round(p.ventesQte),

@@ -1,54 +1,44 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Package, Search, Calendar, AlertTriangle, ChevronDown, ChevronRight, ChevronUp, Info, Plus, X, RotateCcw } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useCallback, useImperativeHandle, forwardRef } from 'react';
+import { Package, Search, Calendar, Printer, AlertTriangle, ChevronDown, ChevronRight, ChevronUp, Info, Plus, X, RotateCcw } from 'lucide-react';
+import {
+  chargerConditionnements,
+  isConditionnementCharge,
+  rechercherConditionnement
+} from '../../services/conditionnementService';
 import FicheCommandeImpression from './FicheCommandeImpression';
-import { useMagasin } from '../../contexts/MagasinContext';
 
 /**
- * OngletCommande - Module Commande Multi-Livraisons (V5)
- * Migré depuis StepCommande V4, utilise useMagasin() au lieu des props
+ * StepCommande - Étape 5 du Wizard Responsable
+ * Système multi-livraisons avec calcul en cascade
  */
-const ORDRE_FAMILLES = ['BOULANGERIE', 'VIENNOISERIE', 'PATISSERIE', 'SNACKING', 'AUTRE'];
-
-const OngletCommande = () => {
-  const {
-    produitsGamme: produits,
-    commandeConfig,
-    setCommandeConfig,
-    semainePlanning,
-    infoPDV,
-    donneesMagasin,
-    promosActives,
-  } = useMagasin();
-
-  const semaine = semainePlanning?.semaine;
-  const annee = semainePlanning?.annee;
-  const magasin = {
-    nom: infoPDV?.nom || donneesMagasin?.magasin?.nom || '',
-    code: infoPDV?.code || donneesMagasin?.magasin?.code || '',
-  };
-
-  // Helper pour mettre à jour commandeConfig
-  const onCommandeConfigChange = useCallback((newConfig) => {
-    setCommandeConfig(newConfig);
-  }, [setCommandeConfig]);
-
+const StepCommande = forwardRef(function StepCommande({
+  produits,
+  commandeConfig,
+  onCommandeConfigChange,
+  semaine,
+  annee,
+  magasin = { nom: '', code: '' },
+  promosActives = []
+}, ref) {
   // États locaux
+  const [chargementEnCours, setChargementEnCours] = useState(false);
   const [recherche, setRecherche] = useState('');
   const [familleFiltre, setFamilleFiltre] = useState('Toutes');
   const [sectionsOuvertes, setSectionsOuvertes] = useState({
     BOULANGERIE: true,
     VIENNOISERIE: true,
-    PATISSERIE: true,
-    SNACKING: true,
-    NEGOCE: true,
-    AUTRE: true
+    PATISSERIE: false,
+    SNACKING: false,
+    NEGOCE: false,
+    AUTRE: false
   });
 
   // État pour le tri
+  // colonnes: 'produit', 'cdt', 'mini', 'stock', 'total', 'cmd1', 'cmd2', 'cmd3'
   const [triColonne, setTriColonne] = useState(null);
-  const [triOrdre, setTriOrdre] = useState('asc');
+  const [triOrdre, setTriOrdre] = useState('asc'); // 'asc' ou 'desc'
 
-  // Livraisons par défaut (2 livraisons)
+  // Livraisons par défaut (2 livraisons) avec date de commande et de réception
   const [livraisons, setLivraisons] = useState(
     commandeConfig.livraisons || [
       { id: 1, dateCommande: null, dateReception: null, label: 'Livraison 1' },
@@ -57,31 +47,52 @@ const OngletCommande = () => {
   );
 
   // Quantités fixées manuellement par produit et par livraison
+  // Structure: { [itm8]: { [livraisonId]: number | null } }
   const [qtesFixees, setQtesFixees] = useState(commandeConfig.qtesFixees || {});
 
-  // CDT personnalisés par l'utilisateur
+  // CDT personnalisés par l'utilisateur (override du fichier de référence)
+  // Structure: { [itm8]: number }
   const [cdtPersonnalises, setCdtPersonnalises] = useState(commandeConfig.cdtPersonnalises || {});
 
-  // Livraison forte sélectionnée
+  // Livraison forte sélectionnée (null = répartition égale, ou id de la livraison forte)
   const [livraisonForte, setLivraisonForte] = useState(commandeConfig.livraisonForte || null);
 
-  // Mode de stock par défaut
+  // Mode de stock par défaut : 'normal' (3 jours) ou 'court' (1.5 jours)
   const [modeStockDefaut, setModeStockDefaut] = useState(commandeConfig.modeStockDefaut || 'normal');
 
-  // Modes de stock personnalisés par produit
+  // Modes de stock personnalisés par produit (override du mode par défaut)
+  // Structure: { [itm8]: 'normal' | 'court' | 'manuel' }
   const [modesStockProduits, setModesStockProduits] = useState(commandeConfig.modesStockProduits || {});
 
-  // Personnalisation produit : programme cuisson et unités/plaque
-  // Structure: { [identifiant]: { programmeCuisson: 'P1', unitesParPlaque: 12 } }
-  const [personnalisationProduits, setPersonnalisationProduits] = useState(commandeConfig.personnalisationProduits || {});
-
+  // Nombre de jours de stock selon le mode
   const JOURS_STOCK = {
-    normal: 3,
-    court: 1.5
+    normal: 3,    // 3 jours de consommation (écart standard entre livraisons)
+    court: 1.5    // 1.5 jours (stock réduit pour rotation rapide)
   };
 
   // Modal d'impression
   const [showImpressionModal, setShowImpressionModal] = useState(false);
+
+  // Exposer la fonction d'ouverture du modal d'impression au parent
+  useImperativeHandle(ref, () => ({
+    ouvrirImpression: () => setShowImpressionModal(true)
+  }));
+
+  // Charger les conditionnements au montage
+  useEffect(() => {
+    const charger = async () => {
+      if (!isConditionnementCharge()) {
+        setChargementEnCours(true);
+        try {
+          await chargerConditionnements('/Data/liste des conditionements.xlsx');
+        } catch (err) {
+          console.error('Erreur chargement conditionnements:', err);
+        }
+        setChargementEnCours(false);
+      }
+    };
+    charger();
+  }, []);
 
   // Initialiser les dates de livraison par défaut
   useEffect(() => {
@@ -92,10 +103,12 @@ const OngletCommande = () => {
       const decalage = (jourSemaine <= 4) ? 1 - jourSemaine : 8 - jourSemaine;
       const lundi = new Date(annee, 0, 1 + decalage + joursJusquaLundi);
 
+      // Livraison 1: Commande lundi, Réception mercredi
       const dateCmd1 = new Date(lundi);
       const dateRec1 = new Date(lundi);
       dateRec1.setDate(dateRec1.getDate() + 2);
 
+      // Livraison 2: Commande mercredi, Réception vendredi
       const dateCmd2 = new Date(lundi);
       dateCmd2.setDate(dateCmd2.getDate() + 2);
       const dateRec2 = new Date(lundi);
@@ -117,10 +130,9 @@ const OngletCommande = () => {
       cdtPersonnalises,
       livraisonForte,
       modeStockDefaut,
-      modesStockProduits,
-      personnalisationProduits
+      modesStockProduits
     });
-  }, [livraisons, qtesFixees, cdtPersonnalises, livraisonForte, modeStockDefaut, modesStockProduits, personnalisationProduits]);
+  }, [livraisons, qtesFixees, cdtPersonnalises, livraisonForte, modeStockDefaut, modesStockProduits]);
 
   // Helper: formater une date pour input type="date"
   const formatDateInput = (date) => {
@@ -148,6 +160,7 @@ const OngletCommande = () => {
   const supprimerLivraison = (id) => {
     if (livraisons.length <= 2) return;
     setLivraisons(livraisons.filter(l => l.id !== id));
+    // Nettoyer les qtes fixées pour cette livraison
     const newQtesFixees = { ...qtesFixees };
     Object.keys(newQtesFixees).forEach(itm8 => {
       if (newQtesFixees[itm8]) {
@@ -157,34 +170,52 @@ const OngletCommande = () => {
     setQtesFixees(newQtesFixees);
   };
 
+  // Modifier la date de commande d'une livraison
   const modifierDateCommande = (id, date) => {
-    setLivraisons(livraisons.map(l => l.id === id ? { ...l, dateCommande: date } : l));
+    setLivraisons(livraisons.map(l =>
+      l.id === id ? { ...l, dateCommande: date } : l
+    ));
   };
 
+  // Modifier la date de réception d'une livraison
   const modifierDateReception = (id, date) => {
-    setLivraisons(livraisons.map(l => l.id === id ? { ...l, dateReception: date } : l));
+    setLivraisons(livraisons.map(l =>
+      l.id === id ? { ...l, dateReception: date } : l
+    ));
   };
 
+  // Modifier le CDT d'un produit (override manuel)
   const handleCdtChange = (itm8, value) => {
     const numValue = parseInt(value, 10);
     if (value === '' || isNaN(numValue)) {
+      // Supprimer le CDT personnalisé (revenir au CDT référence)
       setCdtPersonnalises(prev => {
         const newCdt = { ...prev };
         delete newCdt[itm8];
         return newCdt;
       });
     } else if (numValue > 0) {
-      setCdtPersonnalises(prev => ({ ...prev, [itm8]: numValue }));
+      setCdtPersonnalises(prev => ({
+        ...prev,
+        [itm8]: numValue
+      }));
     }
   };
 
   /**
    * Calcul de la répartition en cascade
+   * @param {number} total - Total à commander
+   * @param {Object} fixees - { livraisonId: number | null } - Valeurs fixées manuellement
+   * @param {Array} livraisonIds - IDs des livraisons
+   * @param {number|null} idLivraisonForte - ID de la livraison forte (ou null)
+   * @param {number} seuilLivraisonForte - Seuil pour regrouper sur la livraison forte
+   * @returns {Object} { livraisonId: { value: number, isAuto: boolean } }
    */
   const calculerRepartition = useCallback((total, fixees, livraisonIds, idLivraisonForte = null, seuilLivraisonForte = 0) => {
     const result = {};
     const nbLivraisons = livraisonIds.length;
 
+    // Calculer le total des valeurs fixées
     let totalFixe = 0;
     let nbFixees = 0;
     livraisonIds.forEach(id => {
@@ -194,6 +225,7 @@ const OngletCommande = () => {
       }
     });
 
+    // Si livraison forte et quantité <= seuil → tout sur la livraison forte
     if (idLivraisonForte && total > 0 && total <= seuilLivraisonForte && nbFixees === 0) {
       livraisonIds.forEach(id => {
         if (id === idLivraisonForte) {
@@ -205,8 +237,11 @@ const OngletCommande = () => {
       return result;
     }
 
+    // Reste à répartir sur les colonnes auto
     const reste = Math.max(0, total - totalFixe);
     const nbAuto = nbLivraisons - nbFixees;
+
+    // Répartition équilibrée du reste
     const parAuto = nbAuto > 0 ? Math.floor(reste / nbAuto) : 0;
     const resteModulo = nbAuto > 0 ? reste % nbAuto : 0;
 
@@ -215,6 +250,7 @@ const OngletCommande = () => {
       if (fixees[id] !== null && fixees[id] !== undefined) {
         result[id] = { value: fixees[id], isAuto: false };
       } else {
+        // Répartition auto avec reste sur les premières
         const bonus = autoIndex < resteModulo ? 1 : 0;
         result[id] = { value: parAuto + bonus, isAuto: true };
         autoIndex++;
@@ -226,42 +262,57 @@ const OngletCommande = () => {
 
   // Calculer les produits avec leurs besoins et répartition
   const produitsAvecBesoins = useMemo(() => {
-    const produitsActifs = (produits || []).filter(p => p.actif);
+    const produitsActifs = produits.filter(p => p.actif);
     const livraisonIds = livraisons.map(l => l.id);
     const nbLivraisons = livraisonIds.length;
 
+    // Première passe : calculer les quantités à commander pour chaque produit
     const produitsAvecQte = produitsActifs.map(produit => {
+      const infoCDT = rechercherConditionnement(produit.itm8);
       const cdtPerso = cdtPersonnalises[produit.itm8];
       const cdtEstPersonnalise = cdtPerso !== undefined && cdtPerso > 0;
 
-      // CDT depuis produitsGamme (colonne "CDT achat"), fallback 12
-      const cdtRef = produit.cdt || 12;
+      // CDT: personnalisé > référence > null (NC = Non Communiqué)
+      const cdtRef = infoCDT?.cdt || null;
       const cdt = cdtEstPersonnalise ? cdtPerso : cdtRef;
-      const cdtNonCommunique = false;
+      const cdtNonCommunique = cdt === null;
 
-      const besoinUnites = Math.ceil(produit.potentiel || produit.moyHebdo || 0);
+      const besoinUnites = Math.ceil(produit.potentielHebdo || 0);
+      // Si CDT non communiqué (NC) → pas de calcul, qté = 0
       const besoinCartons = (cdt && cdt > 0) ? Math.ceil(besoinUnites / cdt) : 0;
 
+      // Calcul du stock mini basé sur la consommation journalière
+      // Consommation jour = besoin hebdo / 7 jours
       const consoJour = besoinUnites / 7;
-      const modeProduit = modesStockProduits[produit.itm8] || modeStockDefaut;
-      const joursStock = modeProduit === 'manuel' ? null : JOURS_STOCK[modeProduit] || JOURS_STOCK.normal;
 
+      // Déterminer le mode de stock pour ce produit
+      const modeProduit = modesStockProduits[produit.itm8] || modeStockDefaut;
+      const joursStock = modeProduit === 'manuel'
+        ? null  // Mode manuel: utilise la valeur fixe
+        : JOURS_STOCK[modeProduit] || JOURS_STOCK.normal;
+
+      // Stock mini en unités, puis converti en cartons
       let stockMiniUnites;
       let stockMini;
       let stockMiniEstManuel = false;
 
       if (modeProduit === 'manuel' && commandeConfig.stocksMini?.[produit.itm8] !== undefined) {
+        // Mode manuel: valeur fixée par l'opérateur (en cartons)
         stockMini = commandeConfig.stocksMini[produit.itm8];
         stockMiniUnites = cdt ? stockMini * cdt : stockMini;
         stockMiniEstManuel = true;
       } else {
+        // Mode automatique: calcul basé sur la consommation
         stockMiniUnites = Math.ceil(consoJour * joursStock);
+        // Convertir en cartons (arrondi supérieur)
         stockMini = (cdt && cdt > 0) ? Math.ceil(stockMiniUnites / cdt) : Math.ceil(stockMiniUnites / 12);
+        // Minimum 1 carton si le produit a des ventes
         if (besoinUnites > 0 && stockMini < 1) stockMini = 1;
       }
 
       const stockActuel = commandeConfig.stocksActuels?.[produit.itm8] ?? null;
 
+      // Total à commander (0 si CDT non communiqué)
       let qteCommander = 0;
       if (!cdtNonCommunique) {
         if (stockActuel !== null) {
@@ -289,57 +340,67 @@ const OngletCommande = () => {
     });
 
     // Identifier les références à regrouper sur la livraison forte
+    // Logique : les 1/N références avec les plus petites quantités (N = nombre de livraisons)
     let itm8ARegrouper = new Set();
+
     if (livraisonForte && nbLivraisons > 0) {
+      // Trier les produits par quantité croissante (les plus petits d'abord)
       const produitsAvecCommande = produitsAvecQte.filter(p => p.qteCommander > 0);
       const produitsTries = [...produitsAvecCommande].sort((a, b) => a.qteCommander - b.qteCommander);
+
+      // Nombre de références à regrouper = total / nb livraisons
       const nbARegrouper = Math.floor(produitsTries.length / nbLivraisons);
+
+      // Les N premières références (les plus petites quantités) sont regroupées
       for (let i = 0; i < nbARegrouper; i++) {
-        if (produitsTries[i]) itm8ARegrouper.add(produitsTries[i].itm8);
+        if (produitsTries[i]) {
+          itm8ARegrouper.add(produitsTries[i].itm8);
+        }
       }
     }
 
+    // Deuxième passe : calculer la répartition
     return produitsAvecQte.map(produit => {
+      // Récupérer les qtes fixées pour ce produit
       const fixeesProduit = qtesFixees[produit.itm8] || {};
+
+      // Vérifier si ce produit doit être regroupé
       const doitEtreRegroupe = itm8ARegrouper.has(produit.itm8);
+
+      // Calculer la répartition (avec regroupement si applicable)
       const repartition = calculerRepartition(
         produit.qteCommander,
         fixeesProduit,
         livraisonIds,
         doitEtreRegroupe ? livraisonForte : null,
-        doitEtreRegroupe ? 999999 : 0
+        doitEtreRegroupe ? 999999 : 0 // Seuil très haut pour forcer le regroupement
       );
+
+      // Vérifier si sur-commande
       const totalReparti = Object.values(repartition).reduce((sum, r) => sum + r.value, 0);
       const surCommande = totalReparti > produit.qteCommander;
+
+      // Vérifier si ce produit est regroupé sur la livraison forte
       const estRegroupe = Object.values(repartition).some(r => r.regroupe);
 
-      return { ...produit, repartition, surCommande, estRegroupe, doitEtreRegroupe };
+      return {
+        ...produit,
+        repartition,
+        surCommande,
+        estRegroupe,
+        doitEtreRegroupe
+      };
     });
   }, [produits, commandeConfig.stocksMini, commandeConfig.stocksActuels, livraisons, qtesFixees, cdtPersonnalises, livraisonForte, calculerRepartition, modeStockDefaut, modesStockProduits]);
-
-  // Synchroniser les qtés finales pour l'export MANAGER
-  useEffect(() => {
-    const qtesFinales = {};
-    produitsAvecBesoins.forEach(p => {
-      if (!p.itm8 || p.qteCommander === 0) return;
-      const entry = { total: 0 };
-      livraisons.forEach((liv, i) => {
-        const val = p.repartition[liv.id]?.value || 0;
-        entry[`liv${i + 1}`] = val;
-        entry.total += val;
-      });
-      if (entry.total > 0) qtesFinales[p.itm8] = entry;
-    });
-    // Mise à jour silencieuse (ne déclenche pas la boucle de sync car on ne touche pas les deps surveillés)
-    setCommandeConfig(prev => ({ ...prev, qtesFinales }));
-  }, [produitsAvecBesoins, livraisons, setCommandeConfig]);
 
   // Grouper par famille/rayon
   const produitsParFamille = useMemo(() => {
     const grouped = {};
     produitsAvecBesoins.forEach(produit => {
       const famille = produit.rayon || 'AUTRE';
-      if (!grouped[famille]) grouped[famille] = [];
+      if (!grouped[famille]) {
+        grouped[famille] = [];
+      }
       grouped[famille].push(produit);
     });
     return grouped;
@@ -348,6 +409,7 @@ const OngletCommande = () => {
   // Filtrer les produits
   const produitsFiltres = useMemo(() => {
     let result = produitsAvecBesoins;
+
     if (recherche.trim()) {
       const searchLower = recherche.toLowerCase();
       result = result.filter(p =>
@@ -355,9 +417,11 @@ const OngletCommande = () => {
         (p.itm8 || '').includes(searchLower)
       );
     }
+
     if (familleFiltre !== 'Toutes') {
       result = result.filter(p => p.rayon === familleFiltre);
     }
+
     return result;
   }, [produitsAvecBesoins, recherche, familleFiltre]);
 
@@ -368,17 +432,19 @@ const OngletCommande = () => {
     const sansStock = total - avecStock;
     const totalCartons = produitsAvecBesoins.reduce((sum, p) => sum + p.qteCommander, 0);
 
+    // Totaux par livraison
     const totauxParLivraison = {};
     livraisons.forEach(liv => {
       totauxParLivraison[liv.id] = produitsAvecBesoins.reduce(
-        (sum, p) => sum + (p.repartition[liv.id]?.value || 0), 0
+        (sum, p) => sum + (p.repartition[liv.id]?.value || 0),
+        0
       );
     });
 
     return { total, avecStock, sansStock, totalCartons, totauxParLivraison };
   }, [produitsAvecBesoins, livraisons]);
 
-  // Statistiques pour l'impression
+  // Statistiques pour l'impression (exclut les produits NC)
   const statsImpression = useMemo(() => {
     const produitsSansNC = produitsAvecBesoins.filter(p => !p.cdtNonCommunique);
     const totalCartons = produitsSansNC.reduce((sum, p) => sum + p.qteCommander, 0);
@@ -387,22 +453,27 @@ const OngletCommande = () => {
     const totauxParLivraison = {};
     livraisons.forEach(liv => {
       totauxParLivraison[liv.id] = produitsSansNC.reduce(
-        (sum, p) => sum + (p.repartition[liv.id]?.value || 0), 0
+        (sum, p) => sum + (p.repartition[liv.id]?.value || 0),
+        0
       );
     });
 
     return { totalCartons, totauxParLivraison, nbProduits };
   }, [produitsAvecBesoins, livraisons]);
 
-  // Handler: modifier quantité
+  // Handler: modifier quantité pour une livraison (fixer manuellement)
   const handleQteChange = (itm8, livraisonId, value) => {
     const newValue = value === '' ? null : Math.max(0, parseInt(value) || 0);
     setQtesFixees(prev => ({
       ...prev,
-      [itm8]: { ...(prev[itm8] || {}), [livraisonId]: newValue }
+      [itm8]: {
+        ...(prev[itm8] || {}),
+        [livraisonId]: newValue
+      }
     }));
   };
 
+  // Handler: reset une ligne (remettre tout en auto)
   const handleResetLigne = (itm8) => {
     setQtesFixees(prev => {
       const newQtes = { ...prev };
@@ -411,18 +482,28 @@ const OngletCommande = () => {
     });
   };
 
+  // Handler: modifier stock mini (passe en mode manuel)
   const handleStockMiniChange = (itm8, value) => {
     const numValue = parseInt(value) || 0;
-    setModesStockProduits(prev => ({ ...prev, [itm8]: 'manuel' }));
+    // Passer en mode manuel pour ce produit
+    setModesStockProduits(prev => ({
+      ...prev,
+      [itm8]: 'manuel'
+    }));
     onCommandeConfigChange({
       ...commandeConfig,
-      stocksMini: { ...commandeConfig.stocksMini, [itm8]: numValue }
+      stocksMini: {
+        ...commandeConfig.stocksMini,
+        [itm8]: numValue
+      }
     });
   };
 
+  // Handler: changer le mode de stock d'un produit
   const handleModeStockProduitChange = (itm8, mode) => {
     setModesStockProduits(prev => {
       if (mode === modeStockDefaut) {
+        // Si on revient au mode par défaut, supprimer l'override
         const newModes = { ...prev };
         delete newModes[itm8];
         return newModes;
@@ -431,40 +512,61 @@ const OngletCommande = () => {
     });
   };
 
+  // Handler: reset le mode de stock d'un produit (revenir au calcul auto)
   const handleResetModeStock = (itm8) => {
     setModesStockProduits(prev => {
       const newModes = { ...prev };
       delete newModes[itm8];
       return newModes;
     });
+    // Supprimer aussi la valeur fixe
     onCommandeConfigChange({
       ...commandeConfig,
-      stocksMini: { ...commandeConfig.stocksMini, [itm8]: undefined }
+      stocksMini: {
+        ...commandeConfig.stocksMini,
+        [itm8]: undefined
+      }
     });
   };
 
+  // Liste des familles pour le filtre
   const familles = ['Toutes', ...Object.keys(produitsParFamille).sort()];
 
-  // Statistiques livraison forte
+  // Statistiques pour la livraison forte
   const statsLivraisonForte = useMemo(() => {
     const nbLivraisons = livraisons.length;
     const produitsAvecCommande = produitsAvecBesoins.filter(p => p.qteCommander > 0);
     const nbTotalReferences = produitsAvecCommande.length;
+
+    // Nombre de références regroupées = 1/N du total
     const nbARegrouper = nbLivraisons > 0 ? Math.floor(nbTotalReferences / nbLivraisons) : 0;
     const nbProduitsRegroupes = produitsAvecBesoins.filter(p => p.estRegroupe).length;
+
+    // Calculer le total des cartons regroupés
     const cartonsRegroupes = produitsAvecBesoins
       .filter(p => p.estRegroupe)
       .reduce((sum, p) => sum + p.qteCommander, 0);
 
-    return { nbTotalReferences, nbARegrouper, nbProduitsRegroupes, cartonsRegroupes };
+    return {
+      nbTotalReferences,
+      nbARegrouper,
+      nbProduitsRegroupes,
+      cartonsRegroupes
+    };
   }, [produitsAvecBesoins, livraisons.length]);
 
+  // Toggle section
   const toggleSection = (famille) => {
-    setSectionsOuvertes(prev => ({ ...prev, [famille]: !prev[famille] }));
+    setSectionsOuvertes(prev => ({
+      ...prev,
+      [famille]: !prev[famille]
+    }));
   };
 
+  // Handler: changer le tri
   const handleTri = (colonne) => {
     if (triColonne === colonne) {
+      // Même colonne: inverser l'ordre ou désactiver
       if (triOrdre === 'asc') {
         setTriOrdre('desc');
       } else {
@@ -472,40 +574,63 @@ const OngletCommande = () => {
         setTriOrdre('asc');
       }
     } else {
+      // Nouvelle colonne: tri ascendant
       setTriColonne(colonne);
       setTriOrdre('asc');
     }
   };
 
+  // Fonction de tri des produits
   const trierProduits = useCallback((produits) => {
     if (!triColonne) return produits;
+
     return [...produits].sort((a, b) => {
       let valA, valB;
+
       switch (triColonne) {
         case 'produit':
           valA = (a.libellePersonnalise || a.libelle || '').toLowerCase();
           valB = (b.libellePersonnalise || b.libelle || '').toLowerCase();
           break;
-        case 'cdt': valA = a.cdt || 0; valB = b.cdt || 0; break;
-        case 'mini': valA = a.stockMini || 0; valB = b.stockMini || 0; break;
-        case 'stock': valA = a.stockActuel ?? -1; valB = b.stockActuel ?? -1; break;
-        case 'total': valA = a.qteCommander || 0; valB = b.qteCommander || 0; break;
+        case 'cdt':
+          valA = a.cdt || 0;
+          valB = b.cdt || 0;
+          break;
+        case 'mini':
+          valA = a.stockMini || 0;
+          valB = b.stockMini || 0;
+          break;
+        case 'stock':
+          valA = a.stockActuel ?? -1;
+          valB = b.stockActuel ?? -1;
+          break;
+        case 'total':
+          valA = a.qteCommander || 0;
+          valB = b.qteCommander || 0;
+          break;
         default:
+          // Colonnes de commande (cmd_1, cmd_2, cmd_3)
           if (triColonne.startsWith('cmd_')) {
             const livId = parseInt(triColonne.split('_')[1]);
             valA = a.repartition[livId]?.value || 0;
             valB = b.repartition[livId]?.value || 0;
-          } else { return 0; }
+          } else {
+            return 0;
+          }
       }
+
+      // Comparaison
       if (typeof valA === 'string') {
         const cmp = valA.localeCompare(valB);
         return triOrdre === 'asc' ? cmp : -cmp;
+      } else {
+        const cmp = valA - valB;
+        return triOrdre === 'asc' ? cmp : -cmp;
       }
-      const cmp = valA - valB;
-      return triOrdre === 'asc' ? cmp : -cmp;
     });
   }, [triColonne, triOrdre]);
 
+  // Composant pour l'en-tête triable
   const TriableHeader = ({ colonne, children, className = '' }) => {
     const isActive = triColonne === colonne;
     return (
@@ -526,45 +651,54 @@ const OngletCommande = () => {
     );
   };
 
+  // Vérifier si un produit a des modifications manuelles
   const hasManualChanges = (itm8) => {
     const fixees = qtesFixees[itm8];
     if (!fixees) return false;
     return Object.values(fixees).some(v => v !== null && v !== undefined);
   };
 
+  // Vérifier si un produit est en promo
   const estEnPromo = useCallback((itm8) => {
     if (!promosActives || promosActives.length === 0) return false;
     return promosActives.some(promo => promo.itm8 === itm8);
   }, [promosActives]);
 
+  // Récupérer les infos de la promo pour un produit
   const getInfoPromo = useCallback((itm8) => {
     if (!promosActives || promosActives.length === 0) return null;
     return promosActives.find(promo => promo.itm8 === itm8);
   }, [promosActives]);
 
+  // Affichage chargement
+  if (chargementEnCours) {
+    return (
+      <div className="max-w-6xl mx-auto p-6">
+        <div className="flex items-center justify-center gap-3 py-12">
+          <div className="animate-spin w-6 h-6 border-2 border-[#ED1C24] border-t-transparent rounded-full"></div>
+          <span className="text-gray-600">Chargement des conditionnements...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      {/* En-tête */}
+    <div className="max-w-6xl mx-auto p-6">
+      {/* ====== EN-TÊTE ÉCRAN ====== */}
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-2">
           <div className="p-2 bg-[#E8E1D5]/50 rounded-lg">
             <Package className="w-6 h-6 text-[#8B1538]" />
           </div>
           <h2 className="text-2xl font-bold text-[#58595B]">Commande Multi-Livraisons</h2>
-          <button
-            onClick={() => setShowImpressionModal(true)}
-            className="ml-auto flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            🖨️ Imprimer
-          </button>
         </div>
         <p className="text-gray-500">
           Répartissez vos commandes sur plusieurs livraisons. Les quantités se recalculent automatiquement.
         </p>
       </div>
 
-      {/* Configuration des livraisons */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 print:hidden no-print">
+      {/* Configuration des livraisons - Format horizontal avec dates commande/réception (masqué à l'impression) */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 print:hidden no-print">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-[#58595B] flex items-center gap-2">
             <Calendar className="w-5 h-5" />
@@ -586,7 +720,9 @@ const OngletCommande = () => {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200">
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32"></th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+
+                </th>
                 {livraisons.map((liv, index) => (
                   <th key={liv.id} className="px-3 py-2 text-center">
                     <div className="flex items-center justify-center gap-2">
@@ -594,7 +730,9 @@ const OngletCommande = () => {
                         index === 0 ? 'bg-[#ED1C24] text-white' :
                         index === 1 ? 'bg-[#8B1538] text-white' :
                         'bg-[#58595B] text-white'
-                      }`}>{index + 1}</span>
+                      }`}>
+                        {index + 1}
+                      </span>
                       <span className="font-semibold text-[#58595B]">Livraison {index + 1}</span>
                       {livraisons.length > 2 && (
                         <button
@@ -611,6 +749,7 @@ const OngletCommande = () => {
               </tr>
             </thead>
             <tbody>
+              {/* Ligne Date de commande */}
               <tr className="border-b border-gray-100">
                 <td className="px-3 py-3">
                   <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
@@ -632,6 +771,7 @@ const OngletCommande = () => {
                   </td>
                 ))}
               </tr>
+              {/* Ligne Date de réception/livraison */}
               <tr>
                 <td className="px-3 py-3">
                   <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
@@ -672,15 +812,23 @@ const OngletCommande = () => {
                 <button
                   onClick={() => setModeStockDefaut('normal')}
                   className={`px-4 py-2 text-sm font-medium transition-colors ${
-                    modeStockDefaut === 'normal' ? 'bg-green-600 text-white' : 'bg-white text-gray-700 hover:bg-green-50'
+                    modeStockDefaut === 'normal'
+                      ? 'bg-green-600 text-white'
+                      : 'bg-white text-gray-700 hover:bg-green-50'
                   }`}
-                >Normal (3j)</button>
+                >
+                  Normal (3j)
+                </button>
                 <button
                   onClick={() => setModeStockDefaut('court')}
                   className={`px-4 py-2 text-sm font-medium transition-colors border-l border-green-300 ${
-                    modeStockDefaut === 'court' ? 'bg-amber-500 text-white' : 'bg-white text-gray-700 hover:bg-amber-50'
+                    modeStockDefaut === 'court'
+                      ? 'bg-amber-500 text-white'
+                      : 'bg-white text-gray-700 hover:bg-amber-50'
                   }`}
-                >Court (1.5j)</button>
+                >
+                  Court (1.5j)
+                </button>
               </div>
             </div>
           </div>
@@ -717,6 +865,7 @@ const OngletCommande = () => {
             </div>
           </div>
 
+          {/* Affichage des stats si livraison forte sélectionnée */}
           {livraisonForte && (
             <div className="mt-3 pt-3 border-t border-[#E8E1D5] flex flex-wrap items-center gap-4 text-sm">
               <div className="flex items-center gap-2">
@@ -743,10 +892,11 @@ const OngletCommande = () => {
             les autres se recalculeront. Cliquez sur ↺ pour remettre une ligne en mode automatique.
           </p>
         </div>
+
       </div>
 
       {/* Barre de recherche et filtres */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -772,7 +922,7 @@ const OngletCommande = () => {
 
       {/* Alerte stock manquant */}
       {stats.sansStock > 0 && (
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
+        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
           <div>
             <p className="font-medium text-amber-700">
@@ -786,7 +936,7 @@ const OngletCommande = () => {
       )}
 
       {/* Tableau des besoins avec multi-livraisons */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden print:shadow-none print:border-0 print:rounded-none print-table-container">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6 print:shadow-none print:border-0 print:rounded-none print-table-container">
         <div className="px-6 py-4 border-b border-gray-200 print:hidden">
           <h3 className="font-semibold text-[#58595B]">
             Tableau des besoins ({produitsFiltres.length} produits)
@@ -797,13 +947,21 @@ const OngletCommande = () => {
           <table className="w-full print:text-xs">
             <thead className="bg-gray-50 print:bg-gray-200">
               <tr>
-                <TriableHeader colonne="produit" className="text-left w-auto px-3">Produit</TriableHeader>
-                <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase w-14">Cuisson</th>
-                <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase w-14">U/Plq</th>
-                <TriableHeader colonne="cdt" className="w-14">CDT</TriableHeader>
-                <TriableHeader colonne="mini" className="w-16">Mini</TriableHeader>
-                <TriableHeader colonne="stock" className="w-16">Stock</TriableHeader>
-                <TriableHeader colonne="total" className="w-20 bg-[#ED1C24]/10">À CMD</TriableHeader>
+                <TriableHeader colonne="produit" className="text-left w-auto px-3">
+                  Produit
+                </TriableHeader>
+                <TriableHeader colonne="cdt" className="w-14">
+                  CDT
+                </TriableHeader>
+                <TriableHeader colonne="mini" className="w-16">
+                  Mini
+                </TriableHeader>
+                <TriableHeader colonne="stock" className="w-16">
+                  Stock
+                </TriableHeader>
+                <TriableHeader colonne="total" className="w-20 bg-[#ED1C24]/10">
+                  À CMD
+                </TriableHeader>
                 {livraisons.map((liv, i) => (
                   <TriableHeader key={liv.id} colonne={`cmd_${liv.id}`} className="w-20 bg-blue-50">
                     <div className="flex flex-col items-center">
@@ -814,45 +972,45 @@ const OngletCommande = () => {
                     </div>
                   </TriableHeader>
                 ))}
-                <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase w-10 print:hidden"></th>
+                <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase w-10 print:hidden">
+
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {Object.entries(produitsParFamille)
-                .sort(([a], [b]) => {
-                  const ia = ORDRE_FAMILLES.indexOf(a);
-                  const ib = ORDRE_FAMILLES.indexOf(b);
-                  return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
-                })
-                .map(([famille, produitsFamille]) => {
+              {Object.entries(produitsParFamille).sort().map(([famille, produitsFamille]) => {
                 const produitsAffiches = produitsFamille.filter(p => produitsFiltres.includes(p));
                 if (produitsAffiches.length === 0) return null;
-                // Masquer les familles où toutes les qtés à commander sont 0
-                const familleADesQtes = produitsAffiches.some(p => p.qteCommander > 0);
-                if (!familleADesQtes) return null;
 
+                // Appliquer le tri aux produits de la famille
                 const produitsAffichesTries = trierProduits(produitsAffiches);
+
                 const isOuvert = sectionsOuvertes[famille];
                 const totalFamilleCartons = produitsAffiches.reduce((sum, p) => sum + p.qteCommander, 0);
 
+                // Calculer les totaux par livraison pour cette famille
                 const totauxFamilleParLivraison = {};
                 livraisons.forEach(liv => {
                   totauxFamilleParLivraison[liv.id] = produitsAffiches.reduce(
-                    (sum, p) => sum + (p.repartition[liv.id]?.value || 0), 0
+                    (sum, p) => sum + (p.repartition[liv.id]?.value || 0),
+                    0
                   );
                 });
 
+                // Compter les produits à imprimer (sans NC)
                 const produitsAImprimer = produitsAffiches.filter(p => !p.cdtNonCommunique);
                 const totalFamilleCartonsImpr = produitsAImprimer.reduce((sum, p) => sum + p.qteCommander, 0);
                 const totauxFamilleParLivraisonImpr = {};
                 livraisons.forEach(liv => {
                   totauxFamilleParLivraisonImpr[liv.id] = produitsAImprimer.reduce(
-                    (sum, p) => sum + (p.repartition[liv.id]?.value || 0), 0
+                    (sum, p) => sum + (p.repartition[liv.id]?.value || 0),
+                    0
                   );
                 });
 
                 return (
                   <React.Fragment key={famille}>
+                    {/* En-tête de famille */}
                     <tr
                       className="bg-[#E8E1D5]/30 cursor-pointer hover:bg-[#E8E1D5]/50 print:bg-gray-300 print:cursor-default print-famille-header"
                       onClick={() => toggleSection(famille)}
@@ -876,8 +1034,6 @@ const OngletCommande = () => {
                       <td className="px-2 py-2 text-center text-xs text-gray-400">-</td>
                       <td className="px-2 py-2 text-center text-xs text-gray-400">-</td>
                       <td className="px-2 py-2 text-center text-xs text-gray-400">-</td>
-                      <td className="px-2 py-2 text-center text-xs text-gray-400">-</td>
-                      <td className="px-2 py-2 text-center text-xs text-gray-400">-</td>
                       <td className="px-2 py-2 text-center font-semibold text-[#ED1C24] bg-[#ED1C24]/5 print:bg-transparent">
                         <span className="print:hidden">{totalFamilleCartons}</span>
                         <span className="hidden print:inline">{totalFamilleCartonsImpr}</span>
@@ -891,6 +1047,7 @@ const OngletCommande = () => {
                       <td className="print:hidden"></td>
                     </tr>
 
+                    {/* Produits de la famille */}
                     {isOuvert && produitsAffichesTries.map(produit => {
                       const hasChanges = hasManualChanges(produit.itm8);
                       const produitEnPromo = estEnPromo(produit.itm8);
@@ -914,39 +1071,11 @@ const OngletCommande = () => {
                               )}
                             </div>
                             <div className="text-xs text-gray-400 print:hidden">
-                              EAN: {produit.codeEAN || produit.itm8}
+                              ITM8: {produit.itm8}
                             </div>
                           </td>
-                          {/* Programme cuisson */}
-                          <td className="px-1 py-2 text-center print:px-1 print:py-1">
-                            <input
-                              type="text"
-                              value={personnalisationProduits[produit.itm8]?.programmeCuisson ?? produit.programme ?? ''}
-                              onChange={(e) => setPersonnalisationProduits(prev => ({
-                                ...prev,
-                                [produit.itm8]: { ...prev[produit.itm8], programmeCuisson: e.target.value }
-                              }))}
-                              placeholder="-"
-                              className="w-12 px-1 py-1 text-sm text-center border border-gray-200 rounded focus:ring-1 focus:ring-[#8B1538] focus:border-[#8B1538] placeholder:text-gray-300"
-                              title="Programme de cuisson (ex: P1, P2...)"
-                            />
-                          </td>
-                          {/* Unités par plaque */}
-                          <td className="px-1 py-2 text-center print:px-1 print:py-1">
-                            <input
-                              type="number"
-                              min="1"
-                              value={personnalisationProduits[produit.itm8]?.unitesParPlaque ?? produit.unitesParPlaque ?? ''}
-                              onChange={(e) => setPersonnalisationProduits(prev => ({
-                                ...prev,
-                                [produit.itm8]: { ...prev[produit.itm8], unitesParPlaque: parseInt(e.target.value) || 0 }
-                              }))}
-                              placeholder="-"
-                              className="w-12 px-1 py-1 text-sm text-center border border-gray-200 rounded focus:ring-1 focus:ring-[#8B1538] focus:border-[#8B1538] placeholder:text-gray-300"
-                              title="Nombre d'unités par plaque"
-                            />
-                          </td>
                           <td className="px-2 py-2 text-center print:px-1 print:py-1">
+                            {/* Version écran avec input */}
                             <span className="print:hidden">
                               {produit.cdtNonCommunique ? (
                                 <input
@@ -976,9 +1105,11 @@ const OngletCommande = () => {
                                 />
                               )}
                             </span>
+                            {/* Version impression: texte simple */}
                             <span className="hidden print:inline text-xs">{produit.cdt || '-'}</span>
                           </td>
                           <td className="px-2 py-2 text-center print:px-1 print:py-1">
+                            {/* Version écran avec sélecteur de mode */}
                             <span className="print:hidden">
                               <div className="flex flex-col items-center gap-0.5">
                                 <input
@@ -995,6 +1126,7 @@ const OngletCommande = () => {
                                   } focus:ring-1 focus:ring-green-500 focus:border-green-500`}
                                   title={`Stock mini: ${produit.stockMini} cartons (${Math.round(produit.stockMiniUnites)} unités) - Mode: ${produit.stockMiniEstManuel ? 'Manuel' : produit.modeProduit === 'court' ? 'Court 1.5j' : 'Normal 3j'}`}
                                 />
+                                {/* Indicateur de mode cliquable */}
                                 <button
                                   onClick={() => {
                                     if (produit.stockMiniEstManuel) {
@@ -1017,6 +1149,7 @@ const OngletCommande = () => {
                                 </button>
                               </div>
                             </span>
+                            {/* Version impression: texte simple */}
                             <span className="hidden print:inline text-xs">{produit.stockMini}</span>
                           </td>
                           <td className="px-2 py-2 text-center text-sm text-gray-600 print:px-1 print:py-1 print:text-xs">
@@ -1034,6 +1167,7 @@ const OngletCommande = () => {
 
                             return (
                               <td key={liv.id} className="px-2 py-2 text-center bg-blue-50/50 print:bg-transparent print:px-1 print:py-1 print-cmd-col">
+                                {/* Version écran avec input */}
                                 <span className="print:hidden">
                                   <input
                                     type="number"
@@ -1049,6 +1183,7 @@ const OngletCommande = () => {
                                     title={isAuto ? 'Calculé automatiquement' : 'Valeur fixée manuellement'}
                                   />
                                 </span>
+                                {/* Version impression: texte simple */}
                                 <span className="hidden print:inline text-xs font-medium">{value}</span>
                               </td>
                             );
@@ -1073,7 +1208,7 @@ const OngletCommande = () => {
 
               {/* Ligne de totaux */}
               <tr className="bg-gray-100 font-semibold print:bg-gray-300 print-totaux">
-                <td colSpan={6} className="px-3 py-3 text-right text-sm text-gray-700 print:text-xs print:font-bold">
+                <td colSpan={4} className="px-3 py-3 text-right text-sm text-gray-700 print:text-xs print:font-bold">
                   TOTAUX
                 </td>
                 <td className="px-2 py-3 text-center text-[#ED1C24] bg-[#ED1C24]/10 print:bg-transparent print:text-black print:font-bold">
@@ -1121,9 +1256,33 @@ const OngletCommande = () => {
         </div>
       </div>
 
-      {/* Résumé par livraison */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 print:hidden no-print">
+      {/* Pied de page impression */}
+      <div className="hidden print:block mt-4 pt-2 border-t border-gray-400 text-xs">
+        <div className="flex justify-between">
+          <div>
+            <strong>Total :</strong> {statsImpression.nbProduits} références | {statsImpression.totalCartons} cartons
+          </div>
+          <div className="flex gap-8">
+            {livraisons.map((liv, i) => (
+              <div key={liv.id}>
+                <strong>Liv.{i + 1} :</strong> {statsImpression.totauxParLivraison[liv.id] || 0} cartons
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="mt-6 flex justify-end">
+          <div className="text-center">
+            <div className="w-48 border-t border-black pt-1">
+              Signature Responsable
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Résumé par livraison (masqué à l'impression) */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 print:hidden no-print">
         <h3 className="font-semibold text-[#58595B] mb-4">Résumé par livraison</h3>
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="text-center p-4 bg-[#ED1C24]/10 rounded-lg">
             <p className="text-2xl font-bold text-[#8B1538]">{stats.totalCartons}</p>
@@ -1133,7 +1292,7 @@ const OngletCommande = () => {
             <div key={liv.id} className="text-center p-4 bg-blue-50 rounded-lg">
               <p className="text-2xl font-bold text-blue-700">{stats.totauxParLivraison[liv.id] || 0}</p>
               <p className="text-sm text-gray-600">Livraison {i + 1}</p>
-              {liv.dateReception && <p className="text-xs text-gray-400">{formatDateCourt(liv.dateReception)}</p>}
+              {liv.date && <p className="text-xs text-gray-400">{formatDateCourt(liv.date)}</p>}
             </div>
           ))}
         </div>
@@ -1153,6 +1312,6 @@ const OngletCommande = () => {
       />
     </div>
   );
-};
+});
 
-export default OngletCommande;
+export default StepCommande;

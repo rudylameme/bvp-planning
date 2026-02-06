@@ -117,6 +117,7 @@ export default function WizardResponsable() {
     // Étape 4 - Animation Commerciale
     promosActives: [],
     periodePromo: null,
+    produitsExceptionnels: [],
   });
 
   // Validation pour passer à l'étape suivante
@@ -188,7 +189,7 @@ export default function WizardResponsable() {
       return {
         id: index + 1,
         itm8: data.itm8,
-        ean: data.ean,
+        ean13: data.ean13,
         libelle: data.libelle,
         libellePersonnalise: infoRef?.libelle || data.libelle,
         rayon,
@@ -274,6 +275,8 @@ export default function WizardResponsable() {
             produits={wizardData.produits}
             promosActives={wizardData.promosActives}
             setPromosActives={(promosActives) => setWizardData(prev => ({ ...prev, promosActives }))}
+            produitsExceptionnels={wizardData.produitsExceptionnels}
+            setProduitsExceptionnels={(produitsExceptionnels) => setWizardData(prev => ({ ...prev, produitsExceptionnels }))}
             periodePromo={wizardData.periodePromo}
             setPeriodePromo={(periodePromo) => setWizardData(prev => ({ ...prev, periodePromo }))}
           />
@@ -288,6 +291,7 @@ export default function WizardResponsable() {
             annee={wizardData.annee}
             horaires={wizardData.horaires}
             promosActives={wizardData.promosActives}
+            produitsExceptionnels={wizardData.produitsExceptionnels}
             periodePromo={wizardData.periodePromo}
             onModifier={() => setCurrentStep(3)}
             onNouvelleSemaine={() => {

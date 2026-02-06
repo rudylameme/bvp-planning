@@ -92,8 +92,9 @@ const construireArchive = ({
     });
 
     return {
-      plu: p.itm8 || p.plu || '',
+      plu: p.plu || p.codePLU || '',
       itm8: p.itm8 || '',
+      ean13: p.ean13 || p.codeEAN || '',
       libelle: p.libelle || '',
       famille: p.famille || p.rayon || 'AUTRE',
       rayon: p.rayon || 'BVP',

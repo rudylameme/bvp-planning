@@ -88,7 +88,7 @@ export function creerFichierManager({
     .map(p => ({
       id: p.id,
       itm8: p.itm8,
-      ean: p.ean || null,
+      ean13: p.ean13 || p.codeEAN || null,
       libelle: p.libelle,
       libellePersonnalise: p.libellePersonnalise || null,
       rayon: p.rayon,

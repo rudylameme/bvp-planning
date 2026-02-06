@@ -163,7 +163,7 @@ export async function parseVentesExcel(file) {
           if (!row || row.length === 0) continue;
 
           const itm8 = colIndex.itm8 !== -1 ? String(row[colIndex.itm8] || '') : '';
-          const ean = colIndex.ean !== -1 ? String(row[colIndex.ean] || '') : '';
+          const ean13 = colIndex.ean !== -1 ? String(row[colIndex.ean] || '') : '';
           const libelle = String(row[colIndex.libelle] || '').trim();
           const dateRaw = row[colIndex.date];
           const quantite = Number(row[colIndex.quantite]) || 0;
@@ -216,7 +216,7 @@ export async function parseVentesExcel(file) {
           if (!parProduit[cleProduit]) {
             parProduit[cleProduit] = {
               itm8,
-              ean,
+              ean13,
               libelle,
               ventes: [],
               // Données de casse (nouvelles colonnes)

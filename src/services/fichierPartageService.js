@@ -50,6 +50,7 @@ export function creerFichierCommande({ produits, livraison, semaine, annee, maga
     .filter(p => p.actif && !p.cdtNonCommunique)
     .map(p => ({
       itm8: p.itm8,
+      ean13: p.ean13 || p.codeEAN || null,
       libelle: p.libelle,
       libellePersonnalise: p.libellePersonnalise || null,
       rayon: p.rayon,

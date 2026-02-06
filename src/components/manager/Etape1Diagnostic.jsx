@@ -469,13 +469,18 @@ const Bloc4Penetration = ({ indicateurs }) => {
   const donneesParTranche = indicateurs.parTrancheHoraire || {};
   const moyenneSecteur = indicateurs.moyenneSecteurParTrancheHoraire || {};
 
-  // Trouver la meilleure pénétration
+  // Trouver la meilleure pénétration (seuil 10% tickets minimum)
+  const totalTicketsBloc4 = tranches.reduce((sum, t) => sum + (donneesParTranche[t.key]?.ticketsTotal || 0), 0);
+  const seuil10pctBloc4 = totalTicketsBloc4 * 0.10;
   let meilleureTrancheKey = null;
   let meilleurePenetration = 0;
 
   tranches.forEach(t => {
-    const pen = donneesParTranche[t.key]?.penetration || 0;
-    if (pen > meilleurePenetration) {
+    const data = donneesParTranche[t.key];
+    const pen = data?.penetration || 0;
+    const tickets = data?.ticketsTotal || 0;
+    // Une tranche doit avoir au moins 10% des tickets totaux pour être éligible
+    if (tickets >= seuil10pctBloc4 && pen > meilleurePenetration) {
       meilleurePenetration = pen;
       meilleureTrancheKey = t.key;
     }
@@ -619,8 +624,12 @@ const Bloc5FluxClient = ({ indicateurs, panierMoyen, meilleurePenetration }) => 
   if (tranches.length === 0) return null;
 
   // Trouver la meilleure tranche (référence) = meilleur taux de pénétration
-  const meilleureTrancheKey = tranches.reduce((best, t) =>
-    t.penetration > (best?.penetration || 0) ? t : best, null
+  // Seuil : une tranche doit avoir au moins 10% des tickets totaux pour être éligible
+  const totalTicketsBloc5 = tranches.reduce((sum, t) => sum + t.ticketsTotal, 0);
+  const seuil10pctBloc5 = totalTicketsBloc5 * 0.10;
+  const meilleureTrancheKey = tranches
+    .filter(t => t.ticketsTotal >= seuil10pctBloc5)
+    .reduce((best, t) => t.penetration > (best?.penetration || 0) ? t : best, null
   )?.key;
 
   // Trouver la pire tranche (priorité) = plus de clients perdus (hors référence)
@@ -818,10 +827,12 @@ const Bloc6Potentiel = ({ indicateurs, panierMoyen, caBVPActuel }) => {
   const parTrancheHoraire = indicateurs.parTrancheHoraire;
   if (!parTrancheHoraire) return null;
 
-  // Trouver la meilleure pénétration
+  // Trouver la meilleure pénétration (seuil 10% tickets minimum)
+  const totalTicketsBloc6 = Object.values(parTrancheHoraire).reduce((sum, d) => sum + (d.ticketsTotal || 0), 0);
+  const seuil10pctBloc6 = totalTicketsBloc6 * 0.10;
   let meilleurePenetration = 0;
   Object.values(parTrancheHoraire).forEach(data => {
-    if (data.penetration > meilleurePenetration) {
+    if ((data.ticketsTotal || 0) >= seuil10pctBloc6 && data.penetration > meilleurePenetration) {
       meilleurePenetration = data.penetration;
     }
   });
@@ -1048,9 +1059,16 @@ const Etape1Diagnostic = ({ onPrecedent }) => {
   // Calculer la meilleure pénétration
   const meilleurePenetration = useMemo(() => {
     if (!donneesMagasin?.indicateurs?.parTrancheHoraire) return 0;
+    const parTranche = donneesMagasin.indicateurs.parTrancheHoraire;
+    // Total tickets pour calculer le seuil de 10%
+    const totalTickets = Object.values(parTranche).reduce((sum, d) => sum + (d.ticketsTotal || 0), 0);
+    const seuil10pct = totalTickets * 0.10;
     let max = 0;
-    Object.values(donneesMagasin.indicateurs.parTrancheHoraire).forEach(data => {
-      if (data.penetration > max) max = data.penetration;
+    Object.values(parTranche).forEach(data => {
+      // Une tranche doit avoir au moins 10% des tickets totaux pour être éligible comme référence
+      if ((data.ticketsTotal || 0) >= seuil10pct && data.penetration > max) {
+        max = data.penetration;
+      }
     });
     return max;
   }, [donneesMagasin]);

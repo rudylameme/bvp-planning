@@ -90,6 +90,7 @@ export default function WizardTermine({
   annee,
   horaires,
   promosActives = [],
+  produitsExceptionnels = [],
   periodePromo = null,
   onModifier,
   onNouvelleSemaine
@@ -162,12 +163,25 @@ export default function WizardTermine({
             qteNormalePeriode: promo.qteNormalePeriode,
             nbJoursPromo: promo.nbJoursPromo,
             qteObjectif: promo.qteObjectif,
+            qteValidee: promo.qteValidee ?? promo.qteObjectif,
             qteSupplementaire: promo.qteSupplementaire,
+            ean13: promo.ean13 || '',
             // Dates spécifiques au produit
             dateDebut: promo.dateDebut,
             dateFin: promo.dateFin
           }))
         } : null,
+        // Produits exceptionnels (hors gamme standard)
+        produitsExceptionnels: produitsExceptionnels.length > 0 ? produitsExceptionnels.map(pe => ({
+          nom: pe.nom,
+          famille: pe.famille,
+          programme: pe.programme,
+          prixTTC: pe.prix,
+          margePct: pe.margePct,
+          qteParJour: pe.qteParJour,
+          qteValidee: pe.qteValidee ?? pe.qteParJour,
+          jours: pe.jours
+        })) : null,
         produits: produitsActifs.map(p => ({
           id: p.id,
           libelle: p.libelle,
@@ -190,7 +204,7 @@ export default function WizardTermine({
     };
 
     genererFichier();
-  }, [donneesMagasin, produits, semaine, annee, horaires]);
+  }, [donneesMagasin, produits, semaine, annee, horaires, promosActives, produitsExceptionnels]);
 
   // Utilitaires dates
   const getDateOfISOWeek = (week, year) => {
