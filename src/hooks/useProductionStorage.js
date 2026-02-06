@@ -15,7 +15,7 @@ export const useProductionStorage = (jour, rayon, programme) => {
         return JSON.parse(saved);
       }
     } catch (error) {
-      console.error('Erreur chargement localStorage:', error);
+      // TODO: logger professionnel
     }
     return {
       trancheActive: 'matin',
@@ -39,7 +39,7 @@ export const useProductionStorage = (jour, rayon, programme) => {
     try {
       localStorage.setItem(storageKey, JSON.stringify(data));
     } catch (error) {
-      console.error('Erreur sauvegarde localStorage:', error);
+      // TODO: logger professionnel
     }
   }, [data, storageKey]);
 

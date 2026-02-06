@@ -82,11 +82,9 @@ export default function WizardResponsable() {
   useEffect(() => {
     const chargerReferentiel = async () => {
       if (!isReferentielCharge()) {
-        console.log('📚 Chargement du référentiel ITM8...');
         const result = await chargerReferentielITM8('/Data/liste des produits BVP treville.xlsx');
         if (result) {
           setReferentielCharge(true);
-          console.log('✅ Référentiel chargé avec succès');
         }
       } else {
         setReferentielCharge(true);

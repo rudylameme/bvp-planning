@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useImperativeHandle, forwardRef } from 'react';
-import { Package, Search, Calendar, Printer, AlertTriangle, ChevronDown, ChevronRight, ChevronUp, Info, Plus, X, RotateCcw } from 'lucide-react';
+import { Package, Search, Calendar, AlertTriangle, ChevronDown, ChevronRight, ChevronUp, Info, Plus, X, RotateCcw } from 'lucide-react';
 import {
   chargerConditionnements,
   isConditionnementCharge,
@@ -86,7 +86,7 @@ const StepCommande = forwardRef(function StepCommande({
         try {
           await chargerConditionnements('/Data/liste des conditionements.xlsx');
         } catch (err) {
-          console.error('Erreur chargement conditionnements:', err);
+          // TODO: logger professionnel
         }
         setChargementEnCours(false);
       }

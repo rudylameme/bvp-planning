@@ -44,7 +44,7 @@ const AccueilBenchmark = ({ onDonneesChargees, onNaviguerPlanning, onRetourAccue
     } catch (error) {
       if (error.name !== 'AbortError') {
         setErreur('Erreur lors de la sélection du dossier');
-        console.error(error);
+        // TODO: logger professionnel
       }
     } finally {
       setChargementDossier(false);
@@ -85,7 +85,7 @@ const AccueilBenchmark = ({ onDonneesChargees, onNaviguerPlanning, onRetourAccue
       }
 
     } catch (error) {
-      console.error('Erreur lors de la lecture du dossier:', error);
+      // TODO: logger professionnel
       setErreur('Impossible de lire le contenu du dossier');
     }
   };
@@ -97,19 +97,14 @@ const AccueilBenchmark = ({ onDonneesChargees, onNaviguerPlanning, onRetourAccue
       const arrayBuffer = await fichier.arrayBuffer();
       const workbook = XLSX.read(arrayBuffer, { type: 'array' });
 
-      console.log('📂 Feuilles disponibles:', workbook.SheetNames);
-
       // Chercher la feuille "Vente jour heure" ou "Total Pdv" (contient CODE_PDV)
       const sheetName = workbook.SheetNames.find(name =>
         name === 'Vente jour heure' || name === 'Total Pdv' || name === 'IM'
       );
 
       if (!sheetName) {
-        console.warn('⚠️ Aucune feuille avec liste de magasins trouvée');
         return [];
       }
-
-      console.log(`📋 Lecture de la feuille: ${sheetName}`);
       const sheet = workbook.Sheets[sheetName];
       const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
@@ -124,18 +119,14 @@ const AccueilBenchmark = ({ onDonneesChargees, onNaviguerPlanning, onRetourAccue
       for (let i = 0; i < Math.min(10, data.length); i++) {
         if (data[i]?.some(cell => colonnesPDV.includes(cell))) {
           headerRowIndex = i;
-          console.log(`📋 En-tête trouvé à la ligne ${i + 1}`);
           break;
         }
       }
 
       const headers = data[headerRowIndex];
       if (!headers) {
-        console.warn('⚠️ Pas d\'en-têtes trouvés');
         return [];
       }
-
-      console.log('📋 Colonnes détectées:', headers.filter(h => h).slice(0, 15));
 
       // Trouver les index des colonnes
       const findIndex = (colonnesPossibles) => {
@@ -151,10 +142,7 @@ const AccueilBenchmark = ({ onDonneesChargees, onNaviguerPlanning, onRetourAccue
       const secteurIndex = findIndex(colonnesSecteur);
       const modeleIndex = findIndex(colonnesModele);
 
-      console.log(`📋 Index - PDV: ${pdvIndex}, Ville: ${villeIndex}, Secteur: ${secteurIndex}, Modèle: ${modeleIndex}`);
-
       if (pdvIndex === -1) {
-        console.warn('⚠️ Colonne CODE_PDV non trouvée');
         return [];
       }
 
@@ -177,11 +165,10 @@ const AccueilBenchmark = ({ onDonneesChargees, onNaviguerPlanning, onRetourAccue
         });
       }
 
-      console.log(`✅ ${magasins.length} magasins uniques trouvés`);
       return magasins.sort((a, b) => a.nom.localeCompare(b.nom));
 
     } catch (error) {
-      console.error('Erreur lors du chargement des magasins:', error);
+      // TODO: logger professionnel
       return [];
     }
   };
@@ -198,7 +185,7 @@ const AccueilBenchmark = ({ onDonneesChargees, onNaviguerPlanning, onRetourAccue
             const magasins = await chargerListeMagasins(file);
             setMagasinsDisponibles(magasins);
           } catch (error) {
-            console.error('Erreur:', error);
+            // TODO: logger professionnel
           }
         }
       })();
@@ -247,7 +234,7 @@ const AccueilBenchmark = ({ onDonneesChargees, onNaviguerPlanning, onRetourAccue
       }
 
     } catch (error) {
-      console.error('Erreur lors du chargement:', error);
+      // TODO: logger professionnel
       setErreur(error.message || 'Erreur lors du chargement des données');
     } finally {
       setChargement(false);

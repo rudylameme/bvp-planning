@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Download, Upload, ArrowUpAZ, ArrowDownWideNarrow, LayoutGrid, List, Layers, Settings, Eye, EyeOff, Square, CheckSquare } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Upload, ArrowUpAZ, ArrowDownWideNarrow, LayoutGrid, Settings, Eye, EyeOff, Square, CheckSquare } from 'lucide-react';
 import TableauProduits from './TableauProduits';
 import TableauProduitsGroupes from './TableauProduitsGroupes';
 import AttributionManuelle from './AttributionManuelle';
@@ -182,7 +182,7 @@ export default function EtapePersonnalisation({
 
       setProduits(produitsAvecReglages);
     } catch (error) {
-      console.error('Erreur lors de l\'import des réglages:', error);
+      // TODO: logger professionnel
       alert('Erreur lors de la lecture du fichier de réglages.');
     }
   };
@@ -201,10 +201,6 @@ export default function EtapePersonnalisation({
       return p;
     }));
   };
-
-  // Vérifier combien de produits ont des potentiels > 0
-  const nbProduitsAvecPotentiel = produits.filter(p => p.potentielHebdo > 0).length;
-  const nbProduitsTotal = produits.length;
 
   return (
     <>

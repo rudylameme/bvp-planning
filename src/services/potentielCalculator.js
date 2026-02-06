@@ -515,10 +515,6 @@ export const calculerPotentielDepuisVenteMax = (venteMax, dateVenteMax, frequent
 
   const potentiel = Math.ceil(venteMax / poidsJour);
 
-  if (libelle) {
-    console.log(`  ${libelle}: Vente max=${venteMax} (${jourVenteMax || '?'}) ÷ ${(poidsJour * 100).toFixed(1)}% → Potentiel=${potentiel}`);
-  }
-
   return potentiel;
 };
 
@@ -576,8 +572,6 @@ export const calculerPotentielsPourTous = (produits, frequentationData, mode = '
   const limiteProgression = limites[mode];
   const utiliserStats = mode === 'moyenne-stats';
 
-  console.log(`🤖 Calcul automatique des potentiels (mode: ${mode})...`);
-
   return produits.map(produit => {
     if (produit.custom || !produit.ventesParJour) {
       return produit;
@@ -588,7 +582,6 @@ export const calculerPotentielsPourTous = (produits, frequentationData, mode = '
     // Si mode stats et stats disponibles, utiliser la moyenne des max
     if (utiliserStats && produit.stats && produit.stats.nombreSemaines >= 2) {
       potentielMathematique = calculerPotentielAvecStats(produit.stats, frequentationData, 'moyenne');
-      console.log(`  ${produit.libelle}: Moyenne ventes max=${produit.stats.moyenneVentesMax} → Potentiel=${potentielMathematique} (multi-semaines)`);
     } else {
       // Mode classique : utiliser le max absolu
       const { venteMax, dateVenteMax } = trouverVenteMax(produit.ventesParJour);

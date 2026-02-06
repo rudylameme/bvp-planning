@@ -1,4 +1,4 @@
-import { Edit3, Star, ChevronDown, ChevronRight, CheckSquare, Square, TrendingUp, TrendingDown, Minus, Info } from 'lucide-react';
+import { Edit3, Star, ChevronDown, ChevronRight, CheckSquare, Square, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { useState } from 'react';
 import { getNomProgrammeAffiche } from '../services/referentielITM8';
 
@@ -49,7 +49,6 @@ const BadgeFiabilite = ({ scoreConfiance }) => {
 export default function TableauProduitsGroupes({
   produits,
   modeExpert = false,
-  onChangerFamille,
   onChangerRayon,
   onChangerProgramme,
   onChangerUnitesParPlaque,
@@ -57,7 +56,6 @@ export default function TableauProduitsGroupes({
   onChangerLibelle,
   onChangerPotentiel,
   onToggleActif,
-  onSupprimerProduit,
   onChangerUnitesParVente,
   rayonsDisponibles = [],
   programmesDisponibles = []

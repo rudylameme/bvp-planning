@@ -26,26 +26,16 @@ export const parseCSV = (text) => {
  * Diagnostic du fichier de ventes - affiche les problèmes détectés
  */
 const diagnostiquerVentes = (allData) => {
-  console.log('\n🔍 === DIAGNOSTIC DU FICHIER VENTES ===');
-  console.log(`📄 Nombre total de lignes : ${allData.length}`);
-
   // Vérifier si le fichier est vide
   if (allData.length === 0) {
-    console.error('❌ ERREUR : Le fichier est vide');
     return false;
   }
 
   // Vérifier la première ligne (info PDV)
   if (allData[0] && allData[0][0]) {
     const firstCellText = allData[0][0].toString();
-    console.log(`📍 Première ligne : "${firstCellText}"`);
 
     const pdvMatch = firstCellText.match(/PDV:?\s*(\d+)\s*-\s*(.+?)(?:\s*Date|$)/i);
-    if (pdvMatch) {
-      console.log(`✅ Info PDV détectée : ${pdvMatch[1]} - ${pdvMatch[2].trim()}`);
-    } else {
-      console.warn('⚠️  Format PDV non détecté (format attendu : "PDV: 123 - Nom du magasin")');
-    }
   }
 
   // Chercher la ligne d'en-tête avec "ITM8"
@@ -53,45 +43,20 @@ const diagnostiquerVentes = (allData) => {
   for (let i = 0; i < allData.length; i++) {
     if (allData[i] && allData[i][0] && allData[i][0].toString().toLowerCase().includes('itm8')) {
       headerRowIndex = i;
-      console.log(`✅ Ligne d'en-tête trouvée à la ligne ${i + 1} (contient "ITM8")`);
       break;
     }
   }
 
   if (headerRowIndex === -1) {
-    console.error('❌ ERREUR : Ligne d\'en-tête avec "ITM8 Prio" introuvable');
-    console.error('   Les 10 premières lignes de la colonne A :');
-    for (let i = 0; i < Math.min(10, allData.length); i++) {
-      console.error(`   Ligne ${i + 1}: "${allData[i] && allData[i][0] ? allData[i][0] : '(vide)'}"`);
-    }
     return false;
   }
 
   // Vérifier les colonnes
   const headers = allData[headerRowIndex];
-  console.log(`📊 Colonnes trouvées (${headers.length}) :`, headers.filter(h => h).join(', '));
 
   const libelleIndex = headers.findIndex(h => h && h.toString().toLowerCase().includes('libellé'));
   const dateIndex = headers.findIndex(h => h && h.toString().toLowerCase() === 'date');
   const quantiteIndex = headers.findIndex(h => h && h.toString().toLowerCase().includes('quantité'));
-
-  if (libelleIndex === -1) {
-    console.error('❌ ERREUR : Colonne "Libellé" introuvable');
-  } else {
-    console.log(`✅ Colonne "Libellé" trouvée (colonne ${libelleIndex + 1})`);
-  }
-
-  if (dateIndex === -1) {
-    console.error('❌ ERREUR : Colonne "Date" introuvable');
-  } else {
-    console.log(`✅ Colonne "Date" trouvée (colonne ${dateIndex + 1})`);
-  }
-
-  if (quantiteIndex === -1) {
-    console.error('❌ ERREUR : Colonne "Quantité" introuvable');
-  } else {
-    console.log(`✅ Colonne "Quantité" trouvée (colonne ${quantiteIndex + 1})`);
-  }
 
   if (libelleIndex === -1 || dateIndex === -1 || quantiteIndex === -1) {
     return false;
@@ -122,21 +87,14 @@ const diagnostiquerVentes = (allData) => {
     }
   }
 
-  console.log(`📦 Produits détectés : ${produitsDetectes.size}`);
-  console.log(`📅 Dates détectées : ${datesDetectees.size}`);
-  console.log(`📈 Lignes avec quantités : ${lignesAvecDonnees}`);
-
   if (produitsDetectes.size === 0) {
-    console.error('❌ ERREUR : Aucun produit détecté dans les données');
     return false;
   }
 
   if (datesDetectees.size === 0) {
-    console.error('❌ ERREUR : Aucune date détectée dans les données');
     return false;
   }
 
-  console.log('✅ Fichier de ventes semble correct');
   return true;
 };
 
@@ -153,7 +111,7 @@ export const parseVentesExcel = (arrayBuffer) => {
   // 🔍 DIAGNOSTIC
   const diagnosticOk = diagnostiquerVentes(allData);
   if (!diagnosticOk) {
-    alert('❌ Erreur dans le fichier de ventes. Appuyez sur F12 pour voir les détails dans la console.');
+    throw new Error('Erreur dans le fichier de ventes.');
   }
 
   // Extraire info PDV de la première ligne
@@ -179,8 +137,7 @@ export const parseVentesExcel = (arrayBuffer) => {
   }
 
   if (headerRowIndex === -1) {
-    alert('Format de fichier non reconnu. La ligne d\'en-tête avec "ITM8 Prio" est introuvable.');
-    return null;
+    throw new Error('Format de fichier non reconnu. La ligne d\'en-tête avec "ITM8 Prio" est introuvable.');
   }
 
   // Les données commencent à headerRowIndex + 1
@@ -194,11 +151,8 @@ export const parseVentesExcel = (arrayBuffer) => {
   const quantiteIndex = headers.findIndex(h => h && h.toString().toLowerCase().includes('quantité'));
 
   if (libelleIndex === -1 || dateIndex === -1 || quantiteIndex === -1) {
-    alert('Colonnes requises introuvables (Libellé, Date, Quantité)');
-    return null;
+    throw new Error('Colonnes requises introuvables (Libellé, Date, Quantité)');
   }
-
-  console.log(`📋 Colonnes détectées: ITM8=${itm8Index}, Libellé=${libelleIndex}, Date=${dateIndex}, Quantité=${quantiteIndex}`);
 
   // Regrouper les données par produit et par date
   // Structure: Map<libelle, { ventesParJour: {}, itm8: number }>
@@ -259,12 +213,8 @@ export const parseVentesExcel = (arrayBuffer) => {
  * Diagnostic du fichier de fréquentation - affiche les problèmes détectés
  */
 const diagnostiquerFrequentation = (allData) => {
-  console.log('🔍 === DIAGNOSTIC DU FICHIER FRÉQUENTATION ===');
-  console.log(`📄 Nombre total de lignes : ${allData.length}`);
-
   // Vérifier si le fichier est vide
   if (allData.length === 0) {
-    console.error('❌ ERREUR : Le fichier est vide');
     return false;
   }
 
@@ -274,31 +224,15 @@ const diagnostiquerFrequentation = (allData) => {
     const row = allData[i];
     if (row && row.some(cell => cell && cell.toString().includes('JOUR'))) {
       headerRowIndex = i;
-      console.log(`✅ Ligne d'en-tête trouvée à la ligne ${i + 1}`);
       break;
     }
-  }
-
-  if (headerRowIndex === -1) {
-    console.warn('⚠️  Ligne d\'en-tête "JOUR" non trouvée - utilisation de la ligne 1 par défaut');
   }
 
   // Vérifier qu'il y a assez de colonnes
   const sampleRow = allData[headerRowIndex >= 0 ? headerRowIndex + 1 : 1];
   if (!sampleRow || sampleRow.length < 22) {
-    console.error(`❌ ERREUR : Pas assez de colonnes dans le fichier`);
-    console.error(`   Nombre de colonnes trouvées : ${sampleRow ? sampleRow.length : 0}`);
-    console.error(`   Nombre de colonnes requises : 22 minimum`);
-    console.error('   Colonnes attendues :');
-    console.error('   - Colonne G (7) : JOUR');
-    console.error('   - Colonne H (8) : TRANCHE');
-    console.error('   - Colonne J (10) : Qte Tot BVP S-1');
-    console.error('   - Colonne P (16) : Qte Tot BVP AS-1');
-    console.error('   - Colonne V (22) : Qte Tot BVP S-2');
     return false;
   }
-
-  console.log(`✅ Structure de base correcte (${sampleRow.length} colonnes)`);
 
   // Vérifier quelques lignes de données
   let joursDetectes = new Set();
@@ -318,16 +252,10 @@ const diagnostiquerFrequentation = (allData) => {
     if (qteTotBVPS1 > 0) lignesAvecDonnees++;
   }
 
-  console.log(`📊 Jours détectés (${joursDetectes.size}) :`, Array.from(joursDetectes).join(', '));
-  console.log(`⏰ Tranches horaires détectées (${tranchesDetectees.size}) :`, Array.from(tranchesDetectees).join(', '));
-  console.log(`📈 Lignes avec des données : ${lignesAvecDonnees}`);
-
   if (lignesAvecDonnees === 0) {
-    console.error('❌ ERREUR : Aucune donnée de quantités trouvée dans la colonne J (Qte Tot BVP S-1)');
     return false;
   }
 
-  console.log('✅ Fichier de fréquentation semble correct');
   return true;
 };
 
@@ -345,7 +273,7 @@ export const parseFrequentationExcel = (arrayBuffer, typePonderation = 'standard
   // 🔍 DIAGNOSTIC
   const diagnosticOk = diagnostiquerFrequentation(allData);
   if (!diagnosticOk) {
-    alert('❌ Erreur dans le fichier de fréquentation. Appuyez sur F12 pour voir les détails dans la console.');
+    throw new Error('Erreur dans le fichier de fréquentation.');
   }
 
   // Mapping jours
@@ -417,8 +345,6 @@ export const parseFrequentationExcel = (arrayBuffer, typePonderation = 'standard
   const colsBVP = { S1: 9, AS1: 15, S2: 21 };
   const colsPDV = { S1: 12, AS1: 18, S2: 24 };
   const cols = sourcePonderation === 'PDV' ? colsPDV : colsBVP;
-
-  console.log(`📊 Source pondération: ${sourcePonderation} (Cols: ${cols.S1}, ${cols.AS1}, ${cols.S2})`);
 
   // Données BVP séparées (toujours extraites pour l'historique)
   const qteTotParJourS1_BVP = {};
@@ -627,8 +553,7 @@ export const parseFrequentationExcel = (arrayBuffer, typePonderation = 'standard
   });
 
   if (totalQteTot === 0) {
-    alert('Aucune donnée de quantité totale trouvée dans le fichier de fréquentation');
-    return null;
+    throw new Error('Aucune donnée de quantité totale trouvée dans le fichier de fréquentation');
   }
 
   return {

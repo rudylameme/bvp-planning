@@ -64,12 +64,10 @@ const CONFIG = {
 export async function chargerInfoPDV(dirHandle) {
   // Vérifier le cache
   if (cache.infoPDV) {
-    console.log('📁 Cache hit pour info_PDV.json');
     return cache.infoPDV;
   }
 
   try {
-    console.log('📂 Chargement de info_PDV.json...');
     const fileHandle = await dirHandle.getFileHandle('info_PDV.json');
     const file = await fileHandle.getFile();
     const content = await file.text();
@@ -77,11 +75,9 @@ export async function chargerInfoPDV(dirHandle) {
 
     // Mettre en cache
     cache.infoPDV = data;
-    console.log(`✅ info_PDV.json chargé: ${Object.keys(data).length} magasins`);
 
     return data;
   } catch (error) {
-    console.warn('⚠️ Fichier info_PDV.json non trouvé, fonctionnement dégradé');
     return null;
   }
 }
@@ -162,7 +158,7 @@ export async function listerSemainesDisponibles(dirHandle) {
       }
     }
   } catch (error) {
-    console.error('Erreur lors de la lecture du dossier:', error);
+    // TODO: logger professionnel
   }
 
   // Trier par date décroissante
@@ -182,18 +178,13 @@ async function chargerFichierExcel(file) {
 
   // Vérifier le cache
   if (cache.fichiers.has(cacheKey)) {
-    console.log(`📁 Cache hit pour ${file.name}`);
     return cache.fichiers.get(cacheKey);
   }
 
-  console.log(`📂 Chargement de ${file.name}...`);
   const startTime = performance.now();
 
   const arrayBuffer = await file.arrayBuffer();
   const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-
-  const endTime = performance.now();
-  console.log(`✅ Fichier chargé en ${Math.round(endTime - startTime)}ms`);
 
   // Mettre en cache
   cache.fichiers.set(cacheKey, workbook);
@@ -222,7 +213,6 @@ function getCodePDV(obj) {
 function extraireFeuille(workbook, sheetName) {
   const sheet = workbook.Sheets[sheetName];
   if (!sheet) {
-    console.warn(`⚠️ Feuille "${sheetName}" non trouvée`);
     return [];
   }
 
@@ -239,23 +229,17 @@ function extraireFeuille(workbook, sheetName) {
     const row = data[i];
     if (row && row.some(cell => colonnesARechercher.includes(cell))) {
       headerRowIndex = i;
-      console.log(`📋 Feuille "${sheetName}": en-tête trouvé à la ligne ${i + 1}`);
       break;
     }
   }
 
   const headers = data[headerRowIndex];
   if (!headers) {
-    console.warn(`⚠️ Pas d'en-têtes trouvés dans "${sheetName}"`);
     return [];
   }
 
-  console.log(`📋 Feuille "${sheetName}": colonnes trouvées:`, headers.filter(h => h));
-  // Log spécifique pour debug des colonnes historiques
+  // Colonnes historiques pour debug
   const colonnesHistoriques = headers.filter(h => h && (h.includes('_1') || h.includes('_2') || h.includes('N-1') || h.includes('An-1')));
-  if (colonnesHistoriques.length > 0) {
-    console.log(`📋 Colonnes historiques trouvées:`, colonnesHistoriques);
-  }
 
   const result = [];
 
@@ -291,8 +275,6 @@ function extraireFeuille(workbook, sheetName) {
     return header;
   });
 
-  console.log(`📋 Feuille "${sheetName}": colonnes avec suffixes:`, headersWithSuffixes.filter(h => h));
-
   for (let i = headerRowIndex + 1; i < data.length; i++) {
     const row = data[i];
     if (!row || row.length === 0) continue;
@@ -312,7 +294,6 @@ function extraireFeuille(workbook, sheetName) {
     }
   }
 
-  console.log(`📋 Feuille "${sheetName}": ${result.length} lignes avec code PDV`);
   return result;
 }
 
@@ -328,11 +309,9 @@ export async function extraireDonneesMagasin(file, codePdv, dirHandle = null) {
 
   // Vérifier le cache
   if (cache.extractions.has(cacheKey)) {
-    console.log(`🎯 Cache hit pour magasin ${codePdv}`);
     return cache.extractions.get(cacheKey);
   }
 
-  console.log(`🔍 Extraction des données pour magasin ${codePdv}...`);
   const startTime = performance.now();
 
   // Charger le fichier de référence si disponible
@@ -347,7 +326,6 @@ export async function extraireDonneesMagasin(file, codePdv, dirHandle = null) {
   // Normaliser le code PDV en string (supprimer zéros préfixes pour comparaison)
   const codePdvStr = String(codePdv).trim();
   const codePdvNormalise = codePdvStr.replace(/^0+/, ''); // "02023" -> "2023"
-  console.log(`🔍 Recherche du magasin avec code: "${codePdvStr}" (normalisé: "${codePdvNormalise}")`);
 
   // Extraire les feuilles nécessaires
   const totalPdv = extraireFeuille(workbook, CONFIG.feuilles.TOTAL_PDV);
@@ -364,19 +342,8 @@ export async function extraireDonneesMagasin(file, codePdv, dirHandle = null) {
 
   // Filtrer pour ce magasin en utilisant le code normalisé
   const magasinTotalPdv = totalPdv.find(matchCodePDV);
-  console.log(`📊 Total PDV trouvé:`, magasinTotalPdv ? 'Oui' : 'Non');
-
-  // Debug: Afficher TOUTES les colonnes disponibles
-  if (magasinTotalPdv) {
-    const colonnes = Object.keys(magasinTotalPdv);
-    console.log(`📊 TOUTES les colonnes Total_PDV:`, colonnes);
-    // Chercher les colonnes avec suffixes _An1 et _S1
-    const colonnesHistoriques = colonnes.filter(c => c.includes('_An1') || c.includes('_S1'));
-    console.log(`📊 Colonnes historiques disponibles:`, colonnesHistoriques);
-  }
 
   const magasinVenteHeure = venteHeure.filter(matchCodePDV);
-  console.log(`📊 Vente Heure: ${magasinVenteHeure.length} lignes`);
 
   // Récupérer les infos du magasin depuis le fichier de référence
   // Gérer les codes avec zéros en préfixe (07499 vs 7499)
@@ -389,18 +356,12 @@ export async function extraireDonneesMagasin(file, codePdv, dirHandle = null) {
     if (!infoMagasin && codePdvStr.startsWith('0')) {
       const codeSansZero = codePdvStr.replace(/^0+/, '');
       infoMagasin = infoPDV[codeSansZero];
-      if (infoMagasin) {
-        console.log(`📋 Code PDV trouvé sans zéro préfixe: ${codePdvStr} -> ${codeSansZero}`);
-      }
     }
 
     // Si non trouvé, essayer avec zéro préfixe
     if (!infoMagasin) {
       const codeAvecZero = codePdvStr.padStart(5, '0');
       infoMagasin = infoPDV[codeAvecZero];
-      if (infoMagasin) {
-        console.log(`📋 Code PDV trouvé avec zéro préfixe: ${codePdvStr} -> ${codeAvecZero}`);
-      }
     }
   }
 
@@ -410,8 +371,6 @@ export async function extraireDonneesMagasin(file, codePdv, dirHandle = null) {
   const modele = infoMagasin?.modele || null;
   const vocation = infoMagasin?.vocation || magasinTotalPdv?.VOCATION || magasinTotalPdv?.Vocation;
   const region = infoMagasin?.region || magasinTotalPdv?.REGION || magasinTotalPdv?.Region;
-
-  console.log(`📊 Secteur: ${secteurCode} (${secteurLibelle}), Modèle: ${modele}`);
 
   // Calculer la moyenne du secteur (même secteur + même modèle, ou secteur seul si pas de modèle)
   let magasinsComparables = [];
@@ -423,8 +382,6 @@ export async function extraireDonneesMagasin(file, codePdv, dirHandle = null) {
       const info = infoPDV[code];
       return info.secteurCode === secteurCode && info.modele === modele;
     });
-
-    console.log(`📊 Codes comparables depuis info_PDV (Secteur ${secteurCode} + Modèle ${modele}):`, codesComparables);
 
     // Créer un Set de tous les formats possibles des codes comparables
     const codesComparablesSet = new Set();
@@ -445,15 +402,12 @@ export async function extraireDonneesMagasin(file, codePdv, dirHandle = null) {
     });
 
     modeComparaison = 'Secteur + Modèle';
-    console.log(`📊 ${magasinsComparables.length} magasins comparables trouvés dans le fichier Excel`);
   } else if (infoPDV && secteurCode) {
     // Mode intermédiaire : utiliser uniquement le Secteur (quand modèle est null)
     const codesComparables = Object.keys(infoPDV).filter(code => {
       const info = infoPDV[code];
       return info.secteurCode === secteurCode;
     });
-
-    console.log(`📊 Codes comparables depuis info_PDV (Secteur ${secteurCode} uniquement):`, codesComparables);
 
     // Créer un Set de tous les formats possibles des codes comparables
     const codesComparablesSet = new Set();
@@ -473,7 +427,6 @@ export async function extraireDonneesMagasin(file, codePdv, dirHandle = null) {
     });
 
     modeComparaison = 'Secteur';
-    console.log(`📊 ${magasinsComparables.length} magasins comparables (Secteur ${secteurCode}) - Mode Secteur seul`);
   } else {
     // Mode dégradé : utiliser uniquement la vocation
     magasinsComparables = totalPdv.filter(row => {
@@ -481,7 +434,6 @@ export async function extraireDonneesMagasin(file, codePdv, dirHandle = null) {
       return rowVocation === vocation && rowVocation;
     });
     modeComparaison = 'Vocation (dégradé)';
-    console.log(`📊 ${magasinsComparables.length} magasins comparables (même vocation: ${vocation}) - Mode dégradé`);
   }
 
   const moyenneSecteur = calculerMoyenneSecteur(magasinsComparables);
@@ -548,8 +500,6 @@ export async function extraireDonneesMagasin(file, codePdv, dirHandle = null) {
                    magasinVenteHeure[0]?.VILLE || magasinVenteHeure[0]?.Ville ||
                    'Inconnu';
 
-  console.log(`📍 Magasin trouvé: ${villeNom} (${codePdv})`);
-
   // Extraire les valeurs avec les bons noms de colonnes
   const caBVP = parseFloat(magasinTotalPdv?.['Ca Tot BVP']) || 0;
   const qteBVP = parseFloat(magasinTotalPdv?.['Qte Tot BVP']) || 0;
@@ -583,10 +533,6 @@ export async function extraireDonneesMagasin(file, codePdv, dirHandle = null) {
   const ticketsTotal_S1 = parseFloat(magasinTotalPdv?.['Nb Ticket_S1']) || 0;
   const penetration_S1 = ticketsTotal_S1 > 0 ? ticketsBVP_S1 / ticketsTotal_S1 : 0;
   const ticketMoyen_S1 = ticketsBVP_S1 > 0 ? caBVP_S1 / ticketsBVP_S1 : 0;
-
-  console.log(`📊 Indicateurs extraits: CA BVP=${caBVP}, Tickets BVP=${ticketsBVP}, Pénétration=${(penetration * 100).toFixed(1)}%`);
-  console.log(`📊 Historique S-1: CA BVP=${caBVP_S1}, Tickets BVP=${ticketsBVP_S1}`);
-  console.log(`📊 Historique An-1: CA BVP=${caBVP_An1}, Tickets BVP=${ticketsBVP_An1}`);
 
   const result = {
     magasin: {
@@ -778,17 +724,10 @@ export async function extraireDonneesMagasin(file, codePdv, dirHandle = null) {
     detailsComparables,
   };
 
-  console.log(`📊 Classement: ${positionSecteur}/${totalSecteur} dans le secteur ${secteurCode}`);
-
   // ========== FIN CLASSEMENT ==========
 
   const endTime = performance.now();
   result.metadata.tempsExtraction = Math.round(endTime - startTime);
-
-  console.log(`✅ Extraction terminée en ${result.metadata.tempsExtraction}ms`);
-  console.log(`   - ${magasinsComparables.length} magasins comparables (même modèle)`);
-  console.log(`   - ${totalSecteur} magasins dans le secteur`);
-  console.log(`   - ${magasinVenteHeure.length} lignes de ventes horaires`);
 
   // Mettre en cache
   cache.extractions.set(cacheKey, result);
@@ -1140,7 +1079,6 @@ export function viderCache() {
   cache.fichiers.clear();
   cache.extractions.clear();
   cache.infoPDV = null;
-  console.log('🗑️ Cache vidé');
 }
 
 /**

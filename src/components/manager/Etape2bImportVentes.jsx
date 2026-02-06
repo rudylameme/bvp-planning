@@ -64,10 +64,8 @@ const Etape2bImportVentes = () => {
       const produitsFormates = formaterPourPilotageCA(donneesVC);
       setProduitsGamme(produitsFormates);
       setFichierVentesSelectionne({ nom: file.name });
-      console.log(`Gamme chargée: ${produitsFormates.length} produits`,
-        frequentationData?.poidsJours ? '(avec poids fréquentation)' : '(poids par défaut)');
     } catch (error) {
-      console.error('Erreur chargement ventes/casse:', error);
+      // TODO: logger professionnel
       setErreur('Impossible de charger le fichier. Vérifiez le format.');
     } finally {
       setChargement(false);

@@ -2364,21 +2364,6 @@ function ProgrammeGroup({
                 </button>
               </div>
             </td>
-            {(() => {
-              // DEBUG RENDU - premier produit seulement
-              if (produitIdx === 0 && !produit._loggedRendu) {
-                console.log('=== RENDU CRENEAUX ===', {
-                  libelle: produit.libelle,
-                  mode: qtes.mode,
-                  totalPreco: qtes.total?.preco,
-                  tranches: qtes.tranches,
-                  tranchesAffichees: tranchesAffichees?.map(t => ({ key: t.key, sousKeys: t.sousKeys })),
-                  colonnesVisiblesLength: tranchesAffichees?.length,
-                });
-                produit._loggedRendu = true;
-              }
-              return null;
-            })()}
             {qtes.mode === 'tranches' ? (
               <>
                 {tranchesAffichees.map(tranche => {

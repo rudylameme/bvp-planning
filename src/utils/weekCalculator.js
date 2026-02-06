@@ -155,7 +155,7 @@ export function importerConfiguration(jsonString) {
       fermeturesExceptionnelles: data.fermeturesExceptionnelles || {}
     };
   } catch (error) {
-    console.error('Erreur lors de l\'import de la configuration:', error);
+    // TODO: logger professionnel
     throw error;
   }
 }

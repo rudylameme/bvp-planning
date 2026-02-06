@@ -259,7 +259,6 @@ export default function WizardTermine({
       } catch (err) {
         // L'utilisateur a annulé ou erreur - fallback au téléchargement classique
         if (err.name === 'AbortError') return;
-        console.warn('File System API non disponible, fallback au téléchargement classique');
       }
     }
 
@@ -287,7 +286,7 @@ export default function WizardTermine({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Erreur copie:', err);
+      // TODO: logger professionnel
     }
   };
 

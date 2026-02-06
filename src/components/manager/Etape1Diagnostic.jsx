@@ -23,13 +23,11 @@ import {
   AlertTriangle,
   Target,
   Clock,
-  UserX,
   AlertCircle,
   CheckCircle,
   Lightbulb,
   Trophy,
   TrendingUp,
-  Rocket,
 } from 'lucide-react';
 import { useMagasin } from '../../contexts/MagasinContext';
 

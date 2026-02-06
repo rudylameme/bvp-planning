@@ -310,7 +310,7 @@ const Etape5Communication = () => {
       setNomFichierExporte(nomFichier);
     } catch (err) {
       if (err.name === 'AbortError') return;
-      console.error('Erreur export:', err);
+      // TODO: logger professionnel
       setErreur(`Erreur lors de l'export : ${err.message}`);
     } finally {
       setExporting(false);

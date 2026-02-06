@@ -346,7 +346,7 @@ export function enregistrerEchange(echange) {
 
     localStorage.setItem(STORAGE_KEY_HISTORIQUE, JSON.stringify(historiqueRecent));
   } catch (err) {
-    console.error('Erreur enregistrement historique:', err);
+    // TODO: logger professionnel
   }
 }
 

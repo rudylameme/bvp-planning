@@ -102,9 +102,7 @@ const TooltipStats = ({ stats }) => {
 export default function TableauProduits({
   produits,
   modeExpert = false,
-  onChangerFamille,
   onChangerLibelle,
-  onChangerPotentiel,
   onToggleActif,
   onSupprimerProduit,
   onChangerRayon,
@@ -138,7 +136,6 @@ export default function TableauProduits({
         <tbody>
           {produits.map((produit, index) => {
             const estModifie = produit.libelle !== produit.libellePersonnalise;
-            const aPotentielModifie = produit.potentielHebdo > 0;
 
             return (
               <tr key={produit.id} className={`border-b ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${produit.actif ? '' : 'opacity-50'}`}>

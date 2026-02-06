@@ -18,7 +18,6 @@ const BenchmarkModule = ({ onNaviguerPlanning, onRetourAccueilGlobal }) => {
 
   // Handler quand les données sont chargées
   const handleDonneesChargees = useCallback((donnees) => {
-    console.log('📊 Données benchmark chargées:', donnees);
     setDonneesBenchmark(donnees);
     setEcran('dashboard');
   }, []);

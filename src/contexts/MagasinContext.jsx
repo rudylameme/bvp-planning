@@ -28,7 +28,7 @@ async function saveHandle(key, handle) {
     const tx = db.transaction(IDB_STORE, 'readwrite');
     tx.objectStore(IDB_STORE).put(handle, key);
     await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
-  } catch (e) { console.warn('saveHandle:', e); }
+  } catch (e) { /* TODO: logger professionnel */ }
 }
 
 async function loadHandle(key) {

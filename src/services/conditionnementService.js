@@ -33,8 +33,6 @@ export const normaliserITM8 = (itm8) => {
  */
 export const chargerConditionnements = async (filePath = '/Data/liste des conditionements.xlsx') => {
   try {
-    console.log('📦 Chargement des conditionnements...');
-
     // Ajouter un timestamp pour éviter le cache du navigateur
     const timestamp = new Date().getTime();
     const response = await fetch(`${filePath}?t=${timestamp}`);
@@ -49,13 +47,6 @@ export const chargerConditionnements = async (filePath = '/Data/liste des condit
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
     const data = XLSX.utils.sheet_to_json(worksheet);
-
-    console.log(`📊 ${data.length} produits chargés depuis le fichier conditionnements`);
-
-    // DEBUG: Afficher les noms de colonnes
-    if (data.length > 0) {
-      console.log('🔍 Colonnes détectées:', Object.keys(data[0]));
-    }
 
     // Fonction pour trouver une colonne par recherche floue
     const trouverColonne = (row, motsCles) => {
@@ -90,11 +81,6 @@ export const chargerConditionnements = async (filePath = '/Data/liste des condit
       const cdt = Number(cdtRaw) || 0;
       const ulv = typeof ulvRaw === 'number' ? ulvRaw : 1; // ULV peut être un texte
 
-      // DEBUG: Afficher les premiers produits
-      if (index < 3) {
-        console.log(`🔍 Produit ${index + 1}: ITM8="${itm8}", CDT=${cdt}, Libellé="${libelle}"`);
-      }
-
       if (itm8 && cdt > 0) {
         itm8Map.set(itm8, {
           itm8,
@@ -112,13 +98,9 @@ export const chargerConditionnements = async (filePath = '/Data/liste des condit
       loaded: true
     };
 
-    console.log('✅ Conditionnements chargés avec succès');
-    console.log(`   - ${itm8Map.size} ITM8 avec CDT valide`);
-    console.log(`   - ${data.length - produitsAvecCDT} produits ignorés (CDT manquant ou invalide)`);
-
     return conditionnementCache;
   } catch (error) {
-    console.error('❌ Erreur lors du chargement des conditionnements:', error);
+    // TODO: logger professionnel
     return null;
   }
 };
@@ -130,7 +112,6 @@ export const chargerConditionnements = async (filePath = '/Data/liste des condit
  */
 export const rechercherConditionnement = (itm8) => {
   if (!conditionnementCache || !conditionnementCache.loaded) {
-    console.warn('⚠️ Conditionnements non chargés');
     return null;
   }
 
@@ -172,7 +153,6 @@ export const getNombreProduitsConditionnement = () => {
  */
 export const calculerBesoinsCartons = (produits) => {
   if (!conditionnementCache || !conditionnementCache.loaded) {
-    console.warn('⚠️ Conditionnements non chargés');
     return produits.map(p => ({ ...p, cdt: 0, cartonsNecessaires: 0, unitesSurplus: 0 }));
   }
 

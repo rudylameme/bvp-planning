@@ -189,7 +189,6 @@ const Etape2ObjectifCA = ({ onPrecedent }) => {
               tauxPenetration: freqData.tauxPenetration,
               nombreSemaines: freqData.nombreSemaines,
             });
-            console.log(`✅ Fréquentation S-${offset} chargée:`, nom);
           }
           setRechercheEnCours(false);
           return; // Trouvé, on arrête
@@ -310,7 +309,6 @@ const Etape2ObjectifCA = ({ onPrecedent }) => {
               estExacte,
               nomFichier: nomArchive,
             });
-            console.log(`✅ Archive Manager S-${offset} chargée:`, nomArchive, estExacte ? '(exacte)' : '(modèle)');
           }
           setRechercheArchiveEnCours(false);
           return;

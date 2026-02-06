@@ -151,7 +151,6 @@ export async function exporterFichierMagasin(data, nomFichier = null) {
       if (err.name === 'AbortError') {
         throw new Error('Export annulé');
       }
-      console.warn('showSaveFilePicker non disponible, fallback vers téléchargement classique');
     }
   }
 

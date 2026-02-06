@@ -7,7 +7,6 @@ import TouchButton from './TouchButton';
 import { convertirEnPlaques } from '../utils/conversionUtils';
 import { recalculerPlanningAvecVariantes } from '../services/planningRecalculator';
 import { getNomProgrammeAffiche } from '../services/referentielITM8';
-import { mousquetairesColors } from '../styles/mousquetaires-theme';
 
 export default function EtapePlanning({ planning, pdvInfo, produits, frequentationData, configSemaine, onRetour, onPersonnaliser, onPlanningChange, forcedViewMode = null }) {
   const [selectedJour, setSelectedJour] = useState(null);

@@ -138,7 +138,7 @@ const Etape0Import = () => {
         // L'utilisateur a annulé
         return;
       }
-      console.error('Erreur sélection dossier:', error);
+      // TODO: logger professionnel
       setErreur('Impossible de lire le dossier. Vérifiez les permissions.');
     } finally {
       setChargement(false);
@@ -201,14 +201,12 @@ const Etape0Import = () => {
             setDonneesGamme(donneesVC);
             const produitsFormates = formaterPourPilotageCA(donneesVC);
             setProduitsGamme(produitsFormates);
-            console.log(`✅ Gamme chargée: ${produitsFormates.length} produits`);
           } catch (vcError) {
-            console.warn('Fichier ventes/casse non chargé:', vcError);
             // Ce n'est pas bloquant, on continue sans données gamme
           }
         }
       } catch (error) {
-        console.error('Erreur extraction données:', error);
+        // TODO: logger professionnel
         setErreur('Impossible de charger les données du magasin.');
       } finally {
         setChargement(false);
@@ -233,7 +231,7 @@ const Etape0Import = () => {
         const donnees = await extraireDonneesMagasin(file, magasinSelectionne.code, dirHandle);
         setDonneesMagasin(donnees);
       } catch (error) {
-        console.error('Erreur extraction données:', error);
+        // TODO: logger professionnel
         setErreur('Impossible de charger les données pour cette semaine.');
       } finally {
         setChargement(false);

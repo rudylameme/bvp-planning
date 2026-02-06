@@ -115,7 +115,7 @@ export async function listerFichiersVentesCasse(dirHandle) {
       }
     }
   } catch (error) {
-    console.error('Erreur lors de la lecture du dossier:', error);
+    // TODO: logger professionnel
   }
 
   return fichiers;
@@ -130,18 +130,15 @@ async function chargerFichierExcel(file) {
   const cacheKey = file.name;
 
   if (cache.fichiers.has(cacheKey)) {
-    console.log(`📁 Cache hit pour ${file.name}`);
     return cache.fichiers.get(cacheKey);
   }
 
-  console.log(`📂 Chargement de ${file.name}...`);
   const startTime = performance.now();
 
   const arrayBuffer = await file.arrayBuffer();
   const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
 
   const endTime = performance.now();
-  console.log(`✅ Fichier chargé en ${Math.round(endTime - startTime)}ms`);
 
   cache.fichiers.set(cacheKey, workbook);
   return workbook;
@@ -315,7 +312,6 @@ function detecterColonnes(headers) {
     }
   }
 
-  console.log('📋 Colonnes détectées:', mapping);
   return mapping;
 }
 
@@ -340,7 +336,6 @@ export async function extraireProduitsVentesCasse(file, options = {}) {
   cache.fichiers.delete(file.name);
   cache.produitsExtraits.clear();
 
-  console.log(`🔍 Extraction des produits depuis ${file.name}...`);
   const startTime = performance.now();
 
   const workbook = await chargerFichierExcel(file);
@@ -362,7 +357,6 @@ export async function extraireProduitsVentesCasse(file, options = {}) {
     const row = data[i];
     if (row && row.some(cell => cell && String(cell).toLowerCase().includes('code ean'))) {
       headerRow = i;
-      console.log(`📋 En-tête auto-détectée à la ligne ${i + 1}`);
       break;
     }
   }
@@ -373,7 +367,6 @@ export async function extraireProduitsVentesCasse(file, options = {}) {
 
   // Récupérer les en-têtes
   const headers = data[headerRow];
-  console.log('📋 En-têtes trouvés:', headers);
 
   // Détecter les colonnes
   const colonnes = detecterColonnes(headers);
@@ -400,11 +393,6 @@ export async function extraireProduitsVentesCasse(file, options = {}) {
 
     const date = parseDate(dateCell);
     const hasDate = date !== null;
-
-    // Debug : afficher les 5 premières lignes pour vérifier le parsing des dates
-    if (i <= headerRow + 5) {
-      console.log(`📌 Ligne ${i}: dateCell=${dateCell} (type=${typeof dateCell}), parsedDate=${date}, hasDate=${hasDate}`);
-    }
 
     // Si on ne veut pas les totaux et qu'il n'y a pas de date, ignorer
     if (!inclureTotaux && !hasDate) continue;
@@ -651,17 +639,11 @@ export async function extraireProduitsVentesCasse(file, options = {}) {
     }
   });
   const nombreSemainesGlobal = semainesGlobales.size;
-  console.log(`📅 Semaines ISO distinctes (${nombreSemainesGlobal}):`, [...semainesGlobales].sort());
 
   // Détecter les semaines avec jours fériés (log global)
   const semainesGlobalesMap = new Map();
   semainesGlobales.forEach(s => semainesGlobalesMap.set(s, { ventesQte: 0 }));
   const { semainesFeriees: ferieesGlobal } = calculerPoidsJoursFeries(semainesGlobalesMap);
-  if (ferieesGlobal.length > 0) {
-    console.log(`🎌 Semaines avec jours fériés détectées (pondération réduite) :`, ferieesGlobal);
-  } else {
-    console.log(`✅ Aucune semaine avec jour férié dans la période`);
-  }
 
   // Calculer les statistiques globales
   const totalVentesQte = produitsFinaux.reduce((acc, p) => acc + p.ventesQte, 0);
@@ -694,11 +676,6 @@ export async function extraireProduitsVentesCasse(file, options = {}) {
       periodeFin: dateFin,
     },
   };
-
-  console.log(`✅ Extraction terminée en ${result.metadata.tempsExtraction}ms`);
-  console.log(`   - ${result.statistiques.nombreProduits} produits extraits`);
-  console.log(`   - CA Total: ${result.statistiques.totalVentesPVTTC.toFixed(2)} €`);
-  console.log(`   - Taux de casse global: ${result.statistiques.tauxCasseGlobal}%`);
 
   cache.produitsExtraits.set(file.name, result);
   return result;
@@ -879,7 +856,6 @@ export function formaterPourPilotageCA(data) {
 export function viderCache() {
   cache.fichiers.clear();
   cache.produitsExtraits.clear();
-  console.log('🗑️ Cache gamme vidé');
 }
 
 /**

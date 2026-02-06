@@ -16,8 +16,6 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
-  ChevronRight,
-  ChevronLeft,
   Search,
   Check,
   X,

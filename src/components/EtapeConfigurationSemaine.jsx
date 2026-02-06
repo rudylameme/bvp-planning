@@ -3,7 +3,6 @@ import { Calendar, Download, Upload, AlertCircle } from 'lucide-react';
 import {
   calculateWeekDates,
   getCurrentWeek,
-  determinerJoursReport,
   exporterConfiguration,
   importerConfiguration
 } from '../utils/weekCalculator';

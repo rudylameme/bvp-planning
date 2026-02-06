@@ -35,8 +35,6 @@ let referentielCache = null;
  */
 export const chargerReferentielITM8 = async (filePath) => {
   try {
-    console.log('📚 Chargement du référentiel ITM8...');
-
     // Ajouter un timestamp pour éviter le cache du navigateur
     const timestamp = new Date().getTime();
     const response = await fetch(`${filePath}?t=${timestamp}`);
@@ -46,13 +44,6 @@ export const chargerReferentielITM8 = async (filePath) => {
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
     const data = XLSX.utils.sheet_to_json(worksheet);
-
-    console.log(`📊 ${data.length} produits chargés depuis le référentiel`);
-
-    // DEBUG: Afficher les noms de colonnes du premier produit
-    if (data.length > 0) {
-      console.log('🔍 Colonnes détectées dans le référentiel:', Object.keys(data[0]));
-    }
 
     // Fonction pour trouver une colonne par recherche floue
     const trouverColonne = (row, motsCles) => {
@@ -101,23 +92,6 @@ export const chargerReferentielITM8 = async (filePath) => {
 
       // Code EAN13 (peut contenir plusieurs codes séparés par ";")
       const ean13Raw = (row['EAN13'] || '').toString().trim();
-
-      // DEBUG: Afficher les 3 premiers produits avec leurs valeurs
-      if (index < 3) {
-        console.log(`🔍 Produit ${index + 1}: "${row['Libellé produit']}"`);
-        console.log(`   - unit / lot (raw): "${unitesParVenteRaw}" → ${unitesParVente}`);
-        console.log(`   - Nombre d'unit par plaque (raw): "${unitesParPlaqueRaw}" → ${unitesParPlaque}`);
-        console.log(`   - Code PLU: "${codePLU}"`);
-        console.log(`   - EAN13: "${ean13Raw}"`);
-
-        // DEBUG SUPPLÉMENTAIRE: afficher TOUTES les colonnes pour le produit 1
-        if (index === 0) {
-          console.log(`   📋 TOUTES LES COLONNES du produit 1:`);
-          Object.keys(row).forEach(key => {
-            console.log(`      - "${key}" = "${row[key]}"`);
-          });
-        }
-      }
 
       if (itm8 && rayon && programme) {
         itm8Map.set(itm8, {
@@ -168,15 +142,9 @@ export const chargerReferentielITM8 = async (filePath) => {
       programmes: Array.from(programmesSet).sort()
     };
 
-    console.log('✅ Référentiel chargé avec succès');
-    console.log(`   - ${itm8Map.size} ITM8 uniques`);
-    console.log(`   - ${eanMap.size} EAN13 indexés`);
-    console.log(`   - ${rayonsSet.size} rayons: ${Array.from(rayonsSet).join(', ')}`);
-    console.log(`   - ${programmesSet.size} programmes: ${Array.from(programmesSet).join(', ')}`);
-
     return referentielCache;
   } catch (error) {
-    console.error('❌ Erreur lors du chargement du référentiel:', error);
+    // TODO: logger professionnel
     return null;
   }
 };
@@ -188,7 +156,6 @@ export const chargerReferentielITM8 = async (filePath) => {
  */
 export const rechercherParITM8 = (itm8) => {
   if (!referentielCache) {
-    console.warn('⚠️ Référentiel non chargé');
     return null;
   }
 
@@ -287,7 +254,7 @@ export const chargerProgrammesPersonnalises = () => {
       };
     }
   } catch (error) {
-    console.error('Erreur chargement programmes personnalisés:', error);
+    // TODO: logger professionnel
   }
   return { renommages: new Map(), custom: [] };
 };
@@ -303,7 +270,7 @@ export const sauvegarderProgrammesPersonnalises = (renommages, custom) => {
     };
     localStorage.setItem(STORAGE_KEY_PROGRAMMES, JSON.stringify(data));
   } catch (error) {
-    console.error('Erreur sauvegarde programmes personnalisés:', error);
+    // TODO: logger professionnel
   }
 };
 

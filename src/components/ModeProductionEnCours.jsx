@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { CheckCircle, Circle, Play, Clock, Package, Trash2 } from 'lucide-react';
 import TouchButton from './TouchButton';
 import { useProductionStorage } from '../hooks/useProductionStorage';
@@ -68,17 +67,6 @@ export default function ModeProductionEnCours({
   const handleCasseChange = (libelle, valeur) => {
     const valeurNumerique = parseFloat(valeur) || 0;
     setCasse(libelle, valeurNumerique);
-  };
-
-  // DEBUG: Afficher la clé de stockage utilisée
-  const storageKey = `production_${jour}_${rayon}_${programme}`;
-  const handleDebugLocalStorage = () => {
-    console.log('=== DEBUG LOCALSTORAGE ===');
-    console.log('Clé:', storageKey);
-    console.log('Données:', data);
-    console.log('Toutes les clés de production:',
-      Object.keys(localStorage).filter(k => k.startsWith('production_'))
-    );
   };
 
   const handleResetProduction = () => {
@@ -194,7 +182,6 @@ export default function ModeProductionEnCours({
         {produits.map((produit) => {
           const estFait = data.produitsCoches[trancheActive]?.includes(produit.libelle) || false;
           const { prevision, stock, aCuire } = calculerQuantiteACuire(produit);
-          const estDerniereCuisson = trancheActive === 'apres-midi';
           const casseValue = data.casse[produit.libelle] || 0;
 
           return (

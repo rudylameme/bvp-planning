@@ -13,7 +13,6 @@ import { Trash2 } from 'lucide-react';
  */
 export default function ModeCasseGlobal({
   rayonsData,
-  jour,
   modeAffichage = 'plaques',
   formaterQuantite
 }) {

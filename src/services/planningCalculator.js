@@ -306,7 +306,6 @@ export const appliquerFermeturesEtReports = (quantitesBase, configSemaine, frequ
 export const calculerPlanning = (frequentationData, produits, configSemaine = null) => {
   try {
     if (!frequentationData?.poidsJours) {
-      console.error('❌ calculerPlanning : Pas de données de fréquentation !');
       return null;
     }
 
@@ -615,10 +614,9 @@ export const calculerPlanning = (frequentationData, produits, configSemaine = nu
       }
     }
 
-    console.log('✅ Planning généré avec succès');
     return planning;
   } catch (error) {
-    console.error('🚨 ERREUR dans calculerPlanning :', error);
+    // TODO: logger professionnel
     return null;
   }
 };

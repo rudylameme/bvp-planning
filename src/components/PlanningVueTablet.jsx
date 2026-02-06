@@ -5,7 +5,6 @@ import ModeProductionEnCours from './ModeProductionEnCours';
 import ModeSuiviTempsReel from './ModeSuiviTempsReel';
 import ModeCasseGlobal from './ModeCasseGlobal';
 import { ChevronLeft, ChevronRight, List, PlayCircle, Activity, Trash2 } from 'lucide-react';
-import { convertirEnPlaques } from '../utils/conversionUtils';
 
 /**
  * Vue Planning optimisée pour tablette
@@ -18,7 +17,6 @@ export default function PlanningVueTablet({
   planningLocal,
   modeAffichage,
   formaterQuantite,
-  handleModificationManuelle,
   variantesParRayonEtJour,
   handleChangeVariante,
   onNaviguerJour
@@ -305,12 +303,8 @@ export default function PlanningVueTablet({
                     jour={selectedJour}
                     modeAffichage={modeAffichage}
                     trancheActive={trancheGlobale}
-                    onProduitCoche={(libelle, estCoche) => {
-                      console.log(`${libelle} ${estCoche ? 'coché' : 'décoché'}`);
-                    }}
-                    onDemarrer={() => {
-                      console.log(`Production démarrée pour ${rayon} - ${programme}`);
-                    }}
+                    onProduitCoche={() => {}}
+                    onDemarrer={() => {}}
                   />
                 </div>
               );

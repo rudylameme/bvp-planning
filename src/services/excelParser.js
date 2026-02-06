@@ -135,13 +135,6 @@ export async function parseVentesExcel(file) {
           )
         };
 
-        // Log des colonnes détectées (pour debug)
-        console.log('📊 Colonnes détectées:', {
-          ventes: colIndex.quantite !== -1 ? headers[colIndex.quantite] : 'non trouvée',
-          casseQte: colIndex.casseQte !== -1 ? headers[colIndex.casseQte] : 'non trouvée',
-          tauxCasse: colIndex.tauxCasse !== -1 ? headers[colIndex.tauxCasse] : 'non trouvée'
-        });
-
         // Vérifier les colonnes obligatoires
         if (colIndex.libelle === -1) {
           throw new Error('Colonne "Libellé" non trouvée');
@@ -285,24 +278,11 @@ export async function parseVentesExcel(file) {
         const produitsAvecCasse = Object.values(parProduit).filter(p => p.casseTotale > 0);
         const donneesCasseDisponibles = produitsAvecCasse.length > 0;
 
-        if (donneesCasseDisponibles) {
-          console.log(`✅ Données de casse trouvées pour ${produitsAvecCasse.length} produits`);
-          console.log(`   Casse PA HT totale: ${cassePaHTGlobale.toFixed(2)} €`);
-        } else {
-          console.log('ℹ️ Aucune donnée de casse dans le fichier');
-        }
-
         // Vérifier si des données de marge sont disponibles
         const produitsAvecMarge = Object.values(parProduit).filter(
           p => p.prixAchatHT !== null || p.tauxMarge !== null
         );
         const donneesMargeDisponibles = produitsAvecMarge.length > 0;
-
-        if (donneesMargeDisponibles) {
-          console.log(`✅ Données de marge trouvées pour ${produitsAvecMarge.length} produits`);
-        } else {
-          console.log('⚠️ Aucune donnée de marge dans le fichier - utilisation de l\'estimation par défaut (40%)');
-        }
 
         resolve({
           parProduit,
@@ -439,8 +419,6 @@ export async function parseFrequentationExcel(file) {
         const semaineS1 = findSemaineInfo(8, 3);   // Colonne I et autour
         const semaineAS1 = findSemaineInfo(14, 3); // Colonne O et autour
         const semaineS2 = findSemaineInfo(20, 3);  // Colonne U et autour
-
-        console.log('Semaines détectées:', { semaineS1, semaineAS1, semaineS2 });
 
         // Structures pour stocker les données
         const frequentationParJour = {

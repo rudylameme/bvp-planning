@@ -74,7 +74,7 @@ export default function ImportFichierEquipe({ onFichierCharge }) {
       setFichierCharge(data);
       setEtape('confirmation');
     } catch (err) {
-      console.error('Erreur parsing fichier:', err);
+      // TODO: logger professionnel
       setErreur('Impossible de lire le fichier. Vérifiez qu\'il s\'agit bien d\'un fichier BVP Planning.');
     }
   };
@@ -270,7 +270,7 @@ export function useFichierMagasin() {
         return JSON.parse(saved);
       }
     } catch (err) {
-      console.error('Erreur chargement fichier magasin:', err);
+      // TODO: logger professionnel
     }
     return null;
   };
