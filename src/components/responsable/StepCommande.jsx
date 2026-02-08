@@ -5,7 +5,8 @@ import {
   isConditionnementCharge,
   rechercherConditionnement
 } from '../../services/conditionnementService';
-import FicheCommandeImpression from './FicheCommandeImpression';
+import FicheCommandeImpression from '../shared/FicheCommandeImpression';
+import { formatDateInput, formatDateCourt } from '../../utils/formatUtils';
 
 /**
  * StepCommande - Étape 5 du Wizard Responsable
@@ -133,21 +134,6 @@ const StepCommande = forwardRef(function StepCommande({
       modesStockProduits
     });
   }, [livraisons, qtesFixees, cdtPersonnalises, livraisonForte, modeStockDefaut, modesStockProduits]);
-
-  // Helper: formater une date pour input type="date"
-  const formatDateInput = (date) => {
-    return date.toISOString().split('T')[0];
-  };
-
-  // Helper: formater une date pour affichage court
-  const formatDateCourt = (dateStr) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('fr-FR', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short'
-    });
-  };
 
   // Ajouter une livraison (max 3)
   const ajouterLivraison = () => {

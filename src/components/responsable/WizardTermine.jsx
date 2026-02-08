@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { formatEuro } from '../../utils/formatUtils';
 import { CheckCircle, Download, RefreshCw, ArrowLeft, FileJson, Copy, Check } from 'lucide-react';
 
 // Liste des jours de la semaine
@@ -288,15 +289,6 @@ export default function WizardTermine({
     } catch (err) {
       // TODO: logger professionnel
     }
-  };
-
-  const formatEuro = (value) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(value);
   };
 
   if (!fichierGenere) {

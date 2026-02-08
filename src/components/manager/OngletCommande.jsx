@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Package, Search, Calendar, AlertTriangle, ChevronDown, ChevronRight, ChevronUp, Info, Plus, X, RotateCcw } from 'lucide-react';
-import FicheCommandeImpression from './FicheCommandeImpression';
+import FicheCommandeImpression from '../shared/FicheCommandeImpression';
+import { formatDateInput, formatDateCourt } from '../../utils/formatUtils';
 import { useMagasin } from '../../contexts/MagasinContext';
 
 /**
@@ -121,21 +122,6 @@ const OngletCommande = () => {
       personnalisationProduits
     });
   }, [livraisons, qtesFixees, cdtPersonnalises, livraisonForte, modeStockDefaut, modesStockProduits, personnalisationProduits]);
-
-  // Helper: formater une date pour input type="date"
-  const formatDateInput = (date) => {
-    return date.toISOString().split('T')[0];
-  };
-
-  // Helper: formater une date pour affichage court
-  const formatDateCourt = (dateStr) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('fr-FR', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short'
-    });
-  };
 
   // Ajouter une livraison (max 3)
   const ajouterLivraison = () => {

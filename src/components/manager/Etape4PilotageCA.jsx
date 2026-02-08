@@ -29,6 +29,7 @@ import {
   BarChart2,
 } from 'lucide-react';
 import { useMagasin } from '../../contexts/MagasinContext';
+import { formatEuro } from '../../utils/formatUtils';
 import StepAnimationCommerciale from '../responsable/StepAnimationCommerciale';
 import OngletCommande from './OngletCommande';
 
@@ -134,15 +135,6 @@ const PRODUITS_DEMO = [
 // ============================================================================
 // FONCTIONS UTILITAIRES
 // ============================================================================
-
-const formatEuro = (value) => {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-};
 
 // ============================================================================
 // COMPOSANTS

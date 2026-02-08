@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
+import { formatEuro } from '../../utils/formatUtils';
 import { TrendingUp, TrendingDown, Minus, Search, ToggleLeft, ToggleRight, ArrowUp, ArrowDown, Settings, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { getListeProgrammesComplets } from '../../services/referentielITM8';
 
@@ -547,15 +548,6 @@ export default function PilotageCA({
       p.id === id ? { ...p, [field]: value } : p
     );
     onProduitsChange(newProduits);
-  };
-
-  const formatEuro = (value) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(value);
   };
 
   return (
