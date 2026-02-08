@@ -610,7 +610,7 @@ const Etape2ObjectifCA = ({ onPrecedent }) => {
             {formatMontant(objectifSuggereVal)}
           </p>
           <p className="text-sm text-mousquetaires-gris mt-1">
-            +{((potentiel.gainCaMax / caActuel) * 100).toFixed(0)}% vs actuel
+            +{((potentiel.gainCaMax / (caActuel || 1)) * 100).toFixed(0)}% vs actuel
           </p>
         </div>
       </div>
