@@ -67,10 +67,29 @@ const AccueilEquipe = ({ onRetourAccueil }) => {
   // Préparer les données pour PlanningJour (compatible V5 schéma 3.0 et V4)
   const donneesMagasin = fichierCharge ? {
     configuration: fichierCharge.configuration
-      ? { ...fichierCharge.configuration, semaine: fichierCharge.semaine?.numero || fichierCharge.configuration.semaine, annee: fichierCharge.semaine?.annee || fichierCharge.configuration.annee }
-      : { joursActifs: [], semaine: fichierCharge.semaine?.numero, annee: fichierCharge.semaine?.annee },
+      ? {
+          ...fichierCharge.configuration,
+          semaine: fichierCharge.semaine?.numero || fichierCharge.configuration.semaine,
+          annee: fichierCharge.semaine?.annee || fichierCharge.configuration.annee,
+          // Métadonnées pour l'impression (format V2)
+          codePDV: fichierCharge.magasin?.code || '',
+          nomPDV: fichierCharge.magasin?.nom || '',
+          typePonderation: fichierCharge.frequentation?.typePonderation || '',
+        }
+      : {
+          joursActifs: [],
+          semaine: fichierCharge.semaine?.numero,
+          annee: fichierCharge.semaine?.annee,
+          codePDV: fichierCharge.magasin?.code || '',
+          nomPDV: fichierCharge.magasin?.nom || '',
+          typePonderation: fichierCharge.frequentation?.typePonderation || '',
+        },
     frequentation: fichierCharge.frequentation || {},
-    produits: fichierCharge.produits || [],
+    // Garantir que chaque produit a un id unique (filet de sécurité pour anciens fichiers)
+    produits: (fichierCharge.produits || []).map((p, i) => ({
+      ...p,
+      id: p.id || p.itm8 || `prod_${i + 1}`,
+    })),
     commandes: fichierCharge.commandes || {},
     personnalisationProduits: fichierCharge.personnalisationProduits || {},
   } : null;

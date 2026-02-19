@@ -26,8 +26,10 @@ export default function useDragReorder({
   }, []);
 
   const handleDragOverFamille = useCallback((e, index) => {
+    // Ne pas interférer avec le drag des programmes
+    if (dragState.type !== 'famille') return;
     e.preventDefault();
-    if (dragState.type === 'famille' && dragState.dragIndex !== index) {
+    if (dragState.dragIndex !== index) {
       setDragState(prev => ({ ...prev, hoverIndex: index }));
     }
   }, [dragState.type, dragState.dragIndex]);

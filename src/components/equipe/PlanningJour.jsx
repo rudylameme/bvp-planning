@@ -5,6 +5,7 @@ import ModalEditionProduit from './planning/ModalEditionProduit';
 import ModalGestionProgrammes from './planning/ModalGestionProgrammes';
 import FamilleSection from './planning/FamilleSection';
 import { handlePrintPlanningPro, handlePrintSemaine } from './planning/SectionImpression';
+import { handleExportExcel } from './planning/exportExcel';
 import { EnTetePlanning, BarreInfoCreneaux, Legende3Lignes, SelecteurJour } from './planning/BarreOutils';
 import useDragReorder from '../../hooks/useDragReorder';
 
@@ -17,7 +18,7 @@ import { calculerQuantites as calculerQuantitesBase, calculerTotauxFamille as ca
 import { processSaveProgrammes } from './planning/handleSaveProgrammes';
 
 // Hooks
-import { useTranchesDynamiques, useColonnesVisibles } from './planning/useColonnesVisibles';
+import { useColonnesVisibles, colonnesFromGroups, TRANCHES_DEFAUT_PAR_FAMILLE, tranchesParFamilleFromNbTranches } from './planning/useColonnesVisibles';
 import { useProduitsParFamille, useFamillesTriees, useGetProgrammesOrdonnes } from './planning/useProduitsGroupes';
 
 /**
@@ -35,11 +36,29 @@ export default function PlanningJour({ donneesMagasin }) {
   // Mode simplifié : n'affiche que les quantités (pas Histo/%)
   const [modeSimplifie, setModeSimplifie] = useState(true);
 
-  // Afficher toutes les colonnes (même vides)
-  const [afficherToutesColonnes, setAfficherToutesColonnes] = useState(false);
+  // Mode d'impression : 'continu' (défaut) ou 'separe' (persisté dans localStorage)
+  const [modeImpression, setModeImpressionState] = useState(() => {
+    try {
+      return localStorage.getItem('bvp_impression_mode') || 'continu';
+    } catch { return 'continu'; }
+  });
+  const setModeImpression = useCallback((mode) => {
+    setModeImpressionState(mode);
+    try { localStorage.setItem('bvp_impression_mode', mode); } catch {}
+  }, []);
 
-  // Mode d'affichage des tranches : 'regroupees' (4 colonnes) ou 'detaillees' (6 colonnes)
-  const [modeTranches, setModeTranches] = useState('regroupees');
+  // Familles sélectionnées pour l'impression (objet { BOULANGERIE: true, ... } ou null = toutes)
+  const [famillesImpression, setFamillesImpressionState] = useState(() => {
+    try {
+      const saved = localStorage.getItem('bvp_impression_familles');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return null; // null = toutes sélectionnées par défaut
+  });
+  const setFamillesImpression = useCallback((familles) => {
+    setFamillesImpressionState(familles);
+    try { localStorage.setItem('bvp_impression_familles', JSON.stringify(familles)); } catch {}
+  }, []);
 
   // État pour le tri multi-colonnes
   const [sortConfig, setSortConfig] = useState({
@@ -70,6 +89,24 @@ export default function PlanningJour({ donneesMagasin }) {
   const [programmesPersonnalises, setProgrammesPersonnalises] = useState(null);
 
   const { configuration, frequentation, produits: produitsOriginaux } = donneesMagasin;
+
+  // Tranches par famille (nouveau format) avec rétrocompatibilité
+  const tranchesParFamille = useMemo(() => {
+    if (configuration?.tranchesParFamille) {
+      return configuration.tranchesParFamille;
+    }
+    // Rétrocompatibilité : convertir nbTranches global en per-family
+    const nb = configuration?.nbTranches || 4;
+    const familles = [...new Set((produitsOriginaux || []).map(p => p.famille).filter(Boolean))];
+    if (familles.length === 0) familles.push('BOULANGERIE', 'VIENNOISERIE', 'PATISSERIE', 'SNACKING', 'AUTRE');
+    return tranchesParFamilleFromNbTranches(nb, familles);
+  }, [configuration?.tranchesParFamille, configuration?.nbTranches, produitsOriginaux]);
+
+  // Nombre de tranches max (pour BarreInfoCreneaux)
+  const nbTranchesMax = useMemo(() => {
+    const counts = Object.values(tranchesParFamille).map(g => g?.length || 4);
+    return counts.length > 0 ? Math.max(...counts) : 4;
+  }, [tranchesParFamille]);
 
   // Appliquer les modifications aux produits
   const produits = useMemo(() => {
@@ -187,11 +224,15 @@ export default function PlanningJour({ donneesMagasin }) {
     return Array.from(programmeSet).sort();
   }, [programmesPersonnalises, produits]);
 
-  // Compter les produits par programme
+  // Compter les produits par programme (avec normalisation)
   const produitsParProgramme = useMemo(() => {
     const counts = {};
     produits.forEach(p => {
-      const prog = p.programme || 'Sans programme';
+      let prog = p.programme || '';
+      const normProg = prog.toLowerCase().replace(/^--\s*|\s*--$/g, '').trim();
+      if (!normProg || normProg === 'sans programme' || normProg === 'sans cuisson') {
+        prog = 'Sans cuisson';
+      }
       counts[prog] = (counts[prog] || 0) + 1;
     });
     return counts;
@@ -270,14 +311,17 @@ export default function PlanningJour({ donneesMagasin }) {
   const baseCalcul = configuration?.baseCalcul || 'PDV';
   const showHisto = baseCalcul === 'PDV';
 
-  // Fonction de tri (cycle: asc → desc → retour à asc)
+  // Fonction de tri (cycle: desc → asc → null/défaut)
+  // Premier clic = décroissant (plus gros en haut, le plus utile)
   const handleSort = (key) => {
     setSortConfig(prev => {
       if (prev.key === key) {
-        return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
-      } else {
-        return { key, direction: 'asc' };
+        if (prev.direction === 'desc') return { key, direction: 'asc' };
+        // asc → retour à l'ordre par défaut
+        return { key: null, direction: null };
       }
+      // Nouveau tri → décroissant d'abord
+      return { key, direction: 'desc' };
     });
   };
 
@@ -310,18 +354,17 @@ export default function PlanningJour({ donneesMagasin }) {
   // Ordre des familles triées (extracted hook)
   const famillesTriees = useFamillesTriees(produitsParFamille, sortConfig, ordrePersonnalise.familles);
 
-  // Tranches regroupées dynamiques et colonnes visibles (extracted hooks)
-  const tranchesRegroupeesDynamiques = useTranchesDynamiques(configuration);
+  // Colonnes visibles par famille
+  const colonnesVisiblesParFamille = useMemo(() => {
+    const result = {};
+    Object.entries(tranchesParFamille).forEach(([famille, groups]) => {
+      result[famille] = colonnesFromGroups(groups);
+    });
+    return result;
+  }, [tranchesParFamille]);
 
-  const colonnesVisibles = useColonnesVisibles({
-    modeTranches,
-    tranchesRegroupeesDynamiques,
-    afficherToutesColonnes,
-    produits,
-    configuration,
-    frequentation,
-    jourSelectionne,
-  });
+  // Colonnes par défaut (4T) pour les familles non configurées
+  const colonnesDefaut = useMemo(() => colonnesFromGroups(TRANCHES_DEFAUT_PAR_FAMILLE.AUTRE), []);
 
   // Obtenir l'ordre des programmes pour une famille (extracted hook)
   const getProgrammesOrdonnes = useGetProgrammesOrdonnes(ordrePersonnalise.programmes);
@@ -334,9 +377,10 @@ export default function PlanningJour({ donneesMagasin }) {
       getDateJour,
       produitsParFamille,
       famillesTriees,
-      colonnesVisibles,
+      colonnesVisiblesParFamille,
+      colonnesDefaut,
       configuration,
-    });
+    }, { modeImpression, famillesImpression });
   };
 
   const onPrintSemaine = () => {
@@ -346,9 +390,22 @@ export default function PlanningJour({ donneesMagasin }) {
       getDateJour,
       produitsParFamille,
       famillesTriees,
-      colonnesVisibles,
+      colonnesVisiblesParFamille,
+      colonnesDefaut,
       configuration,
-    });
+    }, { modeImpression, famillesImpression });
+  };
+
+  const onExportExcel = () => {
+    handleExportExcel(jourSelectionne, {
+      calculerQuantites,
+      getProgrammesOrdonnes,
+      produitsParFamille,
+      famillesTriees,
+      colonnesVisiblesParFamille,
+      colonnesDefaut,
+      configuration,
+    }, { modeImpression, famillesImpression });
   };
 
   return (
@@ -367,19 +424,22 @@ export default function PlanningJour({ donneesMagasin }) {
         setShowModalProgrammes={setShowModalProgrammes}
         onPrintPlanningPro={onPrintPlanningPro}
         onPrintSemaine={onPrintSemaine}
+        onExportExcel={onExportExcel}
         ordrePersonnalise={ordrePersonnalise}
         sectionsOuvertes={sectionsOuvertes}
         reinitialiserPrefs={reinitialiserPrefs}
+        modeImpression={modeImpression}
+        setModeImpression={setModeImpression}
+        famillesImpression={famillesImpression}
+        setFamillesImpression={setFamillesImpression}
+        famillesDisponibles={famillesTriees}
       />
 
-      {/* Barre d'info avec créneau actuel et options */}
+      {/* Barre d'info avec créneau actuel */}
       <BarreInfoCreneaux
         trancheActuelle={trancheActuelle}
-        modeTranches={modeTranches}
-        setModeTranches={setModeTranches}
-        afficherToutesColonnes={afficherToutesColonnes}
-        setAfficherToutesColonnes={setAfficherToutesColonnes}
-        colonnesVisibles={colonnesVisibles}
+        nbTranchesMax={nbTranchesMax}
+        tranchesParFamille={tranchesParFamille}
       />
 
       {/* Légende format 3 lignes (si mode détail actif) */}
@@ -428,7 +488,7 @@ export default function PlanningJour({ donneesMagasin }) {
                 handleSort={handleSort}
                 modeSimplifie={modeSimplifie}
                 showHisto={showHisto}
-                colonnesVisibles={colonnesVisibles}
+                colonnesVisibles={colonnesVisiblesParFamille[famille] || colonnesDefaut}
                 trancheActuelle={trancheActuelle}
                 jourSelectionne={jourSelectionne}
                 calculerQuantites={calculerQuantites}

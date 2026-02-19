@@ -10,8 +10,11 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Store, Calendar, FolderOpen, Loader2, AlertCircle, CheckCircle2, ArrowRight, Home } from 'lucide-react';
+import { useFileAccess } from '../../hooks/useFileAccess';
 
 const AccueilBenchmark = ({ onDonneesChargees, onNaviguerPlanning, onRetourAccueil }) => {
+  const { selectDirectory } = useFileAccess();
+
   // États
   const [dossierHandle, setDossierHandle] = useState(null);
   const [semainesDisponibles, setSemainesDisponibles] = useState([]);
@@ -29,7 +32,7 @@ const AccueilBenchmark = ({ onDonneesChargees, onNaviguerPlanning, onRetourAccue
   // Sélectionner le dossier DATA_perso
   const selectionnerDossier = async () => {
     try {
-      const dirHandle = await window.showDirectoryPicker({
+      const dirHandle = await selectDirectory({
         mode: 'read',
         startIn: 'documents',
       });

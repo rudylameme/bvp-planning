@@ -13,7 +13,7 @@
 
 // Sous-modules
 import { CONFIG, chargerFichierExcel, getCodePDV, extraireFeuille, viderCacheFichiers, construireSetCodesPDV, filtrerParCodesComparables } from './extraction/validationDonnees.js';
-import { calculerMoyenneSecteur, calculerEcarts, calculerPotentiel, calculerClassementSecteur } from './extraction/ventesExtractor.js';
+import { calculerMoyenneSecteur, calculerEcarts, calculerPotentiel, calculerClassementSecteur, construireDictionnaireMagasins } from './extraction/ventesExtractor.js';
 import {
   extraireDonneesParCreneau,
   extraireDonneesParTrancheHoraire,
@@ -34,8 +34,10 @@ const cache = {
  * @returns {Promise<Object>} Dictionnaire code PDV -> infos magasin
  */
 export async function chargerInfoPDV(dirHandle) {
-  // Vérifier le cache
-  if (cache.infoPDV) {
+  // Vérifier le cache — mais seulement s'il contient les VRAIES données (avec modèle)
+  // Le fallback Excel (extraireListeMagasins) met en cache des données incomplètes (modele: '')
+  // Il faut toujours tenter de charger info_PDV.json si le cache vient du fallback
+  if (cache.infoPDV && cache._infoPDVSource === 'json') {
     return cache.infoPDV;
   }
 
@@ -45,11 +47,59 @@ export async function chargerInfoPDV(dirHandle) {
     const content = await file.text();
     const data = JSON.parse(content);
 
-    // Mettre en cache
+    // Mettre en cache avec marqueur de source
     cache.infoPDV = data;
+    cache._infoPDVSource = 'json';
 
     return data;
   } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Extrait la liste de tous les magasins depuis un fichier Vente_Hebdo Excel.
+ * Utile quand info_PDV.json n'est pas disponible (dossier OneDrive partagé).
+ * Lit la feuille "Total Pdv" et retourne un objet au même format que infoPDV.
+ * @param {File} file - Fichier Excel Vente_Hebdo
+ * @returns {Promise<Object|null>} Dictionnaire code PDV -> {code, ville, enseigne}
+ */
+export async function extraireListeMagasins(file) {
+  try {
+    const workbook = await chargerFichierExcel(file);
+    const totalPdv = extraireFeuille(workbook, CONFIG.feuilles.TOTAL_PDV);
+    if (!totalPdv || totalPdv.length === 0) return null;
+
+    const result = {};
+    for (const row of totalPdv) {
+      const code = getCodePDV(row);
+      if (!code) continue;
+      const codeStr = String(code).trim();
+      if (!codeStr || result[codeStr]) continue;
+
+      result[codeStr] = {
+        code: codeStr,
+        ville: row.VILLE || row.Ville || 'Inconnu',
+        enseigne: row.ENSEIGNE || row.Enseigne || 'INTERMARCHE',
+        region: row.REGION || row.Region || '',
+        vocation: row.VOCATION || row.Vocation || '',
+        secteurLibelle: '',
+        modele: '',
+        surface: null,
+      };
+    }
+
+    // Mettre en cache comme infoPDV pour que le reste du code fonctionne
+    // Mais ne pas écraser si les vraies données (info_PDV.json) sont déjà chargées
+    if (Object.keys(result).length > 0) {
+      if (cache._infoPDVSource !== 'json') {
+        cache.infoPDV = result;
+        cache._infoPDVSource = 'fallback';
+      }
+      return cache.infoPDV; // Retourner les données les plus complètes disponibles
+    }
+    return null;
+  } catch {
     return null;
   }
 }
@@ -426,6 +476,10 @@ export async function extraireDonneesMagasin(file, codePdv, dirHandle = null) {
   });
   // ========== FIN CLASSEMENT ==========
 
+  // ========== DICTIONNAIRE TOUS MAGASINS (pour magasin cible) ==========
+  result.dictionnaireMagasins = construireDictionnaireMagasins(totalPdv, infoPDV);
+  result._venteHeureRaw = venteHeure;
+
   const endTime = performance.now();
   result.metadata.tempsExtraction = Math.round(endTime - startTime);
 
@@ -442,6 +496,7 @@ export function viderCache() {
   viderCacheFichiers();
   cache.extractions.clear();
   cache.infoPDV = null;
+  cache._infoPDVSource = null;
 }
 
 /**

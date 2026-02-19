@@ -1,15 +1,95 @@
 /**
- * Page d'accueil globale V5
+ * Page d'accueil globale V5.1
  *
- * Permet à l'utilisateur de choisir entre :
- * - Univers MANAGER (Piloter CA, Configurer, Communiquer)
- * - Univers ÉQUIPE (Planning jour, Inventaire, Commande)
+ * 3 objectifs de travail :
+ * 1. Analyser mon rayon → Benchmark (Import + Diagnostic)
+ * 2. Préparer la semaine → Construction du planning (Gamme, tranches, promos)
+ * 3. Planning quotidien → Mise en œuvre (Vue équipe jour/heure)
  */
 
 import React from 'react';
-import { Briefcase, Users, ArrowRight, TrendingUp, Settings, MessageSquare, Calendar, ClipboardList, Package } from 'lucide-react';
+import {
+  ArrowRight,
+  BarChart3,
+  CalendarCog,
+  ClipboardCheck,
+  TrendingUp,
+  Target,
+  Settings,
+  Calendar,
+  Package,
+  Scissors,
+} from 'lucide-react';
 
-const AccueilGlobal = ({ onChoixManager, onChoixEquipe }) => {
+const AccueilGlobal = ({ onChoixAdherent, onChoixManager, onChoixEquipe }) => {
+  // Construire la liste des cartes visibles (onClick non null)
+  const cartes = [
+    onChoixAdherent && {
+      key: 'adherent',
+      onClick: onChoixAdherent,
+      hoverBorder: 'hover:border-blue-500',
+      iconBg: 'bg-blue-50',
+      iconBgHover: 'group-hover:bg-blue-500',
+      titre: 'Analyser mon rayon',
+      sousTitre: 'Benchmark & stratégie',
+      Icon: BarChart3,
+      accentColor: 'text-blue-500',
+      accentColorAction: 'text-blue-600',
+      etape: 'Étape 1',
+      items: [
+        { Icon: TrendingUp, label: 'Comparer au secteur' },
+        { Icon: Target, label: 'Identifier le potentiel' },
+        { Icon: BarChart3, label: 'Définir un objectif' },
+      ],
+      flux: { bg: 'bg-blue-50', text: 'text-blue-600', label: '1. Analyser' },
+    },
+    onChoixManager && {
+      key: 'manager',
+      onClick: onChoixManager,
+      hoverBorder: 'hover:border-mousquetaires-bordeaux',
+      iconBg: 'bg-mousquetaires-beige-dark',
+      iconBgHover: 'group-hover:bg-mousquetaires-bordeaux',
+      titre: 'Préparer la semaine',
+      sousTitre: 'Construction du planning',
+      Icon: CalendarCog,
+      accentColor: 'text-mousquetaires-bordeaux',
+      accentColorAction: 'text-mousquetaires-rouge',
+      etape: 'Étape 2',
+      items: [
+        { Icon: Package, label: 'Choisir la gamme' },
+        { Icon: Settings, label: 'Configurer jours & tranches' },
+        { Icon: Scissors, label: 'Gérer promos & cuissons' },
+      ],
+      flux: { bg: 'bg-red-50', text: 'text-mousquetaires-bordeaux', label: '2. Préparer' },
+    },
+    onChoixEquipe && {
+      key: 'equipe',
+      onClick: onChoixEquipe,
+      hoverBorder: 'hover:border-emerald-500',
+      iconBg: 'bg-emerald-50',
+      iconBgHover: 'group-hover:bg-emerald-500',
+      titre: 'Planning quotidien',
+      sousTitre: 'Mise en œuvre terrain',
+      Icon: ClipboardCheck,
+      accentColor: 'text-emerald-500',
+      accentColorAction: 'text-emerald-600',
+      etape: 'Étape 3',
+      items: [
+        { Icon: Calendar, label: 'Planning jour par jour' },
+        { Icon: ClipboardCheck, label: 'Adapter noms & cuissons' },
+        { Icon: Package, label: 'Commande & inventaire' },
+      ],
+      flux: { bg: 'bg-emerald-50', text: 'text-emerald-600', label: '3. Exécuter' },
+    },
+  ].filter(Boolean);
+
+  // Adapter la grille au nombre de cartes
+  const gridCols = cartes.length === 1
+    ? 'md:grid-cols-1 max-w-md mx-auto'
+    : cartes.length === 2
+    ? 'md:grid-cols-2 max-w-3xl mx-auto'
+    : 'md:grid-cols-3';
+
   return (
     <div className="min-h-screen bg-mousquetaires-beige flex flex-col">
       {/* Header */}
@@ -27,7 +107,7 @@ const AccueilGlobal = ({ onChoixManager, onChoixEquipe }) => {
               <p className="text-sm text-gray-500">Boulangerie - Viennoiserie - Pâtisserie</p>
             </div>
             <span className="ml-auto px-3 py-1 bg-mousquetaires-rouge text-white rounded-full text-sm font-semibold">
-              V5.0
+              V5.2
             </span>
           </div>
         </div>
@@ -35,103 +115,71 @@ const AccueilGlobal = ({ onChoixManager, onChoixEquipe }) => {
 
       {/* Contenu principal */}
       <div className="flex-1 flex items-center justify-center p-6">
-        <div className="max-w-4xl w-full">
+        <div className="max-w-5xl w-full">
           {/* Titre */}
-          <div className="text-center mb-12">
+          <div className="text-center mb-10">
             <h2 className="text-3xl font-bold text-gray-800 mb-3">
               Bienvenue sur BVP Planning
             </h2>
             <p className="text-lg text-mousquetaires-gris">
-              Choisissez votre espace de travail
+              Que souhaitez-vous faire ?
             </p>
           </div>
 
-          {/* Cartes de choix */}
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Carte MANAGER */}
-            <button
-              onClick={onChoixManager}
-              className="group bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all p-8 text-left border-2 border-transparent hover:border-mousquetaires-bordeaux"
-            >
-              <div className="flex items-start gap-4 mb-6">
-                <div className="p-4 bg-mousquetaires-beige-dark rounded-xl group-hover:bg-mousquetaires-bordeaux transition-colors">
-                  <Briefcase className="w-8 h-8 text-mousquetaires-bordeaux group-hover:text-white transition-colors" />
+          {/* Cartes objectifs */}
+          <div className={`grid ${gridCols} gap-6`}>
+            {cartes.map((carte) => (
+              <button
+                key={carte.key}
+                onClick={carte.onClick}
+                className={`group bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all p-6 text-left border-2 border-transparent ${carte.hoverBorder} flex flex-col cursor-pointer`}
+              >
+                <div className="flex items-start gap-3 mb-5">
+                  <div className={`p-3 ${carte.iconBg} rounded-xl ${carte.iconBgHover} transition-colors flex-shrink-0`}>
+                    <carte.Icon className={`w-7 h-7 ${carte.accentColor} group-hover:text-white transition-colors`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-bold text-gray-800 leading-tight">{carte.titre}</h3>
+                    <p className="text-sm text-mousquetaires-gris mt-1">{carte.sousTitre}</p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-2xl font-bold text-gray-800">MANAGER</h3>
-                  <p className="text-mousquetaires-gris mt-1">Responsable rayon BVP</p>
-                </div>
-              </div>
 
-              <div className="space-y-3 mb-6">
-                <div className="flex items-center gap-3 text-mousquetaires-gris">
-                  <TrendingUp className="w-5 h-5 text-mousquetaires-bordeaux" />
-                  <span>Piloter le CA</span>
+                <div className="space-y-2.5 mb-5 flex-1">
+                  {carte.items.map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-2.5 text-sm text-mousquetaires-gris">
+                      <item.Icon className={`w-4 h-4 ${carte.accentColor} flex-shrink-0`} />
+                      <span>{item.label}</span>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex items-center gap-3 text-mousquetaires-gris">
-                  <Settings className="w-5 h-5 text-mousquetaires-bordeaux" />
-                  <span>Configurer la semaine</span>
-                </div>
-                <div className="flex items-center gap-3 text-mousquetaires-gris">
-                  <MessageSquare className="w-5 h-5 text-mousquetaires-bordeaux" />
-                  <span>Communiquer avec l'équipe</span>
-                </div>
-              </div>
 
-              <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                <span className="text-sm text-mousquetaires-gris">Configuration hebdomadaire</span>
-                <div className="flex items-center gap-2 text-mousquetaires-rouge font-semibold group-hover:gap-3 transition-all">
-                  <span>Accéder</span>
-                  <ArrowRight className="w-5 h-5" />
+                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                  <span className="text-xs text-mousquetaires-gris">{carte.etape}</span>
+                  <div className={`flex items-center gap-1.5 ${carte.accentColorAction} font-semibold text-sm group-hover:gap-2.5 transition-all`}>
+                    <span>Accéder</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </div>
                 </div>
-              </div>
-            </button>
+              </button>
+            ))}
+          </div>
 
-            {/* Carte ÉQUIPE */}
-            <button
-              onClick={onChoixEquipe}
-              className="group bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all p-8 text-left border-2 border-transparent hover:border-mousquetaires-rouge"
-            >
-              <div className="flex items-start gap-4 mb-6">
-                <div className="p-4 bg-red-50 rounded-xl group-hover:bg-mousquetaires-rouge transition-colors">
-                  <Users className="w-8 h-8 text-mousquetaires-rouge group-hover:text-white transition-colors" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-2xl font-bold text-gray-800">ÉQUIPE</h3>
-                  <p className="text-mousquetaires-gris mt-1">Équipiers en production</p>
-                </div>
-              </div>
-
-              <div className="space-y-3 mb-6">
-                <div className="flex items-center gap-3 text-mousquetaires-gris">
-                  <Calendar className="w-5 h-5 text-mousquetaires-rouge" />
-                  <span>Planning du jour</span>
-                </div>
-                <div className="flex items-center gap-3 text-mousquetaires-gris">
-                  <ClipboardList className="w-5 h-5 text-mousquetaires-rouge" />
-                  <span>Inventaire</span>
-                </div>
-                <div className="flex items-center gap-3 text-mousquetaires-gris">
-                  <Package className="w-5 h-5 text-mousquetaires-rouge" />
-                  <span>Commande</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                <span className="text-sm text-mousquetaires-gris">Consultation quotidienne</span>
-                <div className="flex items-center gap-2 text-mousquetaires-rouge font-semibold group-hover:gap-3 transition-all">
-                  <span>Accéder</span>
-                  <ArrowRight className="w-5 h-5" />
-                </div>
-              </div>
-            </button>
+          {/* Flux visuel */}
+          <div className="mt-8 flex items-center justify-center gap-3 text-sm text-gray-400">
+            {cartes.map((carte, idx) => (
+              <React.Fragment key={carte.key}>
+                {idx > 0 && <ArrowRight className="w-4 h-4" />}
+                <span className={`px-3 py-1 ${carte.flux.bg} ${carte.flux.text} rounded-full font-medium`}>
+                  {carte.flux.label}
+                </span>
+              </React.Fragment>
+            ))}
           </div>
 
           {/* Info */}
-          <div className="text-center mt-12">
-            <p className="text-gray-500 text-sm">
-              💡 <strong>Conseil</strong> : Commencez par l'univers Manager pour configurer la semaine,
-              puis l'équipe consulte le planning.
+          <div className="text-center mt-6">
+            <p className="text-gray-400 text-xs">
+              Chaque étape est indépendante. L'analyse enrichit la préparation, la préparation génère le planning quotidien.
             </p>
           </div>
         </div>
@@ -140,7 +188,7 @@ const AccueilGlobal = ({ onChoixManager, onChoixEquipe }) => {
       {/* Footer */}
       <div className="bg-white border-t border-gray-200 py-4">
         <div className="max-w-6xl mx-auto px-6 text-center text-sm text-gray-500">
-          BVP Planning V5.0 • Les données restent sur votre ordinateur
+          BVP Planning V5.2 • Les données restent sur votre ordinateur
         </div>
       </div>
     </div>

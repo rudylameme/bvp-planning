@@ -185,6 +185,29 @@ export const rechercherParLibelle = (libelle) => {
 };
 
 /**
+ * Recherche un produit par libellé avec correspondance floue.
+ * Gère les cas où le libellé ventes est tronqué (ex: "PAIN AUX CEREALES PAC 300"
+ * vs référentiel "PAIN AUX CEREALES PAC 300G").
+ * Exige au moins 15 caractères communs pour éviter les faux positifs.
+ * @param {string} libelle - Libellé du produit (possiblement tronqué)
+ * @returns {ProductInfo|null}
+ */
+export const rechercherParLibelleFuzzy = (libelle) => {
+  if (!referentielCache || !referentielCache.libelleMap) return null;
+  const libelleNorm = (libelle || '').toLowerCase().trim();
+  if (libelleNorm.length < 15) return null;
+
+  // Chercher un libellé du référentiel qui commence par le libellé ventes
+  // ou dont le libellé ventes est un préfixe
+  for (const [refLib, info] of referentielCache.libelleMap) {
+    if (refLib.startsWith(libelleNorm) || libelleNorm.startsWith(refLib)) {
+      return info;
+    }
+  }
+  return null;
+};
+
+/**
  * Obtenir la liste des rayons disponibles
  */
 export const getListeRayons = () => {

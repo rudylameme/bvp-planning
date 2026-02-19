@@ -1,13 +1,14 @@
 /**
- * Étape 0 : Import des données
+ * Étape 0 : Import des données (V5.1 — simplifié)
  *
- * Permet au manager de :
- * - Sélectionner le dossier DATA_perso
- * - Choisir la semaine à analyser
- * - Rechercher et sélectionner son magasin
+ * Layout compact, un seul écran :
+ * - Sélection du dossier DATA_perso
+ * - Affiche uniquement le dernier fichier détecté (pas de liste scrollable)
+ * - Choix de la semaine (dropdown)
+ * - Recherche et sélection du magasin
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   FolderOpen,
   Calendar,
@@ -19,18 +20,27 @@ import {
   Loader2,
   FileSpreadsheet,
   Database,
+  Cloud,
+  ExternalLink,
+  HardDrive,
 } from 'lucide-react';
 import { useMagasin } from '../../contexts/MagasinContext';
 import {
   listerSemainesDisponibles,
   extraireDonneesMagasin,
   chargerInfoPDV,
+  extraireListeMagasins,
 } from '../../services/dataExtractionService';
+
+// Lien vers le dossier partagé OneDrive
+const ONEDRIVE_FREQUENTATION_URL =
+  'https://mousquetaires-my.sharepoint.com/:f:/r/personal/rudy_remy_mousquetaires_com/Documents/Documents/Fr%C3%A9quentation/Total%20Frequentation?csf=1&web=1&e=yyfPbT';
 import {
   listerFichiersVentesCasse,
   extraireProduitsVentesCasse,
   formaterPourPilotageCA,
 } from '../../services/gammeExtractionService';
+import { useFileAccess } from '../../hooks/useFileAccess';
 
 const Etape0Import = () => {
   const {
@@ -62,90 +72,113 @@ const Etape0Import = () => {
     setProduitsGamme,
   } = useMagasin();
 
+  const { selectDirectory } = useFileAccess();
+
   // État local pour la recherche magasin
   const [rechercheMagasin, setRechercheMagasin] = useState('');
   const [magasinsTrouves, setMagasinsTrouves] = useState([]);
   const [afficherResultats, setAfficherResultats] = useState(false);
 
-  // Sélection du dossier DATA_perso
+  // Scanner le contenu d'un dossier (fichiers, semaines, infoPDV, ventes/casse)
+  const scannerDossier = async (handle) => {
+    // Lister les fichiers disponibles
+    const fichiers = [];
+    for await (const entry of handle.values()) {
+      if (entry.kind === 'file') {
+        const isExcel = entry.name.endsWith('.xlsx') || entry.name.endsWith('.xls');
+        const isJson = entry.name.endsWith('.json');
+        const isVenteHebdo = entry.name.startsWith('Vente_Hebdo_BVP_S');
+        const isInfoPDV = entry.name === 'info_PDV.json';
+        // Détecter les fichiers ventes/casse (format "1 AU 25 JANVIER 2026.xlsx")
+        const isVentesCasse = /^\d+\s+AU\s+\d+\s+\w+\s+\d{4}\.xlsx$/i.test(entry.name);
+
+        fichiers.push({
+          nom: entry.name,
+          type: isExcel ? 'excel' : isJson ? 'json' : 'autre',
+          statut: isVenteHebdo || isInfoPDV || isVentesCasse ? 'ok' : 'ignore',
+          description: isVenteHebdo
+            ? 'Fichier ventes hebdomadaires'
+            : isInfoPDV
+            ? 'Fichier référence magasins'
+            : isVentesCasse
+            ? 'Fichier ventes/casse produits'
+            : 'Fichier non reconnu',
+          isVentesCasse,
+        });
+      }
+    }
+
+    setFichiersDetectes(fichiers);
+
+    // Charger les semaines disponibles
+    const semaines = await listerSemainesDisponibles(handle);
+    setSemainesDisponibles(semaines);
+
+    // Sélectionner la semaine la plus récente par défaut
+    if (semaines.length > 0) {
+      setSemaineSelectionnee(semaines[0]);
+    }
+
+    // Charger info_PDV.json si disponible, sinon extraire depuis Vente_Hebdo
+    let info = await chargerInfoPDV(handle);
+    if (!info && semaines.length > 0) {
+      try {
+        const fh = await handle.getFileHandle(semaines[0].fichier);
+        const fichierExcel = await fh.getFile();
+        info = await extraireListeMagasins(fichierExcel);
+      } catch { /* non bloquant */ }
+    }
+    if (info) {
+      setInfoPDV(info);
+    }
+
+    // Détecter et lister les fichiers ventes/casse
+    const fichiersVC = await listerFichiersVentesCasse(handle);
+    setFichiersVentesCasse(fichiersVC);
+    // Sélectionner le premier fichier ventes/casse par défaut
+    if (fichiersVC.length > 0) {
+      setFichierVentesSelectionne(fichiersVC[0]);
+    }
+  };
+
+  // Sélection du dossier DATA_perso (clic utilisateur)
   const handleSelectDossier = async () => {
     try {
       setChargement(true);
       setErreur(null);
 
       // Demander l'accès au dossier
-      const handle = await window.showDirectoryPicker({
+      const handle = await selectDirectory({
         id: 'bvp-data',
         mode: 'read',
         startIn: 'documents',
       });
 
       setDirHandle(handle);
-
-      // Lister les fichiers disponibles
-      const fichiers = [];
-      for await (const entry of handle.values()) {
-        if (entry.kind === 'file') {
-          const isExcel = entry.name.endsWith('.xlsx') || entry.name.endsWith('.xls');
-          const isJson = entry.name.endsWith('.json');
-          const isVenteHebdo = entry.name.startsWith('Vente_Hebdo_BVP_S');
-          const isInfoPDV = entry.name === 'info_PDV.json';
-          // Détecter les fichiers ventes/casse (format "1 AU 25 JANVIER 2026.xlsx")
-          const isVentesCasse = /^\d+\s+AU\s+\d+\s+\w+\s+\d{4}\.xlsx$/i.test(entry.name);
-
-          fichiers.push({
-            nom: entry.name,
-            type: isExcel ? 'excel' : isJson ? 'json' : 'autre',
-            statut: isVenteHebdo || isInfoPDV || isVentesCasse ? 'ok' : 'ignore',
-            description: isVenteHebdo
-              ? 'Fichier ventes hebdomadaires'
-              : isInfoPDV
-              ? 'Fichier référence magasins'
-              : isVentesCasse
-              ? 'Fichier ventes/casse produits'
-              : 'Fichier non reconnu',
-            isVentesCasse,
-          });
-        }
-      }
-
-      setFichiersDetectes(fichiers);
-
-      // Charger les semaines disponibles
-      const semaines = await listerSemainesDisponibles(handle);
-      setSemainesDisponibles(semaines);
-
-      // Sélectionner la semaine la plus récente par défaut
-      if (semaines.length > 0) {
-        setSemaineSelectionnee(semaines[0]);
-      }
-
-      // Charger info_PDV.json si disponible
-      const info = await chargerInfoPDV(handle);
-      if (info) {
-        setInfoPDV(info);
-      }
-
-      // Détecter et lister les fichiers ventes/casse
-      const fichiersVC = await listerFichiersVentesCasse(handle);
-      setFichiersVentesCasse(fichiersVC);
-      // Sélectionner le premier fichier ventes/casse par défaut
-      if (fichiersVC.length > 0) {
-        setFichierVentesSelectionne(fichiersVC[0]);
-      }
+      await scannerDossier(handle);
     } catch (error) {
       if (error.name === 'AbortError') {
         // L'utilisateur a annulé
         return;
       }
-      // TODO: logger professionnel
       setErreur('Impossible de lire le dossier. Vérifiez les permissions.');
     } finally {
       setChargement(false);
     }
   };
 
-  // Recherche de magasin
+  // Auto-scan quand dirHandle est pré-chargé depuis IndexedDB (via PageParametres)
+  useEffect(() => {
+    if (dirHandle && semainesDisponibles.length === 0 && fichiersDetectes.length === 0 && !chargement) {
+      setChargement(true);
+      setErreur(null);
+      scannerDossier(dirHandle)
+        .catch(() => setErreur('Impossible de lire le dossier. Vérifiez les permissions.'))
+        .finally(() => setChargement(false));
+    }
+  }, [dirHandle]);
+
+  // Recherche de magasin (par code OU par nom de ville)
   useEffect(() => {
     if (!infoPDV || rechercheMagasin.length < 2) {
       setMagasinsTrouves([]);
@@ -156,16 +189,17 @@ const Etape0Import = () => {
     const recherche = rechercheMagasin.toLowerCase();
     const resultats = Object.entries(infoPDV)
       .filter(([code, info]) => {
-        const ville = (info.ville || '').toLowerCase();
+        // Supporter plusieurs noms de champ pour la ville (JSON brut vs fallback Excel)
+        const ville = (info.ville || info.VILLE || info.Ville || info.nom || info.NOM_ADHERENT || '').toLowerCase();
         const codeStr = String(code);
         return ville.includes(recherche) || codeStr.includes(recherche);
       })
       .slice(0, 10)
       .map(([code, info]) => ({
         code,
-        ville: info.ville || 'Inconnu',
-        enseigne: info.enseigne || 'INTERMARCHE',
-        secteur: info.secteurLibelle || '',
+        ville: info.ville || info.VILLE || info.Ville || info.nom || info.NOM_ADHERENT || 'Inconnu',
+        enseigne: info.enseigne || info.ENSEIGNE || info.Enseigne || 'INTERMARCHE',
+        secteur: info.secteurLibelle || info.SECTEUR || info.Secteur || '',
       }));
 
     setMagasinsTrouves(resultats);
@@ -239,222 +273,224 @@ const Etape0Import = () => {
     }
   };
 
-  // Vérifier si File System Access API est supportée
-  const isAPISupported = 'showDirectoryPicker' in window;
+  // Dernier fichier Vente_Hebdo détecté (le plus récent)
+  const dernierFichier = useMemo(() => {
+    const ventesHebdo = fichiersDetectes.filter(f => f.statut === 'ok' && f.nom.startsWith('Vente_Hebdo_BVP_S'));
+    if (ventesHebdo.length === 0) return null;
+    // Trier par nom décroissant (S2026-06 > S2026-05)
+    ventesHebdo.sort((a, b) => b.nom.localeCompare(a.nom));
+    return ventesHebdo[0];
+  }, [fichiersDetectes]);
+
+  // Nombre total de fichiers reconnus
+  const nbFichiersOk = useMemo(() => {
+    return fichiersDetectes.filter(f => f.statut === 'ok').length;
+  }, [fichiersDetectes]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       {/* Titre */}
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">Import des données</h2>
-        <p className="text-mousquetaires-gris">
-          Sélectionnez votre dossier DATA_perso pour charger vos fichiers de ventes.
+        <h2 className="text-2xl font-bold text-gray-800 mb-1">Import des données</h2>
+        <p className="text-mousquetaires-gris text-sm">
+          Connectez votre dossier DATA_perso pour démarrer.
         </p>
       </div>
 
-      {/* Message si API non supportée */}
-      {!isAPISupported && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h3 className="text-lg font-bold text-red-800 mb-2">Navigateur non compatible</h3>
-          <p className="text-red-700">
-            Votre navigateur ne supporte pas l'accès aux dossiers locaux.
-            <br />
-            Utilisez <strong>Google Chrome</strong> ou <strong>Microsoft Edge</strong> pour
-            continuer.
-          </p>
-        </div>
-      )}
-
-      {isAPISupported && (
-        <>
+      <>
           {/* Section 1 : Sélection du dossier */}
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-10 h-10 bg-mousquetaires-beige-dark rounded-lg flex items-center justify-center">
-                <FolderOpen className="w-5 h-5 text-mousquetaires-bordeaux" />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-800">1. Dossier DATA_perso</h3>
-                <p className="text-sm text-mousquetaires-gris">
-                  Contient vos fichiers Excel de ventes hebdomadaires
-                </p>
-              </div>
+          <div className="bg-white rounded-xl shadow-md p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <FolderOpen className="w-5 h-5 text-blue-600" />
+              <h3 className="font-bold text-gray-800">1. Dossier de données</h3>
             </div>
 
             {!dirHandle ? (
-              <button
-                onClick={handleSelectDossier}
-                disabled={chargement}
-                className="w-full py-4 bg-mousquetaires-rouge text-white rounded-xl font-semibold hover:bg-mousquetaires-bordeaux transition-colors flex items-center justify-center gap-2"
-              >
-                {chargement ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Chargement...
-                  </>
-                ) : (
-                  <>
-                    <FolderOpen className="w-5 h-5" />
-                    Sélectionner le dossier
-                  </>
-                )}
-              </button>
-            ) : (
-              <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                <div className="flex items-center gap-3">
-                  <Check className="w-6 h-6 text-green-600" />
-                  <div className="flex-1">
-                    <p className="font-medium text-green-800">Dossier connecté</p>
-                    <p className="text-sm text-green-600">{dirHandle.name}</p>
+              <div className="space-y-4">
+                <div className="border-2 border-blue-200/50 bg-blue-50/50 rounded-xl p-4">
+                  <p className="text-sm text-gray-700 mb-3">
+                    Sélectionnez le dossier <strong>« Total Fréquentation »</strong> sur votre ordinateur.
+                    Il se trouve dans votre espace OneDrive synchronisé :
+                  </p>
+                  <div className="bg-white rounded-lg p-2.5 mb-3 font-mono text-xs text-gray-600 border border-gray-200">
+                    OneDrive - Mousquetaires › Documents › Fréquentation › <strong className="text-gray-900">Total Frequentation</strong>
                   </div>
                   <button
                     onClick={handleSelectDossier}
-                    className="text-green-600 hover:text-green-800 text-sm underline"
+                    disabled={chargement}
+                    className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                  >
+                    {chargement ? (
+                      <><Loader2 className="w-5 h-5 animate-spin" /> Chargement…</>
+                    ) : (
+                      <><FolderOpen className="w-5 h-5" /> Sélectionner le dossier</>
+                    )}
+                  </button>
+                </div>
+
+                <details className="text-sm">
+                  <summary className="cursor-pointer text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1.5">
+                    <Cloud className="w-4 h-4" />
+                    Le dossier n'est pas sur mon ordinateur ?
+                  </summary>
+                  <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800 space-y-2">
+                    <p>
+                      Le dossier « Total Fréquentation » est partagé sur OneDrive.
+                      Pour y accéder, il doit être <strong>synchronisé localement</strong>.
+                    </p>
+                    <p>
+                      1. Ouvrez le lien ci-dessous<br/>
+                      2. Cliquez sur <strong>« Synchroniser »</strong> ou <strong>« Ajouter un raccourci vers Mes fichiers »</strong><br/>
+                      3. Revenez ici et sélectionnez le dossier
+                    </p>
+                    <a
+                      href={ONEDRIVE_FREQUENTATION_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      Ouvrir dans OneDrive
+                    </a>
+                    <p className="text-blue-600 mt-1 flex items-center gap-1">
+                      <HardDrive className="w-3 h-3" />
+                      Vous pouvez aussi sélectionner un dossier local contenant les fichiers Vente_Hebdo.
+                    </p>
+                  </div>
+                </details>
+              </div>
+            ) : (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-3">
+                <div className="flex items-center gap-3">
+                  <Check className="w-5 h-5 text-green-600 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-green-800">Dossier connecté</span>
+                      <span className="text-sm text-green-600 truncate">— {dirHandle.name}</span>
+                    </div>
+                    {/* Résumé compact : dernier fichier uniquement */}
+                    {dernierFichier && (
+                      <div className="flex items-center gap-2 mt-1 text-sm text-green-700">
+                        <FileSpreadsheet className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span className="truncate">{dernierFichier.nom}</span>
+                        {nbFichiersOk > 1 && (
+                          <span className="text-xs text-green-500 flex-shrink-0">
+                            (+{nbFichiersOk - 1} fichier{nbFichiersOk > 2 ? 's' : ''})
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleSelectDossier}
+                    className="text-green-600 hover:text-green-800 text-xs underline flex-shrink-0"
                   >
                     Changer
                   </button>
                 </div>
               </div>
             )}
-
-            {/* Liste des fichiers détectés */}
-            {fichiersDetectes.length > 0 && (
-              <div className="mt-4 border-t border-gray-100 pt-4">
-                <p className="text-sm font-medium text-gray-700 mb-3">Fichiers détectés :</p>
-                <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {fichiersDetectes
-                    .filter((f) => f.statut === 'ok')
-                    .map((fichier) => (
-                      <div
-                        key={fichier.nom}
-                        className="flex items-center gap-2 text-sm bg-gray-50 rounded-lg px-3 py-2"
-                      >
-                        {fichier.type === 'excel' ? (
-                          <FileSpreadsheet className="w-4 h-4 text-green-600" />
-                        ) : (
-                          <Database className="w-4 h-4 text-blue-600" />
-                        )}
-                        <span className="flex-1 truncate">{fichier.nom}</span>
-                        <Check className="w-4 h-4 text-green-600" />
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* Section 2 : Sélection de la semaine */}
+          {/* Section 2 + 3 : Semaine & Magasin (compact, côte à côte sur large écran) */}
           {dirHandle && semainesDisponibles.length > 0 && (
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-10 h-10 bg-mousquetaires-beige-dark rounded-lg flex items-center justify-center">
+            <div className="grid md:grid-cols-2 gap-4">
+              {/* Semaine */}
+              <div className="bg-white rounded-xl shadow-md p-5">
+                <div className="flex items-center gap-3 mb-3">
                   <Calendar className="w-5 h-5 text-mousquetaires-bordeaux" />
+                  <h3 className="font-bold text-gray-800">2. Semaine</h3>
+                  <span className="text-xs text-gray-400">
+                    {semainesDisponibles.length} dispo.
+                  </span>
                 </div>
-                <div>
-                  <h3 className="font-bold text-gray-800">2. Semaine à analyser</h3>
-                  <p className="text-sm text-mousquetaires-gris">
-                    {semainesDisponibles.length} semaine(s) disponible(s)
-                  </p>
-                </div>
+                <select
+                  value={semaineSelectionnee?.code || ''}
+                  onChange={handleChangeSemaine}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mousquetaires-rouge focus:border-transparent text-sm"
+                >
+                  {semainesDisponibles.map((semaine) => (
+                    <option key={semaine.code} value={semaine.code}>
+                      Semaine {semaine.semaine} / {semaine.annee}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              <select
-                value={semaineSelectionnee?.code || ''}
-                onChange={handleChangeSemaine}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mousquetaires-rouge focus:border-transparent"
-              >
-                {semainesDisponibles.map((semaine) => (
-                  <option key={semaine.code} value={semaine.code}>
-                    Semaine {semaine.semaine} / {semaine.annee}
-                  </option>
-                ))}
-              </select>
+              {/* Magasin */}
+              {infoPDV && (
+                <div className="bg-white rounded-xl shadow-md p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Store className="w-5 h-5 text-mousquetaires-bordeaux" />
+                    <h3 className="font-bold text-gray-800">3. Magasin</h3>
+                  </div>
+                  <p className="text-sm text-gray-500 mb-2">Recherchez par code ou nom de ville</p>
+
+                  <div className="relative">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        value={rechercheMagasin}
+                        onChange={(e) => setRechercheMagasin(e.target.value)}
+                        onFocus={() => setAfficherResultats(magasinsTrouves.length > 0)}
+                        placeholder="Ex: 07499 ou Bordeaux..."
+                        className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mousquetaires-rouge focus:border-transparent text-sm"
+                      />
+                    </div>
+
+                    {/* Résultats de recherche */}
+                    {afficherResultats && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                        {magasinsTrouves.map((magasin) => (
+                          <button
+                            key={magasin.code}
+                            onClick={() => handleSelectMagasin(magasin)}
+                            className="w-full px-3 py-2.5 text-left hover:bg-mousquetaires-beige transition-colors flex items-center gap-2 border-b border-gray-100 last:border-b-0"
+                          >
+                            <Store className="w-4 h-4 text-mousquetaires-gris flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-gray-800 text-sm">
+                                {magasin.ville}
+                                <span className="text-mousquetaires-gris ml-1">({magasin.code})</span>
+                              </p>
+                              <p className="text-xs text-mousquetaires-gris truncate">
+                                {magasin.enseigne} • {magasin.secteur}
+                              </p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Section 3 : Recherche magasin */}
-          {dirHandle && infoPDV && (
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-10 h-10 bg-mousquetaires-beige-dark rounded-lg flex items-center justify-center">
-                  <Store className="w-5 h-5 text-mousquetaires-bordeaux" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-800">3. Votre magasin</h3>
-                  <p className="text-sm text-mousquetaires-gris">
-                    Recherchez par code ou nom de ville
+          {/* Chargement en cours */}
+          {chargement && magasinSelectionne && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-3">
+              <Loader2 className="w-5 h-5 text-amber-600 animate-spin flex-shrink-0" />
+              <p className="font-medium text-amber-800 text-sm">Chargement des données…</p>
+            </div>
+          )}
+
+          {/* Magasin sélectionné (résumé compact) */}
+          {!chargement && magasinSelectionne && donneesMagasin && (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-3">
+              <div className="flex items-center gap-3">
+                <Check className="w-5 h-5 text-green-600 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="font-medium text-green-800 text-sm">
+                    {donneesMagasin.magasin.nom}
+                    <span className="text-green-600 ml-1">({donneesMagasin.magasin.code})</span>
+                    <span className="text-green-500 ml-2 text-xs">
+                      {donneesMagasin.comparaison.nombreMagasinsComparables} comparables
+                    </span>
                   </p>
                 </div>
               </div>
-
-              <div className="relative">
-                <div className="relative">
-                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="text"
-                    value={rechercheMagasin}
-                    onChange={(e) => setRechercheMagasin(e.target.value)}
-                    onFocus={() => setAfficherResultats(magasinsTrouves.length > 0)}
-                    placeholder="Ex: 07499 ou Bordeaux..."
-                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mousquetaires-rouge focus:border-transparent"
-                  />
-                </div>
-
-                {/* Résultats de recherche */}
-                {afficherResultats && (
-                  <div className="absolute z-10 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
-                    {magasinsTrouves.map((magasin) => (
-                      <button
-                        key={magasin.code}
-                        onClick={() => handleSelectMagasin(magasin)}
-                        className="w-full px-4 py-3 text-left hover:bg-mousquetaires-beige transition-colors flex items-center gap-3 border-b border-gray-100 last:border-b-0"
-                      >
-                        <Store className="w-5 h-5 text-mousquetaires-gris" />
-                        <div className="flex-1">
-                          <p className="font-medium text-gray-800">
-                            {magasin.ville}
-                            <span className="text-mousquetaires-gris ml-2">({magasin.code})</span>
-                          </p>
-                          <p className="text-xs text-mousquetaires-gris">
-                            {magasin.enseigne} • {magasin.secteur}
-                          </p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Chargement en cours */}
-              {chargement && magasinSelectionne && (
-                <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
-                  <Loader2 className="w-6 h-6 text-amber-600 animate-spin" />
-                  <div>
-                    <p className="font-medium text-amber-800">Chargement des données...</p>
-                    <p className="text-sm text-amber-600">Analyse du fichier en cours</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Magasin sélectionné */}
-              {!chargement && magasinSelectionne && donneesMagasin && (
-                <div className="mt-4 bg-green-50 border border-green-200 rounded-xl p-4">
-                  <div className="flex items-center gap-3">
-                    <Check className="w-6 h-6 text-green-600" />
-                    <div className="flex-1">
-                      <p className="font-medium text-green-800">
-                        {donneesMagasin.magasin.nom}
-                        <span className="text-green-600 ml-2">({donneesMagasin.magasin.code})</span>
-                      </p>
-                      <p className="text-sm text-green-600">
-                        {donneesMagasin.magasin.enseigne} •{' '}
-                        {donneesMagasin.comparaison.nombreMagasinsComparables} magasins comparables
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
@@ -467,7 +503,6 @@ const Etape0Import = () => {
           )}
 
         </>
-      )}
     </div>
   );
 };

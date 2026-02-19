@@ -11,9 +11,23 @@ import { TRANCHES, MAPPING_TRANCHES_LEGACY } from './constants';
  */
 export function calculerQuantites(produit, jour, frequentation, configuration, isCreneauFerme, modeRepartitionOverride = null) {
   // Utiliser repartitionJours du fichier manager si disponible
-  const repartJour = produit.repartitionJours?.[jour];
+  // MAIS vérifier que les valeurs sont réellement différenciées par jour
+  const repartJours = produit.repartitionJours;
+  let repartJour = repartJours?.[jour];
   const poidsJour = frequentation?.parJour?.[jour]?.poids || (1 / 7);
   const potentielHebdo = produit.planifieManager || produit.potentielAlgo || produit.potentiel || 0;
+
+  // Détecter si repartitionJours a des valeurs identiques pour tous les jours
+  // (signe que l'export a été fait avec des poids de fréquentation non différenciés)
+  if (repartJour != null && repartJours) {
+    const vals = Object.values(repartJours);
+    const allEqual = vals.length > 1 && vals.every(v => v === vals[0]);
+    if (allEqual) {
+      // Ignorer repartitionJours et recalculer avec la fréquentation
+      repartJour = null;
+    }
+  }
+
   const potentielJour = repartJour != null
     ? Math.ceil(repartJour)
     : Math.ceil(potentielHebdo * poidsJour);

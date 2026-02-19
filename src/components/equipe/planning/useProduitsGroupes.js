@@ -22,7 +22,12 @@ export function useProduitsParFamille(produits, sortConfig) {
           };
         }
 
-        const programme = produit.programme || 'Sans programme';
+        // Normaliser les produits sans programme de cuisson
+        let programme = produit.programme || '';
+        const normProg = programme.toLowerCase().replace(/^--\s*|\s*--$/g, '').trim();
+        if (!normProg || normProg === 'sans programme' || normProg === 'sans cuisson') {
+          programme = 'Sans cuisson';
+        }
         if (!groupes[famille].parProgramme[programme]) {
           groupes[famille].parProgramme[programme] = [];
         }
@@ -31,41 +36,43 @@ export function useProduitsParFamille(produits, sortConfig) {
         groupes[famille].tous.push(produit);
       });
 
-    // Tri des produits selon la configuration
-    Object.values(groupes).forEach(groupe => {
-      const sortProduits = (prods) => {
-        return prods.sort((a, b) => {
-          let comparison = 0;
+    // Tri des produits selon la configuration (skip si aucun tri actif → ordre d'import)
+    if (sortConfig.key) {
+      Object.values(groupes).forEach(groupe => {
+        const sortProduits = (prods) => {
+          return prods.sort((a, b) => {
+            let comparison = 0;
 
-          switch (sortConfig.key) {
-            case 'produit': {
-              const nomA = (a.libellePersonnalise || a.libelle || '').toLowerCase();
-              const nomB = (b.libellePersonnalise || b.libelle || '').toLowerCase();
-              comparison = nomA.localeCompare(nomB);
-              break;
+            switch (sortConfig.key) {
+              case 'produit': {
+                const nomA = (a.libellePersonnalise || a.libelle || '').toLowerCase();
+                const nomB = (b.libellePersonnalise || b.libelle || '').toLowerCase();
+                comparison = nomA.localeCompare(nomB);
+                break;
+              }
+              case 'programme': {
+                const progA = (a.programme || 'Sans programme').toLowerCase();
+                const progB = (b.programme || 'Sans programme').toLowerCase();
+                comparison = progA.localeCompare(progB);
+                break;
+              }
+              case 'total':
+                comparison = (a.potentiel || 0) - (b.potentiel || 0);
+                break;
+              default:
+                comparison = (b.potentiel || 0) - (a.potentiel || 0);
             }
-            case 'programme': {
-              const progA = (a.programme || 'Sans programme').toLowerCase();
-              const progB = (b.programme || 'Sans programme').toLowerCase();
-              comparison = progA.localeCompare(progB);
-              break;
-            }
-            case 'total':
-              comparison = (a.potentiel || 0) - (b.potentiel || 0);
-              break;
-            default:
-              comparison = (b.potentiel || 0) - (a.potentiel || 0);
-          }
 
-          return sortConfig.direction === 'asc' ? comparison : -comparison;
+            return sortConfig.direction === 'asc' ? comparison : -comparison;
+          });
+        };
+
+        Object.keys(groupe.parProgramme).forEach(prog => {
+          groupe.parProgramme[prog] = sortProduits([...groupe.parProgramme[prog]]);
         });
-      };
-
-      Object.keys(groupe.parProgramme).forEach(prog => {
-        groupe.parProgramme[prog] = sortProduits([...groupe.parProgramme[prog]]);
+        groupe.tous = sortProduits([...groupe.tous]);
       });
-      groupe.tous = sortProduits([...groupe.tous]);
-    });
+    }
 
     return groupes;
   }, [produits, sortConfig]);

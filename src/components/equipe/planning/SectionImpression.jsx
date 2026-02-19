@@ -1,9 +1,8 @@
 /**
  * Fonctions d'impression pour le planning
- * Extraites de PlanningJour.jsx - aucune modification de logique
- *
- * Ces fonctions sont des utilitaires purs qui reçoivent toutes les données
- * nécessaires en paramètres au lieu de lire l'état du composant directement.
+ * Format V2-style : Rayon, Type de cuisson, Code PLU, Désignation, Remarque,
+ * tranches horaires dynamiques, Stock rayon, À cuire
+ * (colonne Perte supprimée — non utilisée)
  */
 
 // Configuration des 6 tranches horaires (copie locale nécessaire pour l'impression)
@@ -18,18 +17,21 @@ const TRANCHES_CONFIG = [
 
 const JOURS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
 const JOURS_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+const JOURS_COMPLETS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+
+// Couleurs par famille (Mousquetaires theme)
+const COULEURS_FAMILLES_PRINT = {
+  BOULANGERIE: '#FF8C42',
+  VIENNOISERIE: '#4A90E2',
+  PATISSERIE: '#9B59B6',
+  SNACKING: '#27AE60',
+  AUTRE: '#95A5A6',
+};
 
 /**
- * Génère le HTML pour une fiche d'un jour donné (réutilisable)
+ * Génère le HTML pour une fiche d'un jour donné (format V2)
  * @param {string} jour - Clé du jour (lundi, mardi, etc.)
  * @param {object} params - Toutes les données nécessaires
- * @param {function} params.calculerQuantites - Fonction de calcul des quantités
- * @param {function} params.getProgrammesOrdonnes - Fonction d'ordonnancement des programmes
- * @param {function} params.getDateJour - Fonction pour obtenir la date formatée
- * @param {object} params.produitsParFamille - Produits groupés par famille
- * @param {string[]} params.famillesTriees - Ordre des familles
- * @param {object[]} params.colonnesVisibles - Colonnes de tranches à afficher
- * @param {object} params.configuration - Configuration du magasin
  */
 export function genererFicheJourHTML(jour, {
   calculerQuantites,
@@ -37,16 +39,23 @@ export function genererFicheJourHTML(jour, {
   getDateJour,
   produitsParFamille,
   famillesTriees,
-  colonnesVisibles,
+  colonnesVisiblesParFamille,
+  colonnesDefaut,
   configuration,
+  modeImpression = 'continu',
+  famillesImpression = null,
 }) {
-  const jourLabel = JOURS_LABELS[JOURS.indexOf(jour)];
+  const jourIndex = JOURS.indexOf(jour);
+  const jourLabel = JOURS_LABELS[jourIndex];
+  const jourComplet = JOURS_COMPLETS[jourIndex];
   const dateJour = getDateJour(jour);
   const maintenant = new Date().toLocaleDateString('fr-FR');
 
-  // Utiliser les colonnes configurées par le manager
-  const tranchesAffichees = colonnesVisibles || TRANCHES_CONFIG;
-  const nbTranches = tranchesAffichees.length;
+  // Info PDV et pondération (ajoutés dans AccueilEquipe.jsx)
+  const codePDV = configuration?.codePDV || '';
+  const nomPDV = configuration?.nomPDV || '';
+  const typePonderation = configuration?.typePonderation || '';
+  const magasinDisplay = codePDV ? `PDV ${codePDV} - ${nomPDV}` : (configuration?.magasin || '');
 
   // Helper pour obtenir la quantité d'une colonne (supporte regroupements)
   const getQteColonnePrint = (tranche, tranches) => {
@@ -57,19 +66,28 @@ export function genererFicheJourHTML(jour, {
     return tranches[tranche.key]?.preco || 0;
   };
 
-  // Construire les en-têtes des tranches
-  const tranchesHeadersHTML = tranchesAffichees.map(t =>
-    `<th class="double">${t.label.replace('-', '<br>')}</th>`
-  ).join('');
+  // Helper pour construire les en-têtes de tranches
+  const buildTranchesHeaders = (tranchesAffichees) => {
+    return tranchesAffichees.map(t => {
+      const label = t.label.includes('-')
+        ? t.label.replace('-', '<br>')
+        : t.label;
+      return `<th class="tranche">${label}</th>`;
+    }).join('');
+  };
 
-  // Construire les lignes par famille et programme
-  let lignesHTML = '';
-  famillesTriees.forEach(famille => {
+  // Helper pour construire un tableau complet pour une famille
+  const construireTableauFamille = (famille) => {
     const groupe = produitsParFamille[famille];
-    if (!groupe) return;
-    const modeRepartition = configuration?.repartitionParFamille?.[famille] || 'journalier';
+    if (!groupe) return '';
 
-    // Grouper par programme
+    const tranchesAffichees = colonnesVisiblesParFamille?.[famille] || colonnesDefaut || TRANCHES_CONFIG;
+    const nbTranches = tranchesAffichees.length;
+    const tranchesHeadersHTML = buildTranchesHeaders(tranchesAffichees);
+
+    const modeRepartition = configuration?.repartitionParFamille?.[famille] || 'journalier';
+    let lignesHTML = '';
+
     const programmesDefaut = Object.keys(groupe.parProgramme);
     const programmesOrdonnes = getProgrammesOrdonnes(famille, programmesDefaut, groupe);
 
@@ -77,29 +95,25 @@ export function genererFicheJourHTML(jour, {
       const produitsProgramme = groupe.parProgramme[programme];
       if (!produitsProgramme?.length) return;
 
-      // Totaux capacité en plaques par tranche pour ce programme
       const capaciteTranches = tranchesAffichees.map(() => 0);
       let capaciteTotal = 0;
 
       produitsProgramme
         .filter(p => p.actif !== false)
-        .forEach((produit, idx) => {
+        .forEach((produit) => {
           const qtes = calculerQuantites(produit, jour, modeRepartition);
           const total = qtes.total?.preco || 0;
-          if (total === 0) return; // Ne pas afficher produits à 0
+          if (total === 0) return;
 
-          // Calcul capacité (en plaques)
           const upp = produit.unitesParPlaque || 0;
 
-          // Format quantité avec unités si lot (ex: 2(=8))
           const formatQte = (qte) => {
             if (produit.unitesParLot && produit.unitesParLot > 1) {
-              return `${qte}<sub>(=${qte * produit.unitesParLot})</sub>`;
+              return `<strong>${qte}</strong><sub>(=${qte * produit.unitesParLot})</sub>`;
             }
-            return qte;
+            return `<strong>${qte}</strong>`;
           };
 
-          // Colonnes de quantités par tranche
           let tranchesColsHTML = '';
           if (modeRepartition === 'tranches') {
             tranchesAffichees.forEach((tranche, i) => {
@@ -109,7 +123,6 @@ export function genererFicheJourHTML(jour, {
               tranchesColsHTML += `<td class="qte ${isDerniere ? 'derniere' : ''}">${formatQte(qte)}</td>`;
             });
           } else {
-            // Mode journalier : une seule colonne
             tranchesAffichees.forEach((_, i) => {
               if (i === nbTranches - 1) {
                 tranchesColsHTML += `<td class="qte derniere">${formatQte(total)}</td>`;
@@ -132,14 +145,12 @@ export function genererFicheJourHTML(jour, {
                 ${tranchesColsHTML}
                 <td class="stock"></td>
                 <td class="acuire"></td>
-                <td class="pertes"></td>
               </tr>
             `;
         });
 
-      // Ligne de capacité
       if (capaciteTotal > 0) {
-        const capaciteColsHTML = capaciteTranches.map((cap, i) =>
+        const capaciteColsHTML = capaciteTranches.map((cap) =>
           `<td class="qte cap">${cap > 0 ? cap.toFixed(1) + ' Pl.' : '-'}</td>`
         ).join('');
 
@@ -151,91 +162,171 @@ export function genererFicheJourHTML(jour, {
               <td class="article"></td>
               <td class="remarque"></td>
               ${capaciteColsHTML}
-              <td class="stock"></td>
+              <td class="stock cap"></td>
               <td class="acuire total">Total: ${capaciteTotal.toFixed(1)} Pl.</td>
-              <td class="pertes"></td>
             </tr>
           `;
       }
     });
+
+    if (!lignesHTML) return '';
+
+    return `
+        <table>
+          <thead>
+            <tr>
+              <th class="col-rayon">Rayon</th>
+              <th class="col-prog">Prog</th>
+              <th class="col-plu">Code PLU</th>
+              <th class="col-article">Article</th>
+              <th class="col-remarque">Remarque</th>
+              ${tranchesHeadersHTML}
+              <th class="col-stock">Stock<br>rayon</th>
+              <th class="col-acuire">A cuire</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${lignesHTML}
+          </tbody>
+        </table>`;
+  };
+
+  // Filtrer les familles selon la sélection d'impression (objet { BOULANGERIE: true, ... } ou null = toutes)
+  const famillesAImprimer = famillesTriees.filter(f => {
+    if (!famillesImpression) return true;
+    return famillesImpression[f] !== false;
   });
+
+  if (famillesAImprimer.length === 0) return '';
+
+  // --- Mode "séparé par famille" : une page A4 par famille avec bandeau coloré ---
+  if (modeImpression === 'separe') {
+    return famillesAImprimer.map(famille => {
+      const tableauHTML = construireTableauFamille(famille);
+      if (!tableauHTML) return '';
+
+      const couleur = COULEURS_FAMILLES_PRINT[famille.toUpperCase()] || '#333';
+
+      return `
+      <div class="page">
+        <div class="header">
+          <div class="header-top">
+            <span class="header-label">Planning</span>
+            <span class="header-jour">${jourComplet}</span>
+            <span class="header-date"> - ${dateJour}</span>
+          </div>
+          <div class="famille-bandeau" style="background: ${couleur};">
+            ${famille} — ${jourComplet} — ${magasinDisplay || ''}
+          </div>
+          <div class="header-info">
+            ${magasinDisplay ? magasinDisplay + ' | ' : ''}Impression: ${maintenant}${typePonderation ? ` | Pondération: ${typePonderation}` : ''}
+          </div>
+        </div>
+
+        ${tableauHTML}
+
+        <div class="formula">
+          <strong>📌 Dernière cuisson :</strong> À cuire = Préco (colonne jaune) − Stock rayon &nbsp;&nbsp;|&nbsp;&nbsp; Si stock ≥ préco → ne pas cuire
+        </div>
+
+        <div class="footer">
+          BVP Planning V5 • ${magasinDisplay} • ${jourComplet} • ${famille}
+        </div>
+      </div>`;
+    }).filter(Boolean).join('\n');
+  }
+
+  // --- Mode "continu" (défaut) : toutes les familles enchaînées ---
+  const tableauxHTML = famillesAImprimer.map(famille => construireTableauFamille(famille)).filter(Boolean);
+
+  if (tableauxHTML.length === 0) return '';
 
   return `
   <div class="page">
     <div class="header">
-      <h1>Planning ${jourLabel} - S${configuration?.semaine || ''}</h1>
-      <div class="info">${configuration?.magasin || ''} | ${dateJour} | Imprimé le ${maintenant}</div>
+      <div class="header-top">
+        <span class="header-label">Planning</span>
+        <span class="header-jour">${jourComplet}</span>
+        <span class="header-date"> - ${dateJour}</span>
+      </div>
+      <div class="header-info">
+        ${magasinDisplay ? magasinDisplay + ' | ' : ''}Impression: ${maintenant}${typePonderation ? ` | Pondération: ${typePonderation}` : ''}
+      </div>
     </div>
 
-    <table>
-      <thead>
-        <tr>
-          <th>Rayon</th>
-          <th>Prog</th>
-          <th>PLU</th>
-          <th>Article</th>
-          <th class="remarque">Remarque</th>
-          ${tranchesHeadersHTML}
-          <th class="double">Stock</th>
-          <th>Cuire</th>
-          <th>Perte</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${lignesHTML}
-      </tbody>
-    </table>
+    ${tableauxHTML.join('\n')}
 
     <div class="formula">
       <strong>📌 Dernière cuisson :</strong> À cuire = Préco (colonne jaune) − Stock rayon &nbsp;&nbsp;|&nbsp;&nbsp; Si stock ≥ préco → ne pas cuire
     </div>
 
     <div class="footer">
-      BVP Planning V5 • ${configuration?.magasin || ''} • ${jourLabel}
+      BVP Planning V5 • ${magasinDisplay} • ${jourComplet}
     </div>
   </div>`;
 }
 
 /**
- * CSS commun pour les fiches d'impression
+ * CSS commun pour les fiches d'impression (format V2 — noir et blanc, professionnel)
  */
 export function getFicheCSS() {
   return `
     * { margin: 0; padding: 0; box-sizing: border-box; }
     @page { size: A4 portrait; margin: 5mm; }
-    body { font-family: Arial, sans-serif; font-size: 7px; line-height: 1.1; }
+    body { font-family: Arial, sans-serif; font-size: 8px; line-height: 1.2; }
 
     .page { page-break-after: always; }
     .page:last-child { page-break-after: avoid; }
 
-    .header { margin-bottom: 4px; }
-    .header h1 { font-size: 12px; font-weight: bold; margin-bottom: 1px; }
-    .header .info { font-size: 7px; color: #666; }
+    /* ── En-tête V2-style ── */
+    .header { margin-bottom: 4px; padding-bottom: 3px; border-bottom: 2px solid #000; }
+    .header-top { display: flex; align-items: baseline; gap: 4px; }
+    .header-label { font-size: 8px; }
+    .header-jour { font-size: 16px; font-weight: bold; }
+    .header-date { font-size: 12px; font-weight: bold; }
+    .header-info { font-size: 7px; color: #444; margin-top: 1px; }
 
-    table { width: 100%; border-collapse: collapse; }
-    th, td { border: 1px solid #555; padding: 1px 2px; text-align: center; vertical-align: middle; }
+    /* ── Tableau ── */
+    table { width: 100%; border-collapse: collapse; border: 1px solid #000; }
+    th, td { border: 1px solid #000; padding: 1px 3px; text-align: center; vertical-align: middle; }
 
-    th { background: #e0e0e0; font-weight: bold; font-size: 6px; }
-    th.double { line-height: 1.0; font-size: 6px; }
+    /* En-têtes de colonnes */
+    th { background: #e8e8e8; font-weight: bold; font-size: 7px; }
+    th.col-rayon { width: 50px; font-size: 8px; }
+    th.col-prog { width: 50px; font-size: 8px; }
+    th.col-plu { width: 38px; font-size: 8px; }
+    th.col-article { font-size: 8px; }
+    th.col-remarque { width: 50px; font-size: 7px; }
+    th.tranche { width: 38px; font-size: 7px; line-height: 1.1; }
+    th.col-stock { width: 32px; font-size: 7px; line-height: 1.1; }
+    th.col-acuire { width: 32px; font-size: 7px; }
 
-    td.rayon { font-size: 5px; font-weight: bold; text-align: left; width: 45px; }
-    td.prog { font-size: 5px; text-align: left; width: 40px; }
-    td.plu { font-size: 6px; width: 30px; }
-    td.article { text-align: left; font-size: 7px; font-weight: bold; }
-    td.remarque { display: none; }
-    th.remarque { display: none; }
-    td.qte { font-size: 10px; font-weight: bold; width: 32px; }
+    /* Cellules de données */
+    td.rayon { font-size: 6px; font-weight: bold; text-align: left; background: #f5f5f5; }
+    td.prog { font-size: 5.5px; text-align: left; background: #f5f5f5; }
+    td.plu { font-size: 7px; }
+    td.article { text-align: left; font-size: 8px; font-weight: bold; }
+    td.remarque { font-size: 6px; }
+    td.qte { font-size: 11px; font-weight: bold; width: 38px; }
     td.qte.derniere { background: #fff59d; }
-    td.stock { width: 30px; background: #fff; }
-    td.acuire { width: 30px; background: #c8e6c9; }
-    td.pertes { width: 28px; background: #fff; }
+    td.stock { width: 32px; background: #fff; }
+    td.acuire { width: 32px; background: #c8e6c9; }
 
-    tr.capacite { background: #eeeeee; }
-    tr.capacite td.plu { font-style: italic; font-size: 5px; }
+    /* Lignes de capacité */
+    tr.capacite { background: #e0e0e0; }
+    tr.capacite td.plu { font-style: italic; font-size: 5.5px; }
     tr.capacite td.qte { font-size: 6px; font-weight: normal; }
     tr.capacite td.total { font-weight: bold; font-size: 6px; }
+    tr.capacite td.stock { background: #e0e0e0; }
 
+    /* Sous-texte lots */
     sub { font-size: 5px; }
+
+    /* Bandeau famille en en-tête de page */
+    .famille-bandeau {
+      color: #fff; padding: 3px 8px; font-weight: bold;
+      font-size: 11px; letter-spacing: 0.5px; margin: 2px 0;
+    }
 
     .footer { margin-top: 4px; font-size: 6px; color: #666; text-align: center; }
     .formula { margin-top: 3px; padding: 3px 6px; background: #e3f2fd; font-size: 7px; }
@@ -245,21 +336,24 @@ export function getFicheCSS() {
 
 /**
  * Imprimer le planning au format professionnel (jour actuel)
- * @param {string} jourSelectionne - Jour sélectionné
- * @param {object} params - Mêmes paramètres que genererFicheJourHTML
  */
-export function handlePrintPlanningPro(jourSelectionne, params) {
+export function handlePrintPlanningPro(jourSelectionne, params, options = {}) {
+  const { modeImpression = 'continu', famillesImpression = null } = options;
   const { configuration } = params;
+  const jourComplet = JOURS_COMPLETS[JOURS.indexOf(jourSelectionne)];
+  const magasinDisplay = configuration?.codePDV
+    ? `PDV ${configuration.codePDV} - ${configuration.nomPDV}`
+    : (configuration?.magasin || '');
 
   const html = `<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Fiche ${JOURS_LABELS[JOURS.indexOf(jourSelectionne)]} - ${configuration?.magasin || ''}</title>
+  <title>Fiche ${jourComplet} - ${magasinDisplay}</title>
   <style>${getFicheCSS()}</style>
 </head>
 <body>
-  ${genererFicheJourHTML(jourSelectionne, params)}
+  ${genererFicheJourHTML(jourSelectionne, { ...params, modeImpression, famillesImpression })}
 </body>
 </html>`;
 
@@ -271,19 +365,22 @@ export function handlePrintPlanningPro(jourSelectionne, params) {
 
 /**
  * Imprimer la semaine complète (7 fiches, une par jour)
- * @param {object} params - Mêmes paramètres que genererFicheJourHTML
  */
-export function handlePrintSemaine(params) {
+export function handlePrintSemaine(params, options = {}) {
+  const { modeImpression = 'continu', famillesImpression = null } = options;
   const { configuration } = params;
+  const magasinDisplay = configuration?.codePDV
+    ? `PDV ${configuration.codePDV} - ${configuration.nomPDV}`
+    : (configuration?.magasin || '');
 
   // Générer les 7 fiches
-  const pagesHTML = JOURS.map(jour => genererFicheJourHTML(jour, params)).join('\n');
+  const pagesHTML = JOURS.map(jour => genererFicheJourHTML(jour, { ...params, modeImpression, famillesImpression })).join('\n');
 
   const html = `<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Planning Semaine ${configuration?.semaine || ''} - ${configuration?.magasin || ''}</title>
+  <title>Planning Semaine ${configuration?.semaine || ''} - ${magasinDisplay}</title>
   <style>${getFicheCSS()}</style>
 </head>
 <body>

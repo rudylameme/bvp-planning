@@ -7,8 +7,10 @@
     "dev": "vite",
     "dev:v4": "vite --config vite.config.v4.js",
     "build": "vite build",
-    "build:manager": "vite build --config vite.config.manager.js",
-    "build:equipe": "vite build --config vite.config.equipe.js",
+    "build:manager": "vite build --mode manager",
+    "build:equipe": "vite build --mode equipe",
+    "dev:manager": "vite --mode manager",
+    "dev:equipe": "vite --mode equipe",
     "lint": "eslint .",
     "preview": "vite preview"
   },

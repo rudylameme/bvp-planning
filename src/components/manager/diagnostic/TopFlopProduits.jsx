@@ -16,6 +16,7 @@ import {
   Lightbulb,
   Trophy,
 } from 'lucide-react';
+import SectionRepliable from './SectionRepliable';
 
 // ============================================================================
 // BLOC 6 : POTENTIEL CHIFFRE GLOBAL (EFFET WOW)
@@ -94,6 +95,8 @@ const Bloc6Potentiel = ({ indicateurs, panierMoyen, caBVPActuel }) => {
 // BLOC 7 : DIAGNOSTIC & PLAN D'ACTION
 // Question : "Que dois-je faire concretement ?"
 // ============================================================================
+const TAUX_CASSE_HYPOTHESE = 0.05; // 5% de casse hypothétique
+
 const Bloc7Action = ({ indicateurs, panierMoyen }) => {
   const parTrancheHoraire = indicateurs.parTrancheHoraire;
   if (!parTrancheHoraire) return null;
@@ -172,50 +175,102 @@ const Bloc7Action = ({ indicateurs, panierMoyen }) => {
               </div>
             </div>
 
-            {/* Explication + Recommandation */}
-            <div className="bg-gray-50 rounded-xl p-4 border-l-4 border-[#8B1538]">
-              <div className="flex items-start gap-4">
-                <Clock className="w-6 h-6 text-[#8B1538] flex-shrink-0 mt-1" />
-                <div>
-                  <h4 className="font-semibold text-gray-800 mb-1">Pourquoi ces clients n'achètent pas {tranchePrioritaire.label.toLowerCase()} ?</h4>
-                  <p className="text-gray-600 mb-3">{tranchePrioritaire.cause}</p>
+            <SectionRepliable labelExpand="Voir les recommandations" labelCollapse="Masquer les recommandations">
+              <div className="space-y-6">
+                {/* Explication + Recommandation */}
+                <div className="bg-gray-50 rounded-xl p-4 border-l-4 border-[#8B1538]">
+                  <div className="flex items-start gap-4">
+                    <Clock className="w-6 h-6 text-[#8B1538] flex-shrink-0 mt-1" />
+                    <div>
+                      <h4 className="font-semibold text-gray-800 mb-1">Pourquoi ces clients n'achètent pas {tranchePrioritaire.label.toLowerCase()} ?</h4>
+                      <p className="text-gray-600 mb-3">{tranchePrioritaire.cause}</p>
 
-                  <div className="bg-white rounded-lg p-3 border border-gray-200">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Lightbulb className="w-4 h-4 text-[#8B1538]" />
-                      <span className="font-semibold text-[#8B1538]">Recommandation</span>
+                      <div className="bg-white rounded-lg p-3 border border-gray-200">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Lightbulb className="w-4 h-4 text-[#8B1538]" />
+                          <span className="font-semibold text-[#8B1538]">Recommandation</span>
+                        </div>
+                        <p className="font-bold text-gray-800">{tranchePrioritaire.action}</p>
+                        {tranchePrioritaire.horaireCuisson && (
+                          <p className="text-sm text-gray-500 mt-1">
+                            Planifiez une cuisson pour avoir des produits frais à {tranchePrioritaire.horaireCuisson}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <p className="font-bold text-gray-800">{tranchePrioritaire.action}</p>
-                    {tranchePrioritaire.horaireCuisson && (
-                      <p className="text-sm text-gray-500 mt-1">
-                        Planifiez une cuisson pour avoir des produits frais à {tranchePrioritaire.horaireCuisson}
-                      </p>
-                    )}
                   </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Autres tranches a surveiller (hors reference et priorite) */}
-            {autresTranches.length > 0 && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <AlertTriangle className="w-5 h-5 text-amber-600" />
-                  <span className="font-semibold text-amber-800">Autres tranches horaires à surveiller</span>
-                </div>
-                <div className="space-y-1">
-                  {autresTranches.map(t => (
-                    <div key={t.key} className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">{t.label}</span>
-                      <span className="text-[#EF4444] font-bold">{t.clientsPerdus.toLocaleString('fr-FR')} clients sans achat BVP</span>
+                {/* Argument anti-casse : rassurer sur la rentabilité */}
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <Lightbulb className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold text-emerald-800 mb-1">Et la casse ?</h4>
+                      <p className="text-sm text-gray-600 mb-3">
+                        Même avec un taux de casse de {(TAUX_CASSE_HYPOTHESE * 100).toFixed(0)}% sur cette production supplémentaire,
+                        le gain net reste très largement positif :
+                      </p>
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <div className="bg-white rounded-lg px-3 py-2 border border-emerald-200 text-center">
+                          <div className="text-xs text-gray-500">CA brut / semaine</div>
+                          <div className="font-bold text-gray-800">
+                            +{(clientsRecuperables * panierMoyen).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €
+                          </div>
+                        </div>
+                        <div className="text-gray-400">−</div>
+                        <div className="bg-white rounded-lg px-3 py-2 border border-red-200 text-center">
+                          <div className="text-xs text-gray-500">Casse estimée ({(TAUX_CASSE_HYPOTHESE * 100).toFixed(0)}%)</div>
+                          <div className="font-bold text-[#EF4444]">
+                            −{(clientsRecuperables * panierMoyen * TAUX_CASSE_HYPOTHESE).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €
+                          </div>
+                        </div>
+                        <div className="text-gray-400">=</div>
+                        <div className="bg-emerald-100 rounded-lg px-3 py-2 border border-emerald-300 text-center">
+                          <div className="text-xs text-emerald-700">Gain net / semaine</div>
+                          <div className="font-bold text-[#22C55E] text-lg">
+                            +{(clientsRecuperables * panierMoyen * (1 - TAUX_CASSE_HYPOTHESE)).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €
+                          </div>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2 italic">
+                        Soit +{(clientsRecuperables * panierMoyen * (1 - TAUX_CASSE_HYPOTHESE) * 52).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €/an
+                        de CA net même en intégrant la casse.
+                      </p>
                     </div>
-                  ))}
+                  </div>
                 </div>
+
+                {/* Autres tranches a surveiller (hors reference et priorite) */}
+                {autresTranches.length > 0 && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertTriangle className="w-5 h-5 text-amber-600" />
+                      <span className="font-semibold text-amber-800">Autres tranches horaires à surveiller</span>
+                    </div>
+                    <div className="space-y-1">
+                      {autresTranches.map(t => (
+                        <div key={t.key} className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">{t.label}</span>
+                          <span className="text-[#EF4444] font-bold">{t.clientsPerdus.toLocaleString('fr-FR')} clients sans achat BVP</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
+            </SectionRepliable>
 
           </>
         )}
+
+        {/* Phrase de transition vers l'étape suivante */}
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <p className="text-blue-800 text-sm leading-relaxed">
+            C'est à partir de ce diagnostic que l'outil va calibrer vos quantités de production.
+            À l'étape suivante, vous allez définir vos objectifs de vente en tenant compte de ces opportunités.
+          </p>
+        </div>
       </div>
     </div>
   );

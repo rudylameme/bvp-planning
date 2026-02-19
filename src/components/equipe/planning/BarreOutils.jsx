@@ -2,8 +2,18 @@
  * Barre d'outils et en-tête du planning du jour
  * Extraite de PlanningJour.jsx - aucune modification de logique
  */
-import { Printer, Grid3X3, ChevronUp, ChevronDown, ArrowUpDown, GripVertical, RotateCcw, Eye, EyeOff, Settings, Clock, Calendar } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Printer, Grid3X3, ChevronUp, ChevronDown, ArrowUpDown, GripVertical, RotateCcw, Eye, EyeOff, Settings, Clock, Calendar, SlidersHorizontal, FileSpreadsheet } from 'lucide-react';
 import { TRANCHES_CONFIG, JOURS, JOURS_LABELS } from './constants';
+
+// Couleurs par famille (Mousquetaires theme)
+const COULEURS_FAMILLES = {
+  BOULANGERIE: '#FF8C42',
+  VIENNOISERIE: '#4A90E2',
+  PATISSERIE: '#9B59B6',
+  SNACKING: '#27AE60',
+  AUTRE: '#95A5A6',
+};
 
 /**
  * Composant pour l'en-tête de colonne triable
@@ -46,10 +56,37 @@ export function EnTetePlanning({
   setShowModalProgrammes,
   onPrintPlanningPro,
   onPrintSemaine,
+  onExportExcel,
   ordrePersonnalise,
   sectionsOuvertes,
   reinitialiserPrefs,
+  modeImpression,
+  setModeImpression,
+  famillesImpression,
+  setFamillesImpression,
+  famillesDisponibles,
 }) {
+  // État local pour le panneau d'options d'impression
+  const [showOptionsImpression, setShowOptionsImpression] = useState(false);
+  const optionsRef = useRef(null);
+
+  // Fermer le panneau au clic extérieur
+  useEffect(() => {
+    if (!showOptionsImpression) return;
+    const handleClickOutside = (e) => {
+      if (optionsRef.current && !optionsRef.current.contains(e.target)) {
+        setShowOptionsImpression(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showOptionsImpression]);
+
+  // Helpers familles
+  const toutesSelectionnees = !famillesImpression || famillesDisponibles.every(f => famillesImpression[f] !== false);
+  const aucuneSelectionnee = famillesImpression && famillesDisponibles.every(f => famillesImpression[f] === false);
+  const nbFamillesSelectionnees = famillesDisponibles.filter(f => !famillesImpression || famillesImpression[f] !== false).length;
+
   return (
     <div className="flex items-center justify-between flex-wrap gap-4">
       <div>
@@ -160,11 +197,133 @@ export function EnTetePlanning({
           Programmes
         </button>
 
-        {/* Boutons imprimer */}
+        {/* Options impression (dropdown) + Boutons imprimer */}
         <div className="flex items-center gap-1">
+          {/* Dropdown options impression */}
+          <div className="relative" ref={optionsRef}>
+            <button
+              onClick={() => setShowOptionsImpression(!showOptionsImpression)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-l-lg text-sm font-medium transition-colors border ${
+                showOptionsImpression
+                  ? 'bg-white border-[#8B1538] text-[#8B1538] shadow'
+                  : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+              }`}
+              title="Options d'impression"
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+              <span className="hidden sm:inline">Options</span>
+              {!toutesSelectionnees && (
+                <span className="text-[10px] bg-[#8B1538] text-white rounded-full px-1.5 py-0.5 leading-none">
+                  {nbFamillesSelectionnees}
+                </span>
+              )}
+              <ChevronDown className={`w-3 h-3 transition-transform ${showOptionsImpression ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showOptionsImpression && (
+              <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 min-w-[260px] p-3">
+                {/* Mode d'impression */}
+                <div className="mb-3">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Mode</span>
+                  <div className="flex flex-col gap-1 mt-1.5">
+                    <label className="flex items-center gap-2 cursor-pointer px-2 py-1.5 rounded hover:bg-gray-50">
+                      <input
+                        type="radio"
+                        name="modeImpression"
+                        checked={modeImpression === 'continu'}
+                        onChange={() => setModeImpression('continu')}
+                        className="w-3.5 h-3.5"
+                        style={{ accentColor: '#8B1538' }}
+                      />
+                      <div>
+                        <span className="text-sm font-medium text-gray-700">Tout en continu</span>
+                        <p className="text-[11px] text-gray-400">Familles enchaînées sans saut de page</p>
+                      </div>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer px-2 py-1.5 rounded hover:bg-gray-50">
+                      <input
+                        type="radio"
+                        name="modeImpression"
+                        checked={modeImpression === 'separe'}
+                        onChange={() => setModeImpression('separe')}
+                        className="w-3.5 h-3.5"
+                        style={{ accentColor: '#8B1538' }}
+                      />
+                      <div>
+                        <span className="text-sm font-medium text-gray-700">Séparé par famille</span>
+                        <p className="text-[11px] text-gray-400">Une feuille A4 par famille</p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Séparateur */}
+                <div className="border-t border-gray-100 mb-3"></div>
+
+                {/* Familles à imprimer */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Familles</span>
+                    <button
+                      onClick={() => {
+                        if (toutesSelectionnees) {
+                          const allFalse = {};
+                          famillesDisponibles.forEach(f => { allFalse[f] = false; });
+                          setFamillesImpression(allFalse);
+                        } else {
+                          setFamillesImpression(null);
+                        }
+                      }}
+                      className="text-[11px] text-[#8B1538] hover:underline font-medium"
+                    >
+                      {toutesSelectionnees ? 'Tout désélectionner' : 'Tout sélectionner'}
+                    </button>
+                  </div>
+                  <div className="space-y-0.5">
+                    {famillesDisponibles.map(famille => {
+                      const isChecked = !famillesImpression || famillesImpression[famille] !== false;
+                      const color = COULEURS_FAMILLES[famille.toUpperCase()] || '#95A5A6';
+                      return (
+                        <label key={famille} className="flex items-center gap-2 cursor-pointer px-2 py-1 rounded hover:bg-gray-50">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              const current = famillesImpression ? { ...famillesImpression } : {};
+                              current[famille] = !isChecked;
+                              const allTrue = famillesDisponibles.every(f => current[f] !== false);
+                              setFamillesImpression(allTrue ? null : current);
+                            }}
+                            className="w-3.5 h-3.5 rounded cursor-pointer"
+                            style={{ accentColor: color }}
+                          />
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }}></span>
+                          <span className="text-sm text-gray-700">{famille}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Bouton Excel */}
+          <button
+            onClick={onExportExcel}
+            disabled={aucuneSelectionnee}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Exporter en Excel (.xlsx)"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            Excel
+          </button>
+
+          {/* Boutons imprimer */}
           <button
             onClick={onPrintPlanningPro}
-            className="flex items-center gap-2 px-4 py-2 bg-[#2E7D32] text-white rounded-l-lg hover:bg-[#2E7D32]/80 transition-colors"
+            disabled={aucuneSelectionnee}
+            className="flex items-center gap-2 px-4 py-2 bg-[#2E7D32] text-white hover:bg-[#2E7D32]/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             title="Imprimer fiche du jour (format professionnel)"
           >
             <Printer className="w-4 h-4" />
@@ -172,7 +331,8 @@ export function EnTetePlanning({
           </button>
           <button
             onClick={onPrintSemaine}
-            className="flex items-center gap-2 px-4 py-2 bg-[#8B1538] text-white rounded-r-lg hover:bg-[#8B1538]/80 transition-colors"
+            disabled={aucuneSelectionnee}
+            className="flex items-center gap-2 px-4 py-2 bg-[#8B1538] text-white rounded-r-lg hover:bg-[#8B1538]/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             title="Imprimer toute la semaine (7 fiches, une par jour)"
           >
             <Calendar className="w-4 h-4" />
@@ -201,12 +361,15 @@ export function EnTetePlanning({
  */
 export function BarreInfoCreneaux({
   trancheActuelle,
-  modeTranches,
-  setModeTranches,
-  afficherToutesColonnes,
-  setAfficherToutesColonnes,
-  colonnesVisibles,
+  nbTranchesMax,
+  tranchesParFamille,
 }) {
+  // Résumé : min-max du nombre de colonnes par famille
+  const counts = Object.values(tranchesParFamille || {}).map(g => g?.length || 4);
+  const min = counts.length > 0 ? Math.min(...counts) : 4;
+  const max = counts.length > 0 ? Math.max(...counts) : 4;
+  const resume = min === max ? `${min}T` : `${min}T – ${max}T`;
+
   return (
     <div className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-lg print:hidden flex-wrap gap-2">
       {/* Créneau actuel */}
@@ -219,46 +382,9 @@ export function BarreInfoCreneaux({
 
       {/* Options */}
       <div className="flex items-center gap-4 text-xs">
-        {/* Toggle mode tranches regroupées/détaillées */}
-        <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
-          <button
-            onClick={() => setModeTranches('regroupees')}
-            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-              modeTranches === 'regroupees'
-                ? 'bg-[#8B1538] text-white'
-                : 'text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            4 créneaux
-          </button>
-          <button
-            onClick={() => setModeTranches('detaillees')}
-            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-              modeTranches === 'detaillees'
-                ? 'bg-[#8B1538] text-white'
-                : 'text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            6 créneaux
-          </button>
-        </div>
-
-        {/* Toggle afficher toutes les colonnes (seulement en mode 6 créneaux) */}
-        {modeTranches === 'detaillees' && (
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={afficherToutesColonnes}
-              onChange={(e) => setAfficherToutesColonnes(e.target.checked)}
-              className="rounded border-gray-300 text-[#8B1538] focus:ring-[#8B1538]"
-            />
-            <span className="text-gray-600">Tous les créneaux</span>
-          </label>
-        )}
-
-        {/* Info colonnes affichées */}
-        <span className="text-gray-400">
-          {colonnesVisibles.length} créneaux
+        {/* Info tranches par famille */}
+        <span className="text-gray-500 font-medium">
+          Tranches : {resume}
         </span>
 
         {/* Info drag & drop */}

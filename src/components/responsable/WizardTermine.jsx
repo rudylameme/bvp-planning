@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { formatEuro } from '../../utils/formatUtils';
-import { CheckCircle, Download, RefreshCw, ArrowLeft, FileJson, Copy, Check } from 'lucide-react';
+import { CheckCircle, Download, RefreshCw, ArrowLeft, FileJson, Copy, Check, AlertTriangle } from 'lucide-react';
 
 // Liste des jours de la semaine
 const JOURS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
@@ -97,6 +97,7 @@ export default function WizardTermine({
   onNouvelleSemaine
 }) {
   const [fichierGenere, setFichierGenere] = useState(null);
+  const [frequentationParDefaut, setFrequentationParDefaut] = useState(false);
   const [copied, setCopied] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
 
@@ -116,7 +117,30 @@ export default function WizardTermine({
       // Construire les données de fréquentation
       const baseCalcul = donneesMagasin?.baseCalcul || 'PDV';
       const frequentationData = donneesMagasin?.importDonnees?.frequentation;
-      const frequentation = construireFrequentation(frequentationData, baseCalcul);
+      let frequentation = construireFrequentation(frequentationData, baseCalcul);
+
+      // Si pas de données importées, générer une fréquentation par défaut
+      // (mêmes poids que PilotageCA pour cohérence manager/équipe)
+      setFrequentationParDefaut(!frequentation);
+      if (!frequentation) {
+        const POIDS_DEFAUT = {
+          lundi: 0.12, mardi: 0.12, mercredi: 0.16,
+          jeudi: 0.12, vendredi: 0.16, samedi: 0.20, dimanche: 0.12
+        };
+        const parJour = {};
+        JOURS.forEach(jour => {
+          parJour[jour] = {
+            total: 0,
+            poids: POIDS_DEFAUT[jour],
+            tranches: {}
+          };
+        });
+        frequentation = {
+          base: baseCalcul,
+          parJour,
+          totalSemaine: 0
+        };
+      }
 
       const fichier = {
         schemaVersion: '2.0',
@@ -183,22 +207,37 @@ export default function WizardTermine({
           qteValidee: pe.qteValidee ?? pe.qteParJour,
           jours: pe.jours
         })) : null,
-        produits: produitsActifs.map(p => ({
-          id: p.id,
-          libelle: p.libelle,
-          libellePersonnalise: p.libellePersonnalise,
-          itm8: p.itm8,
-          actif: true,
-          potentiel: p.potentielHebdo,
-          // Historique des ventes hebdo (arrondi à l'entier)
-          historiqueHebdo: p.moyenneHebdo ? Math.round(p.moyenneHebdo) : null,
-          famille: p.rayon,
-          programme: p.programme,
-          plu: p.plu,
-          unitesParPlaque: p.unitesParPlaque,
-          unitesParVente: p.unitesParVente || 1,
-          prixUnitaire: p.prixMoyenUnitaire
-        }))
+        produits: produitsActifs.map(p => {
+          // Extraire les quantités par jour depuis le planning calculé par PilotageCA
+          const planningProduit = donneesMagasin?.planningCalcule?.[p.id];
+          const repartitionJours = {};
+          if (planningProduit?.jours) {
+            Object.entries(planningProduit.jours).forEach(([jour, data]) => {
+              if (!data.ferme) {
+                repartitionJours[jour] = data.qte || 0;
+              }
+            });
+          }
+
+          return {
+            id: p.id,
+            libelle: p.libelle,
+            libellePersonnalise: p.libellePersonnalise,
+            itm8: p.itm8,
+            actif: true,
+            potentiel: p.potentielHebdo,
+            // Répartition jour par jour (calculée par le manager avec limites et fréquentation)
+            repartitionJours: Object.keys(repartitionJours).length > 0 ? repartitionJours : undefined,
+            // Historique des ventes hebdo (arrondi à l'entier)
+            historiqueHebdo: p.moyenneHebdo ? Math.round(p.moyenneHebdo) : null,
+            famille: p.rayon,
+            programme: p.programme,
+            plu: p.plu,
+            unitesParPlaque: p.unitesParPlaque,
+            unitesParVente: p.unitesParVente || 1,
+            prixUnitaire: p.prixMoyenUnitaire
+          };
+        })
       };
 
       setFichierGenere(fichier);
@@ -398,6 +437,23 @@ export default function WizardTermine({
           </button>
         </div>
       </div>
+
+      {/* Avertissement fréquentation par défaut */}
+      {frequentationParDefaut && (
+        <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 mb-6">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-medium text-amber-800 mb-1">Fréquentation par défaut</h4>
+              <p className="text-sm text-amber-700">
+                Aucun fichier de fréquentation n'a été importé. La répartition jour par jour utilise
+                des poids standards (samedi 20%, mercredi/vendredi 16%, autres jours 12%).
+                Pour une répartition plus précise, importez le fichier de fréquentation à l'étape 1.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Instructions */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">

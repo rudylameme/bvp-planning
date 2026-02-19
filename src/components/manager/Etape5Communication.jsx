@@ -1,24 +1,38 @@
 /**
  * Étape 5 : Communication — Export Archive Planning
  *
- * Permet au Manager d'exporter un fichier .bvp.json contenant
+ * Exporte automatiquement un fichier .bvp.json contenant
  * toutes les données du planning pour l'équipe.
+ * Si dossierArchives configuré → écriture directe.
+ * Sinon → téléchargement navigateur en fallback.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   MessageSquare,
-  FolderOpen,
-  Download,
   Check,
   AlertTriangle,
   Package,
   Target,
   Calendar,
   Users,
-  FileJson,
 } from 'lucide-react';
 import { useMagasin } from '../../contexts/MagasinContext';
+import { useFileAccess, checkHandlePermission } from '../../hooks/useFileAccess';
+
+// ============================================================================
+// Poids de fréquentation par défaut (même valeurs que PilotageCA)
+// ============================================================================
+
+const POIDS_FREQUENTATION_DEFAUT = {
+  lundi: 0.12,
+  mardi: 0.12,
+  mercredi: 0.16,
+  jeudi: 0.12,
+  vendredi: 0.16,
+  samedi: 0.20,
+  dimanche: 0.12,
+};
 
 // ============================================================================
 // Helpers
@@ -26,9 +40,8 @@ import { useMagasin } from '../../contexts/MagasinContext';
 
 /** Retourne la date ISO du lundi de la semaine ISO donnée */
 const getDateDebutSemaine = (semaine, annee) => {
-  // Algorithme ISO : le 4 janvier est toujours en semaine 1
   const jan4 = new Date(annee, 0, 4);
-  const dayOfWeek = jan4.getDay() || 7; // 1=lundi...7=dimanche
+  const dayOfWeek = jan4.getDay() || 7;
   const lundi1 = new Date(jan4);
   lundi1.setDate(jan4.getDate() - dayOfWeek + 1);
   const result = new Date(lundi1);
@@ -59,6 +72,7 @@ const construireArchive = ({
   joursOuverture,
   promosActives,
   commandeConfig,
+  frequentationData,
 }) => {
   const sem = semainePlanning || { semaine: 1, annee: 2026 };
   const code = infoPDV?.code || donneesMagasin?.magasin?.code || 'XXXXX';
@@ -75,23 +89,59 @@ const construireArchive = ({
     joursActifs.push('lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi');
   }
 
+  // Construire la fréquentation pour l'export
+  let poidsJoursSource = POIDS_FREQUENTATION_DEFAUT;
+  let frequentationParDefaut = true;
+
+  if (frequentationData?.poidsJours) {
+    const vals = Object.values(frequentationData.poidsJours);
+    const allZero = vals.every(v => !v || v === 0);
+    const allEqual = vals.length > 1 && vals.every(v => v === vals[0]);
+    if (!allZero && !allEqual) {
+      poidsJoursSource = frequentationData.poidsJours;
+      frequentationParDefaut = false;
+    }
+  }
+
+  // Normaliser les poids sur les jours actifs uniquement (somme = 1)
+  const totalPoidsActifs = joursActifs.reduce((sum, jour) => sum + (poidsJoursSource[jour] || 0), 0);
+  const poidsNormalises = {};
+  joursActifs.forEach(jour => {
+    poidsNormalises[jour] = totalPoidsActifs > 0
+      ? (poidsJoursSource[jour] || 0) / totalPoidsActifs
+      : 1 / joursActifs.length;
+  });
+
+  // Construire l'objet frequentation compatible avec calculerQuantites.js
+  const frequentationExport = {
+    source: frequentationParDefaut ? 'defaut' : 'import',
+    typePonderation: frequentationData?.typePonderation || 'standard',
+    sourceFrequentation: frequentationData?.sourceFrequentation || '',
+    parJour: {},
+  };
+  joursActifs.forEach(jour => {
+    frequentationExport.parJour[jour] = {
+      poids: poidsNormalises[jour],
+      tranches: frequentationData?.poidsTranchesParJour?.[jour] || {},
+    };
+  });
+
   // CA historique (somme des CA des produits actifs)
   const caHistorique = (produitsGamme || [])
     .filter(p => p.actif !== false)
     .reduce((sum, p) => sum + (p.caSemaine || 0), 0);
 
   // Produits
-  const produits = (produitsGamme || []).map(p => {
+  const produits = (produitsGamme || []).map((p, index) => {
     const planifie = planifieManager?.[p.id] ?? p.potentiel ?? p.moyHebdo ?? 0;
-    const nbJours = joursActifs.length || 6;
 
-    // Répartition proportionnelle simple sur les jours actifs
     const repartitionJours = {};
     joursActifs.forEach(jour => {
-      repartitionJours[jour] = Math.round(planifie / nbJours);
+      repartitionJours[jour] = Math.round(planifie * poidsNormalises[jour]);
     });
 
     return {
+      id: p.id || p.itm8 || `prod_${index + 1}`,
       plu: p.plu || p.codePLU || '',
       itm8: p.itm8 || '',
       ean13: p.ean13 || p.codeEAN || '',
@@ -99,6 +149,9 @@ const construireArchive = ({
       famille: p.famille || p.rayon || 'AUTRE',
       rayon: p.rayon || 'BVP',
       actif: p.actif !== false,
+      programme: p.programme || '',
+      unitesParPlaque: p.unitesParPlaque || 0,
+      unitesParLot: p.unitesParLot || p.unitesParVente || 1,
       moyenneHebdo: p.moyHebdo || 0,
       potentielAlgo: p.potentiel || 0,
       planifieManager: planifie,
@@ -107,7 +160,7 @@ const construireArchive = ({
     };
   });
 
-  // Promotions — sauvegarder tous les champs pour rechargement complet
+  // Promotions
   const promotions = (promosActives || []).map(promo => ({
     plu: promo.plu || promo.itm8 || '',
     itm8: promo.itm8 || '',
@@ -157,6 +210,8 @@ const construireArchive = ({
       joursActifs,
       creneaux: joursOuverture?.creneaux || null,
       regroupements: joursOuverture?.regroupements || null,
+      nbTranches: joursOuverture?.nbTranches || 4,
+      tranchesParFamille: joursOuverture?.tranchesParFamille || null,
       livraisons: (commandeConfig?.livraisons || []).map(l => ({
         id: l.id,
         dateCommande: l.dateCommande,
@@ -164,7 +219,6 @@ const construireArchive = ({
         label: l.label || `Livraison ${l.id}`,
       })),
       operationsSpeciales: [],
-      // Politique de cuisson par famille (V4)
       repartitionParFamille: {
         BOULANGERIE: 'tranches',
         VIENNOISERIE: 'tranches',
@@ -184,10 +238,10 @@ const construireArchive = ({
 
     produits,
 
-    // Quantités commande par livraison (depuis OngletCommande)
+    frequentation: frequentationExport,
+
     commandes: commandeConfig?.qtesFinales || {},
 
-    // Personnalisation produit (programme cuisson, unités/plaque)
     personnalisationProduits: commandeConfig?.personnalisationProduits || {},
 
     referentiel: {
@@ -218,8 +272,10 @@ const Etape5Communication = () => {
     promosActives,
     commandeConfig,
     dossierArchives,
-    setDossierArchives,
+    frequentationData,
   } = useMagasin();
+
+  const { writeFile } = useFileAccess();
 
   const [exporting, setExporting] = useState(false);
   const [exportOk, setExportOk] = useState(false);
@@ -238,7 +294,8 @@ const Etape5Communication = () => {
     joursOuverture,
     commandeConfig,
     promosActives,
-  }), [donneesMagasin, infoPDV, semainePlanning, objectifCA, objectifPourcent, produitsGamme, planifieManager, joursOuverture, promosActives, commandeConfig]);
+    frequentationData,
+  }), [donneesMagasin, infoPDV, semainePlanning, objectifCA, objectifPourcent, produitsGamme, planifieManager, joursOuverture, promosActives, commandeConfig, frequentationData]);
 
   const nomFichier = useMemo(() => {
     const code = archive.magasin.code;
@@ -253,27 +310,7 @@ const Etape5Communication = () => {
   const nbPromos = archive.promotions.length;
   const nbJours = archive.configuration.joursActifs.length;
 
-  // Choisir le dossier d'archives
-  const handleChoisirDossier = async () => {
-    try {
-      const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
-      setDossierArchives(handle);
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        setErreur(`Erreur lors du choix du dossier : ${err.message}`);
-      }
-    }
-  };
-
-  // Vérifier/demander la permission sur le dossier existant
-  const verifierPermission = async (handle) => {
-    const perm = await handle.queryPermission({ mode: 'readwrite' });
-    if (perm === 'granted') return true;
-    const req = await handle.requestPermission({ mode: 'readwrite' });
-    return req === 'granted';
-  };
-
-  // Export dans le dossier d'archives
+  // Export dans le dossier d'archives (ou téléchargement fallback)
   const handleExport = async () => {
     setExporting(true);
     setErreur(null);
@@ -282,35 +319,34 @@ const Etape5Communication = () => {
     try {
       let dirToUse = dossierArchives;
 
-      // Si pas de dossier configuré, en demander un
+      // Si pas de dossier configuré → téléchargement navigateur
       if (!dirToUse) {
-        try {
-          dirToUse = await window.showDirectoryPicker({ mode: 'readwrite' });
-          setDossierArchives(dirToUse);
-        } catch (err) {
-          if (err.name === 'AbortError') return;
-          throw err;
-        }
+        const blob = new Blob([JSON.stringify(archive, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = nomFichier;
+        a.click();
+        URL.revokeObjectURL(url);
+        setExportOk(true);
+        setNomFichierExporte(nomFichier);
+        return;
       }
 
       // Vérifier la permission
-      const ok = await verifierPermission(dirToUse);
+      const ok = await checkHandlePermission(dirToUse, 'readwrite');
       if (!ok) {
         setErreur('Permission refusée sur le dossier d\'archives.');
         return;
       }
 
       // Écrire le fichier dans le dossier
-      const fileHandle = await dirToUse.getFileHandle(nomFichier, { create: true });
-      const writable = await fileHandle.createWritable();
-      await writable.write(JSON.stringify(archive, null, 2));
-      await writable.close();
+      await writeFile(dirToUse, nomFichier, JSON.stringify(archive, null, 2));
 
       setExportOk(true);
       setNomFichierExporte(nomFichier);
     } catch (err) {
       if (err.name === 'AbortError') return;
-      // TODO: logger professionnel
       setErreur(`Erreur lors de l'export : ${err.message}`);
     } finally {
       setExporting(false);
@@ -322,8 +358,16 @@ const Etape5Communication = () => {
   if (!semainePlanning) avertissements.push('Aucune semaine planning définie');
   if (nbProduitsActifs === 0) avertissements.push('Aucun produit actif dans la gamme');
   if (!objectifCA && !objectifPourcent) avertissements.push('Objectif CA non défini');
+  if (!frequentationData?.poidsJours) avertissements.push('Fréquentation par défaut — la répartition jour par jour utilise des poids standards (samedi 20%, mercredi/vendredi 16%, autres 12%). Importez le fichier de fréquentation à l\'étape 2 pour plus de précision.');
 
   const peutExporter = semainePlanning && nbProduitsActifs > 0;
+
+  // Auto-export au montage
+  useEffect(() => {
+    if (peutExporter && !exportOk && !exporting && !erreur) {
+      handleExport();
+    }
+  }, [peutExporter]);
 
   return (
     <div className="space-y-6">
@@ -334,7 +378,7 @@ const Etape5Communication = () => {
           Communication Équipe
         </h2>
         <p className="text-gray-600 mt-1">
-          Exportez le planning pour le partager avec votre équipe
+          Export automatique du planning pour votre équipe
         </p>
       </div>
 
@@ -415,92 +459,44 @@ const Etape5Communication = () => {
         </div>
       )}
 
-      {/* Dossier d'archives */}
+      {/* Statut de l'export */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="font-bold text-gray-800 mb-4">Dossier d'archives</h3>
-        {dossierArchives ? (
-          <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
-            <div className="flex items-center gap-3">
-              <FolderOpen className="w-6 h-6 text-green-600" />
-              <div>
-                <p className="font-semibold text-green-800">{dossierArchives.name}</p>
-                <p className="text-xs text-green-600">Dossier configuré — les archives seront sauvegardées ici</p>
-              </div>
+        {exporting ? (
+          <div className="flex items-center justify-center gap-3 py-4">
+            <div className="w-5 h-5 border-2 border-[#8B1538] border-t-transparent rounded-full animate-spin" />
+            <span className="text-gray-600 font-medium">Création du fichier planning...</span>
+          </div>
+        ) : exportOk ? (
+          <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <Check className="w-6 h-6 text-green-600" />
+            <div>
+              <p className="font-semibold text-green-800">Planning exporté avec succès</p>
+              <p className="text-sm text-green-600 font-mono">{nomFichierExporte}</p>
+              {dossierArchives && (
+                <p className="text-xs text-green-500 mt-1">Sauvegardé dans : {dossierArchives.name}</p>
+              )}
             </div>
-            <button
-              onClick={handleChoisirDossier}
-              className="px-4 py-2 text-sm bg-white border border-green-300 text-green-700 rounded-lg hover:bg-green-50 transition-colors"
-            >
-              Changer
-            </button>
           </div>
-        ) : (
-          <div className="flex items-center justify-between p-4 bg-amber-50 border border-amber-200 rounded-lg">
-            <div className="flex items-center gap-3">
-              <FolderOpen className="w-6 h-6 text-amber-600" />
-              <div>
-                <p className="font-semibold text-amber-800">Aucun dossier configuré</p>
-                <p className="text-xs text-amber-600">Choisissez un dossier pour sauvegarder les archives</p>
-              </div>
+        ) : erreur ? (
+          <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <AlertTriangle className="w-6 h-6 text-red-600" />
+            <div>
+              <p className="font-semibold text-red-800">Erreur lors de l'export</p>
+              <p className="text-sm text-red-600">{erreur}</p>
+              <button
+                onClick={handleExport}
+                className="mt-2 px-4 py-2 bg-[#8B1538] text-white text-sm rounded-lg hover:bg-[#6d1029]"
+              >
+                Réessayer
+              </button>
             </div>
-            <button
-              onClick={handleChoisirDossier}
-              className="px-4 py-2 text-sm bg-[#8B1538] text-white rounded-lg hover:bg-[#6d1029] transition-colors font-semibold"
-            >
-              Choisir le dossier
-            </button>
           </div>
-        )}
-      </div>
-
-      {/* Fichier d'export */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="font-bold text-gray-800 mb-4">Fichier d'export</h3>
-
-        <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg mb-4">
-          <FileJson className="w-8 h-8 text-[#8B1538]" />
-          <div>
-            <p className="font-mono font-semibold text-gray-800">{nomFichier}</p>
-            <p className="text-xs text-gray-500">Archive Planning BVP — schemaVersion 3.0</p>
+        ) : !peutExporter ? (
+          <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <AlertTriangle className="w-6 h-6 text-amber-600" />
+            <p className="text-amber-800">Données insuffisantes pour créer le fichier planning.</p>
           </div>
-        </div>
-
-        {/* Bouton export */}
-        {!exportOk ? (
-          <button
-            onClick={handleExport}
-            disabled={!peutExporter || exporting}
-            className={`w-full py-4 rounded-xl font-semibold text-lg flex items-center justify-center gap-3 transition-colors ${
-              peutExporter && !exporting
-                ? 'bg-[#8B1538] text-white hover:bg-[#6d1029]'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
-          >
-            {exporting ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Export en cours...
-              </>
-            ) : (
-              <>
-                <Download className="w-6 h-6" />
-                Valider et exporter le planning
-              </>
-            )}
-          </button>
-        ) : (
-          <div className="w-full py-4 rounded-xl bg-green-100 border-2 border-green-400 text-green-800 font-semibold text-lg flex items-center justify-center gap-3">
-            <Check className="w-6 h-6" />
-            Planning exporté : {nomFichierExporte}
-          </div>
-        )}
-
-        {/* Erreur */}
-        {erreur && (
-          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-            {erreur}
-          </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

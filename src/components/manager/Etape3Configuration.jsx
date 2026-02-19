@@ -11,17 +11,15 @@ import React, { useState, useMemo } from 'react';
 import {
   Settings,
   Calendar,
-  Columns,
-  ChevronRight,
-  ChevronLeft,
   Check,
   X,
   AlertTriangle,
   Lightbulb,
-  Eye,
   RefreshCw,
 } from 'lucide-react';
 import { useMagasin } from '../../contexts/MagasinContext';
+import TranchesFamille from './TranchesFamille';
+import { TRANCHES_DEFAUT_PAR_FAMILLE, groupsFromRegroupements } from '../equipe/planning/useColonnesVisibles';
 
 // ============================================================================
 // CONSTANTES
@@ -76,38 +74,8 @@ const ETATS_CRENEAU = {
 // Cycle des états au clic
 const CYCLE_ETATS = ['ouvert', 'ferme_habituel', 'ferme_exceptionnel'];
 
-const TRANCHES_HORAIRES = [
-  { key: 'avant9h', label: 'Avant 9h', heure: '00h-09h' },
-  { key: '9h12h', label: '9h-12h', heure: '09h-12h' },
-  { key: '12h14h', label: '12h-14h', heure: '12h-14h' },
-  { key: '14h16h', label: '14h-16h', heure: '14h-16h' },
-  { key: '16h19h', label: '16h-19h', heure: '16h-19h' },
-  { key: 'apres19h', label: '+19h', heure: '19h-23h' },
-];
-
-const REGROUPEMENTS_OPTIONS = [
-  {
-    id: 'matin',
-    label: 'Regrouper le matin',
-    description: 'Avant 9h + 9h-12h → "Matin"',
-    tranches: ['avant9h', '9h12h'],
-    labelResultat: 'Matin',
-  },
-  {
-    id: 'apresmidi',
-    label: 'Regrouper l\'après-midi',
-    description: '12h-14h + 14h-16h → "Après-midi"',
-    tranches: ['12h14h', '14h16h'],
-    labelResultat: 'Après-midi',
-  },
-  {
-    id: 'soir',
-    label: 'Regrouper le soir',
-    description: '16h-19h + Après 19h → "Soir"',
-    tranches: ['16h19h', 'apres19h'],
-    labelResultat: 'Soir',
-  },
-];
+// Familles par défaut si produitsGamme non disponible
+const FAMILLES_DEFAUT = ['BOULANGERIE', 'VIENNOISERIE', 'PATISSERIE', 'SNACKING', 'AUTRE'];
 
 // ============================================================================
 // Génère l'état initial des créneaux (Lundi matin/apm fermé par défaut)
@@ -323,137 +291,19 @@ const SectionJoursOuverture = ({ creneaux, onChange, redistribution, onRedistrib
 };
 
 // ============================================================================
-// COMPOSANT : Section Regroupement Colonnes
-// ============================================================================
-const SectionRegroupement = ({ regroupements, onChange }) => {
-  const toggleRegroupement = (id) => {
-    onChange({
-      ...regroupements,
-      [id]: !regroupements[id],
-    });
-  };
-
-  // Calculer l'aperçu des colonnes
-  const getColonnesApercu = () => {
-    const colonnes = [];
-    let i = 0;
-
-    while (i < TRANCHES_HORAIRES.length) {
-      const tranche = TRANCHES_HORAIRES[i];
-
-      // Vérifier si cette tranche fait partie d'un regroupement actif
-      const regroupementActif = REGROUPEMENTS_OPTIONS.find(
-        r => regroupements[r.id] && r.tranches[0] === tranche.key
-      );
-
-      if (regroupementActif) {
-        colonnes.push({
-          label: regroupementActif.labelResultat,
-          isGroupe: true,
-        });
-        i += regroupementActif.tranches.length;
-      } else {
-        colonnes.push({
-          label: tranche.label,
-          isGroupe: false,
-        });
-        i++;
-      }
-    }
-
-    return colonnes;
-  };
-
-  const colonnesApercu = getColonnesApercu();
-
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="p-2 bg-purple-100 rounded-lg">
-          <Columns className="w-5 h-5 text-purple-600" />
-        </div>
-        <h3 className="font-bold text-gray-800">Regroupement des tranches horaires</h3>
-      </div>
-
-      {/* Tranches de base */}
-      <div className="mb-6">
-        <p className="text-sm text-gray-600 mb-2">Tranches de base (calcul toujours sur 6) :</p>
-        <div className="flex gap-1">
-          {TRANCHES_HORAIRES.map((tranche) => (
-            <div
-              key={tranche.key}
-              className="flex-1 text-center py-2 px-1 bg-gray-100 border border-gray-200 rounded text-xs font-medium text-gray-600"
-            >
-              {tranche.label}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Options de regroupement */}
-      <div className="space-y-3 mb-6">
-        <p className="text-sm text-gray-600">Regrouper pour l'affichage équipe :</p>
-        {REGROUPEMENTS_OPTIONS.map((option) => (
-          <label
-            key={option.id}
-            className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
-              regroupements[option.id]
-                ? 'bg-purple-50 border-2 border-purple-300'
-                : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
-            }`}
-          >
-            <input
-              type="checkbox"
-              checked={regroupements[option.id] || false}
-              onChange={() => toggleRegroupement(option.id)}
-              className="w-5 h-5 text-purple-600 rounded"
-            />
-            <div>
-              <p className="font-medium text-gray-800">{option.label}</p>
-              <p className="text-sm text-gray-500">{option.description}</p>
-            </div>
-          </label>
-        ))}
-      </div>
-
-      {/* Aperçu */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Eye className="w-4 h-4 text-blue-600" />
-          <span className="text-sm font-medium text-blue-800">Aperçu affichage équipe</span>
-        </div>
-        <div className="flex gap-1">
-          {colonnesApercu.map((col, idx) => (
-            <div
-              key={idx}
-              className={`flex-1 text-center py-2 px-1 rounded text-xs font-medium ${
-                col.isGroupe
-                  ? 'bg-purple-200 text-purple-800 border-2 border-purple-300'
-                  : 'bg-white text-gray-600 border border-gray-200'
-              }`}
-            >
-              {col.label}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Note explicative */}
-      <div className="flex items-start gap-2 mt-4 text-sm text-gray-500">
-        <Lightbulb className="w-4 h-4 text-yellow-500 flex-shrink-0 mt-0.5" />
-        <p>
-          Le calcul de répartition reste sur 6 tranches. L'affichage additionne les valeurs des colonnes regroupées.
-        </p>
-      </div>
-    </div>
-  );
-};
-
-// ============================================================================
 // COMPOSANT PRINCIPAL : Etape3Configuration
 // ============================================================================
 const Etape3Configuration = () => {
-  const { semaineSelectionnee, joursOuverture, setJoursOuverture } = useMagasin();
+  const { semaineSelectionnee, joursOuverture, setJoursOuverture, produitsGamme } = useMagasin();
+
+  // Familles disponibles (depuis les produits importés ou défaut)
+  const familles = useMemo(() => {
+    if (produitsGamme && produitsGamme.length > 0) {
+      const set = new Set(produitsGamme.map(p => p.famille || p.rayon || 'AUTRE').filter(Boolean));
+      return [...set].sort();
+    }
+    return FAMILLES_DEFAUT;
+  }, [produitsGamme]);
 
   // États de configuration
   const [creneaux, setCreneaux] = useState(() => joursOuverture?.creneaux || genererCreneauxInitiaux());
@@ -461,16 +311,38 @@ const Etape3Configuration = () => {
     memeJourAutreCreneau: 75,
     jourSuivant: 25,
   });
-  const [regroupements, setRegroupements] = useState(() => joursOuverture?.regroupements || {
-    matin: false,
-    apresmidi: false,
-    soir: false,
+
+  // Tranches par famille (nouveau format)
+  // Rétrocompatibilité : si ancien format (regroupements) existe, le convertir
+  const [tranchesParFamille, setTranchesParFamille] = useState(() => {
+    if (joursOuverture?.tranchesParFamille) {
+      return joursOuverture.tranchesParFamille;
+    }
+    // Migration ancien format : regroupements → groupes par famille
+    if (joursOuverture?.regroupements) {
+      const groups = groupsFromRegroupements(joursOuverture.regroupements);
+      const result = {};
+      familles.forEach(f => { result[f] = groups; });
+      return result;
+    }
+    // Défaut
+    const result = {};
+    familles.forEach(f => {
+      result[f] = TRANCHES_DEFAUT_PAR_FAMILLE[f] || TRANCHES_DEFAUT_PAR_FAMILLE.AUTRE;
+    });
+    return result;
   });
+
+  // nbTranches calculé comme max des familles (pour rétrocompatibilité export)
+  const nbTranches = useMemo(() => {
+    const counts = familles.map(f => (tranchesParFamille[f] || []).length);
+    return counts.length > 0 ? Math.max(...counts) : 4;
+  }, [tranchesParFamille, familles]);
 
   // Synchroniser vers le contexte à chaque changement
   React.useEffect(() => {
-    setJoursOuverture({ creneaux, redistribution, regroupements });
-  }, [creneaux, redistribution, regroupements, setJoursOuverture]);
+    setJoursOuverture({ creneaux, redistribution, tranchesParFamille, nbTranches });
+  }, [creneaux, redistribution, tranchesParFamille, nbTranches, setJoursOuverture]);
 
   return (
     <div className="space-y-6">
@@ -498,9 +370,10 @@ const Etape3Configuration = () => {
         onRedistributionChange={setRedistribution}
       />
 
-      <SectionRegroupement
-        regroupements={regroupements}
-        onChange={setRegroupements}
+      <TranchesFamille
+        tranchesParFamille={tranchesParFamille}
+        onChange={setTranchesParFamille}
+        familles={familles}
       />
 
     </div>

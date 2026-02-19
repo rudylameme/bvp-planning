@@ -1,28 +1,29 @@
 /**
  * Étape 2b : Import Ventes/Casse
  *
- * Import du fichier comparatif Ventes/Casse (export Mercalys).
- * - Upload classique depuis l'ordinateur de l'utilisateur
+ * Charge automatiquement le fichier Mercalys depuis IndexedDB
+ * (pré-configuré dans PageParametres).
  * - Validation : minimum 3 semaines de données
  * - Affiche un résumé après import
  */
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   FileSpreadsheet,
-  Upload,
   CheckCircle,
   AlertTriangle,
   BarChart3,
   Package,
   Calendar,
-  RefreshCw,
+  Loader2,
 } from 'lucide-react';
 import { useMagasin } from '../../contexts/MagasinContext';
 import {
   extraireProduitsVentesCasse,
   formaterPourPilotageCA,
 } from '../../services/gammeExtractionService';
+import { loadHandle } from '../../services/handleStorage';
+import { checkHandlePermission } from '../../hooks/useFileAccess';
 
 const MIN_SEMAINES = 3;
 
@@ -39,7 +40,7 @@ const Etape2bImportVentes = () => {
 
   const [chargement, setChargement] = useState(false);
   const [erreur, setErreur] = useState(null);
-  const fileInputRef = useRef(null);
+  const [fichierNonConfigure, setFichierNonConfigure] = useState(false);
 
   // Nombre de semaines ISO distinctes (global, calculé par le service)
   const nombreSemaines = useMemo(() => {
@@ -49,7 +50,7 @@ const Etape2bImportVentes = () => {
 
   const validationOK = nombreSemaines >= MIN_SEMAINES;
 
-  // Charger le fichier uploadé
+  // Charger le fichier
   const chargerFichier = async (file) => {
     if (!file) return;
 
@@ -65,17 +66,50 @@ const Etape2bImportVentes = () => {
       setProduitsGamme(produitsFormates);
       setFichierVentesSelectionne({ nom: file.name });
     } catch (error) {
-      // TODO: logger professionnel
       setErreur('Impossible de charger le fichier. Vérifiez le format.');
     } finally {
       setChargement(false);
     }
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) chargerFichier(file);
-  };
+  // Auto-chargement depuis IndexedDB au montage
+  useEffect(() => {
+    // Si les données sont déjà chargées, ne rien faire
+    if (donneesGamme) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const handle = await loadHandle('fichierMercalys');
+        if (cancelled) return;
+
+        if (!handle) {
+          setFichierNonConfigure(true);
+          return;
+        }
+
+        const ok = await checkHandlePermission(handle, 'read');
+        if (cancelled) return;
+
+        if (!ok) {
+          setErreur('Permission refusée pour le fichier Mercalys. Retournez aux paramètres.');
+          return;
+        }
+
+        const file = await handle.getFile();
+        if (cancelled) return;
+
+        await chargerFichier(file);
+      } catch {
+        if (!cancelled) {
+          setErreur('Impossible de charger le fichier Mercalys depuis les paramètres.');
+        }
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, []);
 
   // Stats résumé
   const stats = useMemo(() => {
@@ -103,7 +137,7 @@ const Etape2bImportVentes = () => {
           Import Ventes / Casse
         </h2>
         <p className="text-gray-600 mt-1">
-          Importez le fichier comparatif Ventes/Casse (export Mercalys) pour analyser la gamme.
+          Fichier comparatif Ventes/Casse (export Mercalys) pour analyser la gamme.
         </p>
         <p className="text-sm text-amber-600 mt-2 flex items-center gap-1">
           <AlertTriangle className="w-4 h-4" />
@@ -111,60 +145,37 @@ const Etape2bImportVentes = () => {
         </p>
       </div>
 
-      {/* Upload du fichier */}
+      {/* État du fichier */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-          <Upload className="w-5 h-5 text-[#8B1538]" />
-          Importer le fichier Ventes/Casse
-        </h3>
+        {chargement && (
+          <div className="flex items-center gap-3 p-4">
+            <Loader2 className="w-6 h-6 text-[#8B1538] animate-spin" />
+            <p className="font-medium text-gray-700">Chargement du fichier Mercalys…</p>
+          </div>
+        )}
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".xlsx,.xls"
-          onChange={handleFileChange}
-          className="hidden"
-        />
+        {!chargement && fichierNonConfigure && !donneesGamme && (
+          <div className="flex items-center gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200">
+            <AlertTriangle className="w-6 h-6 text-amber-600 flex-shrink-0" />
+            <div>
+              <p className="font-medium text-amber-800">Fichier Mercalys non configuré</p>
+              <p className="text-sm text-amber-600 mt-1">Retournez aux paramètres pour sélectionner le fichier Mercalys.</p>
+            </div>
+          </div>
+        )}
 
-        {donneesGamme && fichierVentesSelectionne ? (
+        {!chargement && donneesGamme && fichierVentesSelectionne && (
           <div className="flex items-center gap-3 p-4 rounded-lg border-2 border-green-500 bg-green-50">
             <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0" />
             <div className="flex-1">
               <p className="font-medium text-gray-800">{fichierVentesSelectionne.nom}</p>
               <p className="text-sm text-green-600">Fichier chargé avec succès</p>
             </div>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={chargement}
-              className="px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Changer de fichier
-            </button>
           </div>
-        ) : (
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={chargement}
-            className="w-full flex flex-col items-center gap-3 p-8 rounded-lg border-2 border-dashed border-gray-300 hover:border-[#8B1538] hover:bg-red-50/30 transition-all cursor-pointer"
-          >
-            {chargement ? (
-              <RefreshCw className="w-10 h-10 text-[#8B1538] animate-spin" />
-            ) : (
-              <Upload className="w-10 h-10 text-gray-400" />
-            )}
-            <div className="text-center">
-              <p className="font-medium text-gray-700">
-                {chargement ? 'Chargement en cours...' : 'Cliquez pour sélectionner le fichier'}
-              </p>
-              <p className="text-sm text-gray-500 mt-1">
-                Fichier Excel (.xlsx) exporté depuis Mercalys
-              </p>
-            </div>
-          </button>
         )}
 
-        {erreur && (
-          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+        {!chargement && erreur && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
             {erreur}
           </div>
         )}

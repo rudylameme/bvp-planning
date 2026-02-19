@@ -231,3 +231,86 @@ export function calculerClassementSecteur({ infoPDV, secteurCode, secteurLibelle
     detailsComparables,
   };
 }
+
+/**
+ * Construit un dictionnaire de TOUS les magasins du fichier Excel
+ * Permet la recherche d'un magasin cible par code ou ville
+ * @param {Array} totalPdv - Données brutes de la feuille "Total Pdv"
+ * @param {Object} infoPDV - Dictionnaire info_PDV.json (code → infos)
+ * @returns {Map<string, Object>} code normalisé → données du magasin
+ */
+export function construireDictionnaireMagasins(totalPdv, infoPDV) {
+  const dictionnaire = new Map();
+
+  if (!totalPdv || totalPdv.length === 0) return dictionnaire;
+
+  totalPdv.forEach(row => {
+    const code = row._codePDV || getCodePDV(row);
+    if (!code) return;
+
+    const codeNorm = code.replace(/^0+/, '');
+    const info = infoPDV?.[code] || infoPDV?.[codeNorm] || infoPDV?.[code.padStart(5, '0')] || {};
+
+    const caBVP = parseFloat(row['Ca Tot BVP']) || 0;
+    const qteBVP = parseFloat(row['Qte Tot BVP']) || 0;
+    const ticketsBVP = parseFloat(row['Nb Ticket BVP']) || 0;
+    const ticketsTotal = parseFloat(row['Nb Ticket']) || 0;
+
+    dictionnaire.set(codeNorm, {
+      code: codeNorm,
+      ville: info.ville || row.VILLE || row.Ville || 'Inconnu',
+      enseigne: info.enseigne || row.ENSEIGNE || row.Enseigne || 'INTERMARCHE',
+      vocation: info.vocation || row.VOCATION || row.Vocation || 'NC',
+      surface: info.surface || null,
+      modele: info.modele || 'NC',
+      secteurLibelle: info.secteurLibelle || 'NC',
+      caBVP,
+      qteBVP,
+      ticketsBVP,
+      ticketsTotal,
+      penetration: ticketsTotal > 0 ? ticketsBVP / ticketsTotal : 0,
+      ticketMoyen: ticketsBVP > 0 ? caBVP / ticketsBVP : 0,
+    });
+  });
+
+  return dictionnaire;
+}
+
+/**
+ * Calcule les données de pénétration par tranche horaire pour un magasin donné
+ * @param {string} codePdv - Code du magasin cible
+ * @param {Array} venteHeure - Données brutes de la feuille "Vente heure"
+ * @returns {Object} { '00_Autre': { penetration, ticketsTotal, ticketsBVP }, ... }
+ */
+export function construireDonneesParTrancheMagasin(codePdv, venteHeure) {
+  if (!codePdv || !venteHeure) return {};
+
+  const codeNorm = String(codePdv).replace(/^0+/, '');
+  const tranches = ['00_Autre', '09h_12h', '12h_14h', '14h_16h', '16h_19h', '19h_23h'];
+
+  // Filtrer les lignes pour ce magasin
+  const lignesMagasin = venteHeure.filter(row => {
+    const rowCode = row._codePDV || getCodePDV(row);
+    return rowCode && rowCode.replace(/^0+/, '') === codeNorm;
+  });
+
+  const result = {};
+
+  for (const trancheKey of tranches) {
+    const lignes = lignesMagasin.filter(row => {
+      const horaire = row.HORAIRE || row.Horaire || row.Tr_horaire;
+      return horaire === trancheKey;
+    });
+
+    const ticketsBVP = lignes.reduce((acc, row) => acc + (parseFloat(row['Nb Ticket BVP']) || 0), 0);
+    const ticketsTotal = lignes.reduce((acc, row) => acc + (parseFloat(row['Nb Ticket']) || 0), 0);
+
+    result[trancheKey] = {
+      ticketsBVP,
+      ticketsTotal,
+      penetration: ticketsTotal > 0 ? ticketsBVP / ticketsTotal : 0,
+    };
+  }
+
+  return result;
+}

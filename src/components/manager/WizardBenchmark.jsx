@@ -1,50 +1,41 @@
 /**
- * Wizard Manager V5.2 — « Préparer la semaine »
+ * Wizard Benchmark V5.1
  *
- * Objectif 2 : Construction du planning hebdomadaire.
- * Parcours en 5 étapes :
- * 0. Configuration planning (EtapeConfigPlanning — dossier, semaine S+1, magasin, AS-1, S-4, objectif)
- * 1. Import Ventes/Casse (Etape2bImportVentes — gamme produits)
- * 2. Configuration jours (Etape3Configuration — jours, opérations, regroupement)
- * 3. Pilotage CA (Etape4PilotageCA — ventes, casse, gamme)
- * 4. Communication (Etape5Communication — export fichier équipe .bvp.json)
+ * Objectif 1 : « Analyser mon rayon »
+ * Parcours en 2 étapes :
+ * 0. Import des données (réutilise Etape0Import)
+ * 1. Diagnostic (réutilise Etape1Diagnostic)
  *
- * L'étape 0 fusionne Import + Config : dossier, semaine, magasin, recherche AS-1 & S-4.
- * Accessible librement depuis l'accueil. Bonus si benchmark fait (objectif %).
+ * Accessible librement depuis l'accueil.
+ * À la fin, propose d'aller vers « Préparer la semaine » (WizardManager).
  */
 
 import React, { useState, useEffect } from 'react';
 import {
   Home,
-  Calendar,
-  FileSpreadsheet,
-  Settings,
-  TrendingUp,
-  MessageSquare,
+  Upload,
+  BarChart3,
   ChevronRight,
   ChevronLeft,
-  Check,
+  ArrowRight,
+  CalendarCog,
 } from 'lucide-react';
 import { MagasinProvider, useMagasin } from '../../contexts/MagasinContext';
 import { chargerReferentielITM8, isReferentielCharge } from '../../services/referentielITM8';
-import EtapeConfigPlanning from './EtapeConfigPlanning';
-import Etape2bImportVentes from './Etape2bImportVentes';
-import Etape3Configuration from './Etape3Configuration';
-import Etape4PilotageCA from './Etape4PilotageCA';
-import Etape5Communication from './Etape5Communication';
+import Etape0Import from './Etape0Import';
+import Etape1Diagnostic from './Etape1Diagnostic';
 
 const ETAPES = [
-  { id: 0, label: 'Planning', icon: Calendar, description: 'Dossier, semaine & objectif' },
-  { id: 1, label: 'Ventes', icon: FileSpreadsheet, description: 'Import ventes/casse' },
-  { id: 2, label: 'Config', icon: Settings, description: 'Paramétrer la semaine' },
-  { id: 3, label: 'Pilotage', icon: TrendingUp, description: 'Gérer CA et gamme' },
-  { id: 4, label: 'Export', icon: MessageSquare, description: 'Fichier équipe' },
+  { id: 0, label: 'Import', icon: Upload, description: 'Charger les données' },
+  { id: 1, label: 'Diagnostic', icon: BarChart3, description: 'Benchmark secteur' },
 ];
 
-// Composant interne qui utilise le contexte
-const WizardContent = ({ onRetourAccueil }) => {
+// ============================================================================
+// Composant interne qui utilise le contexte MagasinContext
+// ============================================================================
+const BenchmarkContent = ({ onRetourAccueil, onAllerPlanning }) => {
   const [etapeActive, setEtapeActive] = useState(0);
-  const { importComplet, donneesMagasin, semaineSelectionnee } = useMagasin();
+  const { importComplet } = useMagasin();
   const contentRef = React.useRef(null);
 
   // Scroll vers le haut à chaque changement d'étape
@@ -55,7 +46,7 @@ const WizardContent = ({ onRetourAccueil }) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [etapeActive]);
 
-  // Charger le référentiel ITM8 au montage (pour les PLU, familles, rayons)
+  // Charger le référentiel ITM8 au montage
   useEffect(() => {
     if (!isReferentielCharge()) {
       chargerReferentielITM8('/Data/liste des produits BVP treville.xlsx');
@@ -64,22 +55,17 @@ const WizardContent = ({ onRetourAccueil }) => {
 
   // Vérifie si une étape est accessible
   const isEtapeAccessible = (index) => {
-    // Étape 0 toujours accessible
     if (index === 0) return true;
-    // Autres étapes : import doit être complet
-    if (index > 0 && !importComplet) return false;
-    // Ne peut pas sauter d'étapes
+    if (index === 1 && !importComplet) return false;
     return index <= etapeActive;
   };
 
-  // Passer à l'étape suivante
   const allerEtapeSuivante = () => {
     if (etapeActive < ETAPES.length - 1) {
       setEtapeActive(etapeActive + 1);
     }
   };
 
-  // Revenir à l'étape précédente
   const allerEtapePrecedente = () => {
     if (etapeActive > 0) {
       setEtapeActive(etapeActive - 1);
@@ -90,20 +76,9 @@ const WizardContent = ({ onRetourAccueil }) => {
   const renderContenuEtape = () => {
     switch (etapeActive) {
       case 0:
-        return <EtapeConfigPlanning />;
-
+        return <Etape0Import />;
       case 1:
-        return <Etape2bImportVentes />;
-
-      case 2:
-        return <Etape3Configuration />;
-
-      case 3:
-        return <Etape4PilotageCA />;
-
-      case 4:
-        return <Etape5Communication />;
-
+        return <Etape1Diagnostic onPrecedent={allerEtapePrecedente} />;
       default:
         return null;
     }
@@ -111,10 +86,10 @@ const WizardContent = ({ onRetourAccueil }) => {
 
   return (
     <div className="min-h-screen bg-mousquetaires-beige flex flex-col">
-      {/* ===== HEADER STICKY (Titre + Barre de progression) ===== */}
+      {/* ===== HEADER STICKY ===== */}
       <div className="sticky top-0 z-50">
-        {/* Header bordeaux (thème Planning) */}
-        <div className="bg-mousquetaires-bordeaux text-white px-6 py-3">
+        {/* Header bleu (thème Benchmark) */}
+        <div className="bg-blue-700 text-white px-6 py-3">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
@@ -126,20 +101,20 @@ const WizardContent = ({ onRetourAccueil }) => {
               </button>
               <div className="h-8 w-px bg-white/30"></div>
               <div>
-                <h1 className="text-xl font-bold">Préparer la semaine</h1>
-                <p className="text-sm text-white/70">Construction du planning</p>
+                <h1 className="text-xl font-bold">Analyser mon rayon</h1>
+                <p className="text-sm text-white/70">Benchmark & stratégie</p>
               </div>
             </div>
             <span className="px-3 py-1 bg-white/20 rounded-full text-sm">
-              Objectif 2
+              Objectif 1
             </span>
           </div>
         </div>
 
-        {/* Barre de progression */}
+        {/* Barre de progression (2 étapes) */}
         <div className="bg-white border-b border-gray-200 shadow-sm">
           <div className="max-w-7xl mx-auto px-6 py-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-center gap-4">
               {ETAPES.map((etape, index) => {
                 const Icon = etape.icon;
                 const isActive = index === etapeActive;
@@ -151,16 +126,16 @@ const WizardContent = ({ onRetourAccueil }) => {
                     <button
                       onClick={() => isClickable && setEtapeActive(index)}
                       disabled={!isClickable}
-                      className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-all ${
+                      className={`flex items-center gap-2 px-6 py-2.5 rounded-lg transition-all ${
                         isActive
-                          ? 'bg-mousquetaires-rouge text-white'
+                          ? 'bg-blue-600 text-white shadow-md'
                           : isDone
                           ? 'bg-green-100 text-green-700 hover:bg-green-200'
                           : 'bg-gray-100 text-gray-400'
                       } ${isClickable ? 'cursor-pointer' : 'cursor-not-allowed'}`}
                     >
                       <Icon className="w-5 h-5" />
-                      <span className="text-xs font-medium">{etape.label}</span>
+                      <span className="text-sm font-medium">{etape.label}</span>
                     </button>
                     {index < ETAPES.length - 1 && (
                       <ChevronRight className={`w-5 h-5 ${isDone ? 'text-green-500' : 'text-gray-300'}`} />
@@ -182,10 +157,10 @@ const WizardContent = ({ onRetourAccueil }) => {
         </div>
       </div>
 
-      {/* ===== FOOTER STICKY (Boutons de navigation) ===== */}
+      {/* ===== FOOTER STICKY ===== */}
       <div className="sticky bottom-0 z-50 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          {/* Bouton Précédent */}
+          {/* Bouton Précédent / Retour accueil */}
           <div>
             {etapeActive > 0 ? (
               <button
@@ -217,28 +192,29 @@ const WizardContent = ({ onRetourAccueil }) => {
             </span>
           </div>
 
-          {/* Bouton Suivant / Terminer */}
+          {/* Bouton Suivant / Aller au planning */}
           <div>
             {etapeActive < ETAPES.length - 1 ? (
               <button
                 onClick={allerEtapeSuivante}
-                disabled={etapeActive === 0 && !importComplet}
+                disabled={!importComplet}
                 className={`px-6 py-3 rounded-xl font-semibold transition-colors flex items-center gap-2 ${
-                  etapeActive === 0 && !importComplet
+                  !importComplet
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-mousquetaires-rouge text-white hover:bg-mousquetaires-bordeaux'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
                 }`}
               >
-                Valider et continuer
+                Voir le diagnostic
                 <ChevronRight className="w-5 h-5" />
               </button>
             ) : (
               <button
-                onClick={onRetourAccueil}
-                className="px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors flex items-center gap-2"
+                onClick={onAllerPlanning}
+                className="px-6 py-3 bg-mousquetaires-rouge text-white rounded-xl font-semibold hover:bg-mousquetaires-bordeaux transition-colors flex items-center gap-2"
               >
-                <Check className="w-5 h-5" />
-                Terminer
+                <CalendarCog className="w-5 h-5" />
+                Préparer la semaine
+                <ArrowRight className="w-5 h-5" />
               </button>
             )}
           </div>
@@ -248,13 +224,18 @@ const WizardContent = ({ onRetourAccueil }) => {
   );
 };
 
-// Composant principal qui wrap avec le Provider
-const WizardManager = ({ onRetourAccueil }) => {
+// ============================================================================
+// Composant principal avec MagasinProvider
+// ============================================================================
+const WizardBenchmark = ({ onRetourAccueil, onAllerPlanning }) => {
   return (
     <MagasinProvider>
-      <WizardContent onRetourAccueil={onRetourAccueil} />
+      <BenchmarkContent
+        onRetourAccueil={onRetourAccueil}
+        onAllerPlanning={onAllerPlanning}
+      />
     </MagasinProvider>
   );
 };
 
-export default WizardManager;
+export default WizardBenchmark;

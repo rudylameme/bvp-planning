@@ -195,6 +195,9 @@ const TableauProduits = ({ produits, onToggle, onChangeRayon, recherche, filtreR
                     <span className="ml-1.5 text-blue-500" title="Produit en promo">🏷️</span>
                   )}
                 </span>
+                {(produit.ean13 || produit.ean || produit.codeEAN) && (
+                  <div className="text-xs text-gray-400">EAN: {produit.ean13 || produit.ean || produit.codeEAN}</div>
+                )}
               </td>
               <td className="px-3 py-2 text-center">
                 <BadgeRayon rayon={produit.rayon} onClick={() => onChangeRayon && onChangeRayon(produit.id)} />

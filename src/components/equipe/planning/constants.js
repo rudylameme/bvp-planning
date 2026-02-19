@@ -60,6 +60,37 @@ export const REGROUPEMENTS_MANAGER = {
   soir: { label: 'Soir', sousKeys: ['16h_19h', '19h_23h'] },
 };
 
+// Presets d'affichage par nombre de tranches (3 à 6)
+// Chaque preset regroupe les 6 tranches internes via sousKeys
+export const TRANCHES_PRESETS = {
+  3: [
+    { key: 'matin', label: 'Matin', plage: '9h-12h', sousKeys: ['00_Autre', '09h_12h'] },
+    { key: 'midi', label: 'Midi', plage: '12h-16h', sousKeys: ['12h_14h', '14h_16h'] },
+    { key: 'soir', label: 'Soir', plage: '16h-23h', sousKeys: ['16h_19h', '19h_23h'] },
+  ],
+  4: [
+    { key: 'avant12h', label: 'Matin', plage: 'Avant 12h', sousKeys: ['00_Autre', '09h_12h'] },
+    { key: '12h-14h', label: '12h-14h', plage: '12h-14h', sousKeys: ['12h_14h'] },
+    { key: '14h-16h', label: '14h-16h', plage: '14h-16h', sousKeys: ['14h_16h'] },
+    { key: 'apres16h', label: 'Après-midi', plage: 'Après 16h', sousKeys: ['16h_19h', '19h_23h'] },
+  ],
+  5: [
+    { key: '00_Autre', label: 'Avant 9h', plage: '00h-09h', sousKeys: ['00_Autre'] },
+    { key: '09h_12h', label: '9h-12h', plage: '09h-12h', sousKeys: ['09h_12h'] },
+    { key: '12h_14h', label: '12h-14h', plage: '12h-14h', sousKeys: ['12h_14h'] },
+    { key: '14h_16h', label: '14h-16h', plage: '14h-16h', sousKeys: ['14h_16h'] },
+    { key: 'apres16h', label: 'Après 16h', plage: '16h-23h', sousKeys: ['16h_19h', '19h_23h'] },
+  ],
+  6: [
+    { key: '00_Autre', label: 'Avant 9h', plage: '00h-09h', sousKeys: ['00_Autre'] },
+    { key: '09h_12h', label: '9h-12h', plage: '09h-12h', sousKeys: ['09h_12h'] },
+    { key: '12h_14h', label: '12h-14h', plage: '12h-14h', sousKeys: ['12h_14h'] },
+    { key: '14h_16h', label: '14h-16h', plage: '14h-16h', sousKeys: ['14h_16h'] },
+    { key: '16h_19h', label: '16h-19h', plage: '16h-19h', sousKeys: ['16h_19h'] },
+    { key: '19h_23h', label: 'Après 19h', plage: '19h-23h', sousKeys: ['19h_23h'] },
+  ],
+};
+
 // Icônes et couleurs par famille
 export const FAMILLES_CONFIG = {
   BOULANGERIE: { icon: '🥖', bg: 'bg-stone-700', headerBg: 'bg-stone-800' },

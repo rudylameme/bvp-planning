@@ -348,7 +348,6 @@ function PlanningJour({ selectedJour, planningData, pdvInfo, nextWeek, modeAffic
             <th className="border border-black px-1 py-1 text-center text-[14px] font-bold" style={{ width: '60px' }}>Soir<br/><span className="text-[10px]">16h-23h</span></th>
             <th className="border border-black px-1 py-1 w-16 text-center text-[14px] font-bold">Stock<br/><span className="text-[10px]">rayon</span></th>
             <th className="border border-black px-1 py-1 w-16 text-center text-[14px] font-bold">A cuire</th>
-            <th className="border border-black px-1 py-1 text-left text-[14px] font-bold" style={{ width: '100px' }}>Pertes</th>
           </tr>
         </thead>
         <tbody>
@@ -416,7 +415,6 @@ function PlanningJour({ selectedJour, planningData, pdvInfo, nextWeek, modeAffic
                   </td>
                   <td className="border border-black px-1 py-0.5 text-right pr-1 text-[7px]"></td>
                   <td className="border border-black px-1 py-0.5 text-right pr-1 text-[7px]"></td>
-                  <td className="border border-black px-1 py-0.5"></td>
                 </tr>
               ))}
 
@@ -461,7 +459,6 @@ function PlanningJour({ selectedJour, planningData, pdvInfo, nextWeek, modeAffic
                     return val === 'NC' ? '-' : `Total: ${val} Pl.`;
                   })()}
                 </td>
-                <td className="border border-black"></td>
               </tr>
             </React.Fragment>
           ))}

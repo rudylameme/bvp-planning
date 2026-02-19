@@ -2,10 +2,9 @@
  * Composant pour afficher un groupe de produits par programme
  * Mode PDV: 3 lignes par produit (Préco/Histo/%)
  * Mode BVP: 1 ligne par produit
- * + Sous-total par programme en mode Plaques
+ * + Sous-total par programme toujours en Plaques (info cycles four)
  * + Section dépliable + drag & drop
- *
- * Extrait de PlanningJour.jsx - aucune modification de logique
+ * + Masquage des produits à 0
  */
 import { useMemo } from 'react';
 import { ChevronRight, GripVertical, Edit3 } from 'lucide-react';
@@ -13,7 +12,7 @@ import { CelluleQuantite } from './CellulesPlanning';
 import { getQteColonne } from './getQteColonne';
 import Produit3Lignes from './Produit3Lignes';
 
-// Configuration des 6 tranches horaires
+// Configuration des 6 tranches horaires internes
 const TRANCHES_CONFIG = [
   { key: '00_Autre', label: 'Avant 9h', plage: '00h-09h' },
   { key: '09h_12h', label: '9h-12h', plage: '09h-12h' },
@@ -49,7 +48,6 @@ export default function ProgrammeGroup({
   onDragEnd,
   onEditProduit
 }) {
-  const showProgrammeHeader = produits.length > 0 && programme !== 'Sans programme';
   const isPlaque = affichage === 'plaques';
 
   // Calculer le colSpan en fonction des colonnes visibles
@@ -66,28 +64,55 @@ export default function ProgrammeGroup({
   const isDragging = dragState?.type === 'programme' && dragState?.famille === famille && dragState?.dragIndex === progIndex;
   const isHovered = dragState?.type === 'programme' && dragState?.famille === famille && dragState?.hoverIndex === progIndex;
 
-  // Calculer les totaux par programme (en plaques) pour le sous-total (6 tranches)
-  const totauxProgramme = useMemo(() => {
-    if (!isPlaque || modeRepartition !== 'tranches') return null;
-
-    // Initialiser pour les 6 tranches
-    const totaux = { total: 0 };
-    TRANCHES.forEach(t => { totaux[t] = 0; });
+  // Pré-calculer les quantités de chaque produit et filtrer ceux à 0
+  const { produitsActifs, nbMasques } = useMemo(() => {
+    const actifs = [];
+    let masques = 0;
 
     produits.forEach(produit => {
       const qtes = calculerQuantites(produit, jourSelectionne, modeRepartition);
+      const total = qtes.total?.preco || qtes.journalier?.preco || 0;
+      if (total > 0) {
+        actifs.push({ produit, qtes });
+      } else {
+        masques++;
+      }
+    });
+
+    return { produitsActifs: actifs, nbMasques: masques };
+  }, [produits, jourSelectionne, calculerQuantites, modeRepartition]);
+
+  // Toujours afficher le header programme (y compris "Sans cuisson")
+  const showProgrammeHeader = produits.length > 0;
+
+  // Calculer les totaux par programme (TOUJOURS en plaques fractionnaires)
+  // Formule : pour chaque produit, qté / parPlaque (arrondi 0.1), puis somme
+  const totauxProgramme = useMemo(() => {
+    if (modeRepartition !== 'tranches') return null;
+
+    // Initialiser pour les 6 tranches internes
+    const totaux = { total: 0 };
+    TRANCHES.forEach(t => { totaux[t] = 0; });
+
+    produitsActifs.forEach(({ produit, qtes }) => {
       const unitesParPlaque = produit.unitesParPlaque || 0;
 
       if (unitesParPlaque > 0) {
         TRANCHES.forEach(tranche => {
-          totaux[tranche] += Math.ceil((qtes.tranches?.[tranche]?.preco || 0) / unitesParPlaque);
+          const qte = qtes.tranches?.[tranche]?.preco || 0;
+          if (qte > 0) {
+            totaux[tranche] += Math.ceil(qte / unitesParPlaque * 10) / 10;
+          }
         });
-        totaux.total += Math.ceil((qtes.total?.preco || 0) / unitesParPlaque);
+        const totalQte = qtes.total?.preco || 0;
+        if (totalQte > 0) {
+          totaux.total += Math.ceil(totalQte / unitesParPlaque * 10) / 10;
+        }
       }
     });
 
     return totaux;
-  }, [produits, jourSelectionne, calculerQuantites, isPlaque, modeRepartition]);
+  }, [produitsActifs, modeRepartition]);
 
   // Formater avec "Pl." pour le mode BVP 1 ligne
   const formatValeurTotal = (val, unitesParPlaque) => {
@@ -101,27 +126,24 @@ export default function ProgrammeGroup({
 
   // Calculer le total du programme pour l'affichage quand fermé
   const totalProgramme = useMemo(() => {
-    let total = 0;
-    produits.forEach(produit => {
-      const qtes = calculerQuantites(produit, jourSelectionne, modeRepartition);
-      total += qtes.total?.preco || qtes.journalier?.preco || 0;
-    });
-    return total;
-  }, [produits, jourSelectionne, calculerQuantites, modeRepartition]);
+    return produitsActifs.reduce((sum, { qtes }) => {
+      return sum + (qtes.total?.preco || qtes.journalier?.preco || 0);
+    }, 0);
+  }, [produitsActifs]);
 
   return (
     <>
-      {/* En-tête du programme (si plusieurs produits) - Cliquable pour déplier/replier + Draggable */}
+      {/* En-tête du programme - Cliquable pour déplier/replier + Draggable */}
       {showProgrammeHeader && (
         <tr
           draggable
-          onDragStart={(e) => onDragStart && onDragStart(e, famille, progIndex)}
-          onDragOver={(e) => onDragOver && onDragOver(e, famille, progIndex)}
-          onDrop={(e) => onDrop && onDrop(e, progIndex, famille, programmesOrdonnes)}
-          onDragEnd={onDragEnd}
+          onDragStart={(e) => { e.stopPropagation(); onDragStart && onDragStart(e, famille, progIndex); }}
+          onDragOver={(e) => { e.stopPropagation(); e.preventDefault(); onDragOver && onDragOver(e, famille, progIndex); }}
+          onDrop={(e) => { e.stopPropagation(); e.preventDefault(); onDrop && onDrop(e, progIndex, famille, programmesOrdonnes); }}
+          onDragEnd={(e) => { e.stopPropagation(); onDragEnd && onDragEnd(); }}
           className={`bg-gray-50/80 transition-all duration-200 ${
             isDragging ? 'opacity-50' : ''
-          } ${isHovered ? 'bg-blue-100' : ''}`}
+          } ${isHovered ? 'border-t-2 border-blue-500 bg-blue-50' : ''}`}
         >
           <td
             colSpan={colSpan}
@@ -134,7 +156,7 @@ export default function ProgrammeGroup({
               {/* Chevron */}
               <ChevronRight className={`w-4 h-4 transition-transform duration-200 print:hidden ${isOuvert ? 'rotate-90' : ''}`} />
               <span>{programme}</span>
-              <span className="text-gray-400 font-normal">({produits.length})</span>
+              <span className="text-gray-400 font-normal">({produitsActifs.length})</span>
               {/* Total quand fermé */}
               {!isOuvert && (
                 <span className="ml-auto bg-gray-200 px-2 py-0.5 rounded text-gray-700 font-bold normal-case">
@@ -146,9 +168,8 @@ export default function ProgrammeGroup({
         </tr>
       )}
 
-      {/* Produits - Visible seulement si ouvert ou pas de header */}
-      {(isOuvert || !showProgrammeHeader) && produits.map((produit, produitIdx) => {
-        const qtes = calculerQuantites(produit, jourSelectionne, modeRepartition);
+      {/* Produits actifs - Visible seulement si ouvert ou pas de header */}
+      {(isOuvert || !showProgrammeHeader) && produitsActifs.map(({ produit, qtes }, produitIdx) => {
         const tranchesAffichees = colonnesVisibles || TRANCHES_CONFIG;
 
         // Mode détail avec 3 lignes (si showHisto et pas modeSimplifie)
@@ -232,8 +253,17 @@ export default function ProgrammeGroup({
         );
       })}
 
-      {/* Sous-total par programme (uniquement en mode Plaques + tranches + programme nommé + ouvert) */}
-      {isOuvert && isPlaque && modeRepartition === 'tranches' && showProgrammeHeader && totauxProgramme && (
+      {/* Mention produits masqués */}
+      {isOuvert && nbMasques > 0 && (
+        <tr>
+          <td colSpan={colSpan} className="px-4 py-1 text-xs text-gray-400 italic">
+            +{nbMasques} produit{nbMasques > 1 ? 's' : ''} masqué{nbMasques > 1 ? 's' : ''} (préco = 0)
+          </td>
+        </tr>
+      )}
+
+      {/* Sous-total par programme (toujours en Pl. — info critique pour cycles four) */}
+      {isOuvert && modeRepartition === 'tranches' && showProgrammeHeader && totauxProgramme && totauxProgramme.total > 0 && (
         <tr className="bg-amber-50 border-t-2 border-amber-200">
           <td className="px-4 py-2 font-semibold text-amber-800 text-sm">
             TOTAL {programme.toUpperCase()}
@@ -241,7 +271,7 @@ export default function ProgrammeGroup({
           {!modeSimplifie && showHisto && <td></td>}
           {(colonnesVisibles || TRANCHES_CONFIG).map(tranche => {
             const estActif = tranche.key === trancheActuelle || (tranche.sousKeys && tranche.sousKeys.includes(trancheActuelle));
-            // Calculer le total pour les colonnes regroupées
+            // Calculer le total pour les colonnes regroupées via sousKeys
             const totalColonne = tranche.sousKeys
               ? tranche.sousKeys.reduce((sum, sk) => sum + (totauxProgramme[sk] || 0), 0)
               : (totauxProgramme[tranche.key] || 0);
@@ -251,14 +281,14 @@ export default function ProgrammeGroup({
                 className={`text-center px-3 py-2 ${estActif ? 'bg-amber-200' : ''}`}
               >
                 <span className="font-bold text-amber-700">
-                  {totalColonne} Pl.
+                  {totalColonne.toFixed(1)} Pl.
                 </span>
               </td>
             );
           })}
           <td className="text-center px-3 py-2 bg-amber-100">
             <span className="font-bold text-amber-800">
-              {totauxProgramme.total} Pl.
+              {totauxProgramme.total.toFixed(1)} Pl.
             </span>
           </td>
         </tr>

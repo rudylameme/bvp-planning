@@ -23,6 +23,7 @@ import {
   Zap,
   Award,
   FileSpreadsheet,
+  BarChart3,
 } from 'lucide-react';
 import { useMagasin } from '../../contexts/MagasinContext';
 import {
@@ -32,6 +33,7 @@ import {
   formatNombre,
 } from '../../services/calculService';
 import { parseFrequentationExcel } from '../../services/excelParser';
+import { useFileAccess, checkHandlePermission } from '../../hooks/useFileAccess';
 
 /**
  * Nombre de semaines ISO d'une année donnée (52 ou 53).
@@ -85,6 +87,8 @@ const Etape2ObjectifCA = ({ onPrecedent }) => {
     setSemaineFrequentation,
     dirHandle,
     setFrequentationData,
+    typePonderation,
+    setTypePonderation,
     setJoursOuverture,
     setPlanifieManager,
     setPromosActives,
@@ -93,6 +97,8 @@ const Etape2ObjectifCA = ({ onPrecedent }) => {
     setDossierArchives,
     setArchiveProduitsEnAttente,
   } = useMagasin();
+
+  const { selectDirectory } = useFileAccess();
 
   // État local pour l'objectif
   const [modeObjectif, setModeObjectif] = useState('suggere');
@@ -177,7 +183,7 @@ const Etape2ObjectifCA = ({ onPrecedent }) => {
           setFichierFreqExiste(true);
 
           const file = await fileHandle.getFile();
-          const freqData = await parseFrequentationExcel(file);
+          const freqData = await parseFrequentationExcel(file, typePonderation);
           if (!cancelled) {
             setFrequentationData({
               poidsJours: freqData.poidsParJour,
@@ -188,6 +194,9 @@ const Etape2ObjectifCA = ({ onPrecedent }) => {
               totalPdvHebdo: freqData.totalPdvHebdo,
               tauxPenetration: freqData.tauxPenetration,
               nombreSemaines: freqData.nombreSemaines,
+              typePonderation: freqData.typePonderation,
+              ponderations: freqData.ponderations,
+              sourceFrequentation: freqData.sourceFrequentation,
             });
           }
           setRechercheEnCours(false);
@@ -205,7 +214,7 @@ const Etape2ObjectifCA = ({ onPrecedent }) => {
       }
     })();
     return () => { cancelled = true; };
-  }, [dirHandle, semaineAppliquee, setFrequentationData]);
+  }, [dirHandle, semaineAppliquee, typePonderation, setFrequentationData]);
 
   // ── Recherche d'archive Manager (S-1, S-2... S-52) ──
   const [archiveTrouvee, setArchiveTrouvee] = useState(null); // { semaine, annee, estExacte, data }
@@ -226,13 +235,10 @@ const Etape2ObjectifCA = ({ onPrecedent }) => {
     (async () => {
       // Vérifier la permission sur le dossier
       try {
-        const perm = await dossierArchives.queryPermission({ mode: 'read' });
-        if (perm !== 'granted') {
-          const req = await dossierArchives.requestPermission({ mode: 'read' });
-          if (req !== 'granted') {
-            setRechercheArchiveEnCours(false);
-            return;
-          }
+        const ok = await checkHandlePermission(dossierArchives, 'read');
+        if (!ok) {
+          setRechercheArchiveEnCours(false);
+          return;
         }
       } catch {
         setRechercheArchiveEnCours(false);
@@ -497,6 +503,44 @@ const Etape2ObjectifCA = ({ onPrecedent }) => {
           </div>
         )}
 
+        {/* Pondération des semaines */}
+        {fichierFreqExiste === true && !rechercheEnCours && (
+          <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <h4 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-[#8B1538]" />
+              Type de pondération des données
+            </h4>
+            <div className="flex gap-3 flex-wrap">
+              {[
+                { id: 'standard', label: 'Standard', desc: 'S-1: 40% | AS-1: 30% | S-2: 30%', info: 'Semaine classique' },
+                { id: 'saisonnier', label: 'Saisonnier', desc: 'S-1: 30% | AS-1: 50% | S-2: 20%', info: 'Période atypique (vacances, fêtes)' },
+                { id: 'fortePromo', label: 'Forte Promo', desc: 'S-1: 60% | AS-1: 20% | S-2: 20%', info: 'Semaine promotionnelle forte' },
+              ].map(mode => (
+                <button
+                  key={mode.id}
+                  onClick={() => setTypePonderation(mode.id)}
+                  className={`px-5 py-3 rounded-lg transition-all font-semibold text-left ${
+                    typePonderation === mode.id
+                      ? 'bg-[#8B1538] text-white border-2 border-[#8B1538] shadow-md'
+                      : 'bg-white text-gray-600 border-2 border-gray-300 hover:border-[#8B1538] hover:text-[#8B1538]'
+                  }`}
+                  title={mode.info}
+                >
+                  {mode.label}
+                  <span className={`text-xs block mt-1 font-normal ${
+                    typePonderation === mode.id ? 'text-red-200' : 'text-gray-400'
+                  }`}>
+                    {mode.desc}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <p className="text-xs mt-3 text-gray-500">
+              S-1 = Semaine précédente | AS-1 = Même semaine année précédente | S-2 = Il y a 2 semaines
+            </p>
+          </div>
+        )}
+
         {/* Archive Manager précédente */}
         {semaineAppliquee && !dossierArchives && (
           <div className="mt-3 text-sm px-4 py-2 rounded-lg flex items-center justify-between bg-amber-50 border border-amber-200 text-amber-700">
@@ -504,7 +548,7 @@ const Etape2ObjectifCA = ({ onPrecedent }) => {
             <button
               onClick={async () => {
                 try {
-                  const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                  const handle = await selectDirectory({ mode: 'readwrite' });
                   setDossierArchives(handle);
                 } catch { /* annulé */ }
               }}
@@ -551,7 +595,7 @@ const Etape2ObjectifCA = ({ onPrecedent }) => {
             <button
               onClick={async () => {
                 try {
-                  const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                  const handle = await selectDirectory({ mode: 'readwrite' });
                   setDossierArchives(handle);
                 } catch { /* annulé */ }
               }}

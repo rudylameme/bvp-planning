@@ -320,13 +320,25 @@ export async function parseVentesExcel(file) {
 }
 
 /**
- * Parse le fichier Excel de fréquentation
+ * Coefficients de pondération des semaines (CDC V2.4)
+ * S-1 = semaine précédente, AS-1 = même semaine année précédente, S-2 = semaine -2
+ */
+const PONDERATIONS_SEMAINES = {
+  standard:   { S1: 0.40, AS1: 0.30, S2: 0.30 },  // Semaine normale
+  saisonnier: { S1: 0.30, AS1: 0.50, S2: 0.20 },  // Période atypique (vacances, fêtes)
+  fortePromo: { S1: 0.60, AS1: 0.20, S2: 0.20 },  // Semaine avec grosse animation
+};
+
+/**
+ * Parse le fichier Excel de fréquentation avec pondération multi-semaines
  * Structure attendue : JOUR, HORAIRE, puis colonnes par semaine (BVP/PDV)
  * Colonnes: F=JOUR, G=HORAIRE, J=QteBVP S-1, M=QtePDV S-1, P=QteBVP AS-1, S=QtePDV AS-1, V=QteBVP S-2, Y=QtePDV S-2
+ *
  * @param {File} file - Fichier Excel
+ * @param {string} typePonderation - 'standard' | 'saisonnier' | 'fortePromo' (défaut: 'standard')
  * @returns {Promise<Object>} Données de fréquentation
  */
-export async function parseFrequentationExcel(file) {
+export async function parseFrequentationExcel(file, typePonderation = 'standard') {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
@@ -526,23 +538,46 @@ export async function parseFrequentationExcel(file) {
           if (qteBvpAS1 > 0 || qtePdvAS1 > 0) semainesDetectees.add('AS-1');
           if (qteBvpS2 > 0 || qtePdvS2 > 0) semainesDetectees.add('S-2');
 
-          // Calculer les moyennes des 3 semaines
-          const nbSemaines = 3;
-          const moyBvp = (qteBvpS1 + qteBvpAS1 + qteBvpS2) / nbSemaines;
-          const moyPdv = (qtePdvS1 + qtePdvAS1 + qtePdvS2) / nbSemaines;
+          // Pondération des semaines selon le type choisi (CDC V2.4)
+          // Source principale : PDV (fréquentation globale magasin, pas BVP)
+          // car QteBVP ne reflète pas la fréquentation réelle du PDV
+          const weights = PONDERATIONS_SEMAINES[typePonderation] || PONDERATIONS_SEMAINES.standard;
+
+          // Déterminer les poids effectifs selon les semaines disponibles
+          let wS1 = weights.S1, wAS1 = weights.AS1, wS2 = weights.S2;
+          const hasS1  = (qtePdvS1 > 0 || qteBvpS1 > 0);
+          const hasAS1 = (qtePdvAS1 > 0 || qteBvpAS1 > 0);
+          const hasS2  = (qtePdvS2 > 0 || qteBvpS2 > 0);
+
+          // Gestion des semaines manquantes (CDC V2.4)
+          if (!hasAS1 && hasS1 && hasS2) {
+            // S-1 + S-2 sans AS-1 → 60% / 40%
+            wS1 = 0.60; wAS1 = 0; wS2 = 0.40;
+          } else if (hasS1 && !hasAS1 && !hasS2) {
+            // S-1 seule → 100%
+            wS1 = 1.0; wAS1 = 0; wS2 = 0;
+          } else if (!hasS1 && !hasAS1 && !hasS2) {
+            // Aucune donnée → les poids resteront à 0, fallback plus bas
+            wS1 = 0; wAS1 = 0; wS2 = 0;
+          }
+
+          // Calculer les quantités pondérées (PDV = fréquentation globale magasin)
+          const pdvPondere = (qtePdvS1 * wS1) + (qtePdvAS1 * wAS1) + (qtePdvS2 * wS2);
+          // Garder aussi BVP pondéré pour le taux de pénétration
+          const bvpPondere = (qteBvpS1 * wS1) + (qteBvpAS1 * wAS1) + (qteBvpS2 * wS2);
 
           // Ajouter aux totaux par jour
-          frequentationParJour[jour].bvp += moyBvp;
-          frequentationParJour[jour].pdv += moyPdv;
+          frequentationParJour[jour].bvp += bvpPondere;
+          frequentationParJour[jour].pdv += pdvPondere;
 
           // Ajouter aux totaux par tranche horaire
           if (tranche) {
-            frequentationParHoraire[tranche].bvp += moyBvp;
-            frequentationParHoraire[tranche].pdv += moyPdv;
+            frequentationParHoraire[tranche].bvp += bvpPondere;
+            frequentationParHoraire[tranche].pdv += pdvPondere;
 
             // Détail par jour et horaire
-            detailParJourHoraire[jour][tranche].bvp += moyBvp;
-            detailParJourHoraire[jour][tranche].pdv += moyPdv;
+            detailParJourHoraire[jour][tranche].bvp += bvpPondere;
+            detailParJourHoraire[jour][tranche].pdv += pdvPondere;
           }
 
           totalLignes++;
@@ -553,25 +588,59 @@ export async function parseFrequentationExcel(file) {
         const totalPdvJour = Object.values(frequentationParJour).reduce((sum, j) => sum + j.pdv, 0);
         const totalBvpHoraire = Object.values(frequentationParHoraire).reduce((sum, h) => sum + h.bvp, 0);
 
-        // Poids par jour (basé sur BVP)
+        // Poids par jour — source principale : PDV (fréquentation globale magasin)
+        // car QteBVP ne reflète pas la vraie fréquentation du PDV (effet circulaire)
         const poidsParJour = {};
-        Object.entries(frequentationParJour).forEach(([jour, data]) => {
-          poidsParJour[jour] = totalBvpJour > 0 ? Math.round((data.bvp / totalBvpJour) * 1000) / 1000 : 0;
-        });
+        // Poids par défaut différenciés (même valeurs que Etape5Communication)
+        const POIDS_DEFAUT = {
+          lundi: 0.12, mardi: 0.12, mercredi: 0.16,
+          jeudi: 0.12, vendredi: 0.16, samedi: 0.20, dimanche: 0.12
+        };
 
-        // Poids par tranche horaire (basé sur BVP)
+        if (totalPdvJour > 0) {
+          // Cas normal : poids basés sur les données PDV (fréquentation globale)
+          Object.entries(frequentationParJour).forEach(([jour, data]) => {
+            poidsParJour[jour] = Math.round((data.pdv / totalPdvJour) * 1000) / 1000;
+          });
+        } else if (totalBvpJour > 0) {
+          // Fallback : si PDV vide mais BVP disponible, utiliser BVP
+          Object.entries(frequentationParJour).forEach(([jour, data]) => {
+            poidsParJour[jour] = Math.round((data.bvp / totalBvpJour) * 1000) / 1000;
+          });
+        } else {
+          // Aucune donnée : poids par défaut différenciés
+          Object.keys(frequentationParJour).forEach(jour => {
+            poidsParJour[jour] = POIDS_DEFAUT[jour] || 0.14;
+          });
+        }
+
+        // Poids par tranche horaire (basé sur PDV pour cohérence)
+        const totalPdvHoraire = Object.values(frequentationParHoraire).reduce((sum, h) => sum + h.pdv, 0);
         const poidsParHoraire = {};
         Object.entries(frequentationParHoraire).forEach(([tranche, data]) => {
-          poidsParHoraire[tranche] = totalBvpHoraire > 0 ? Math.round((data.bvp / totalBvpHoraire) * 1000) / 1000 : 0;
+          if (totalPdvHoraire > 0) {
+            poidsParHoraire[tranche] = Math.round((data.pdv / totalPdvHoraire) * 1000) / 1000;
+          } else if (totalBvpHoraire > 0) {
+            poidsParHoraire[tranche] = Math.round((data.bvp / totalBvpHoraire) * 1000) / 1000;
+          } else {
+            poidsParHoraire[tranche] = 0;
+          }
         });
 
-        // Poids par tranche pour chaque jour (pour le planning détaillé)
+        // Poids par tranche pour chaque jour (pour le planning détaillé) — source PDV
         const poidsTranchesParJour = {};
         Object.entries(detailParJourHoraire).forEach(([jour, tranches]) => {
-          const totalJour = Object.values(tranches).reduce((sum, t) => sum + t.bvp, 0);
+          const totalJourPdv = Object.values(tranches).reduce((sum, t) => sum + t.pdv, 0);
+          const totalJourBvp = Object.values(tranches).reduce((sum, t) => sum + t.bvp, 0);
           poidsTranchesParJour[jour] = {};
           Object.entries(tranches).forEach(([tranche, data]) => {
-            poidsTranchesParJour[jour][tranche] = totalJour > 0 ? Math.round((data.bvp / totalJour) * 1000) / 1000 : 0;
+            if (totalJourPdv > 0) {
+              poidsTranchesParJour[jour][tranche] = Math.round((data.pdv / totalJourPdv) * 1000) / 1000;
+            } else if (totalJourBvp > 0) {
+              poidsTranchesParJour[jour][tranche] = Math.round((data.bvp / totalJourBvp) * 1000) / 1000;
+            } else {
+              poidsTranchesParJour[jour][tranche] = 0;
+            }
           });
         });
 
@@ -624,6 +693,11 @@ export async function parseFrequentationExcel(file) {
           semainesUtilisees: Array.from(semainesDetectees),
           nombreLignes: totalLignes,
           ratioBvpPdv,
+
+          // Pondération utilisée (CDC V2.4)
+          typePonderation,
+          ponderations: PONDERATIONS_SEMAINES[typePonderation] || PONDERATIONS_SEMAINES.standard,
+          sourceFrequentation: totalPdvJour > 0 ? 'PDV' : (totalBvpJour > 0 ? 'BVP' : 'DEFAUT'),
 
           // Taux de pénétration (Tickets BVP / Tickets PDV)
           tauxPenetration: {

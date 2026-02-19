@@ -25,7 +25,7 @@
  */
 
 import * as XLSX from 'xlsx';
-import { rechercherParLibelle, rechercherParEAN, isReferentielCharge, mapRayonVersFamille } from './referentielITM8';
+import { rechercherParLibelle, rechercherParLibelleFuzzy, rechercherParEAN, isReferentielCharge, mapRayonVersFamille } from './referentielITM8';
 
 // Cache pour éviter de relire les fichiers
 const cache = {
@@ -758,16 +758,20 @@ export function formaterPourPilotageCA(data) {
   const { produits, statistiques } = data;
 
   return produits.map((p, index) => {
-    // Chercher dans le référentiel : priorité EAN (correspondance exacte), puis fallback libellé
+    // Chercher dans le référentiel : priorité EAN, puis libellé exact, puis libellé fuzzy
     let infoRef = null;
     if (isReferentielCharge()) {
       // Priorité 1 : lookup par EAN (fiable, correspondance exacte)
       if (p.codeEAN) {
         infoRef = rechercherParEAN(p.codeEAN);
       }
-      // Priorité 2 : fallback par libellé (si EAN non trouvé dans le référentiel)
+      // Priorité 2 : libellé exact (case-insensitive)
       if (!infoRef) {
         infoRef = rechercherParLibelle(p.libelle);
+      }
+      // Priorité 3 : libellé fuzzy (gère les libellés tronqués dans les fichiers ventes)
+      if (!infoRef) {
+        infoRef = rechercherParLibelleFuzzy(p.libelle);
       }
     }
 

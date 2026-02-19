@@ -17,17 +17,11 @@
     font-size: 7px !important;
   }
 
-  /* Désactiver les couleurs de fond pour économiser l'encre */
+  /* Conserver les couleurs à l'impression */
   * {
-    background: transparent !important;
-    -webkit-print-color-adjust: economy !important;
-    print-color-adjust: economy !important;
-    color-adjust: economy !important;
-  }
-
-  /* Forcer le texte en noir */
-  body, p, div, span, td, th {
-    color: black !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
   }
 
   /* Permettre les sauts de page dans les tableaux pour minimiser le nombre de pages */

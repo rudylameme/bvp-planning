@@ -6,39 +6,9 @@
  */
 
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { saveHandle, loadHandle, verifyHandlePermission } from '../services/handleStorage';
 
 const MagasinContext = createContext();
-
-// ── Helpers IndexedDB pour persister les DirectoryHandle ──
-const IDB_NAME = 'bvp-planning-handles';
-const IDB_STORE = 'handles';
-
-function openHandleDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(IDB_NAME, 1);
-    req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function saveHandle(key, handle) {
-  try {
-    const db = await openHandleDB();
-    const tx = db.transaction(IDB_STORE, 'readwrite');
-    tx.objectStore(IDB_STORE).put(handle, key);
-    await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
-  } catch (e) { /* TODO: logger professionnel */ }
-}
-
-async function loadHandle(key) {
-  try {
-    const db = await openHandleDB();
-    const tx = db.transaction(IDB_STORE, 'readonly');
-    const req = tx.objectStore(IDB_STORE).get(key);
-    return new Promise((res) => { req.onsuccess = () => res(req.result || null); req.onerror = () => res(null); });
-  } catch { return null; }
-}
 
 export function MagasinProvider({ children }) {
   // État du dossier DATA
@@ -69,6 +39,9 @@ export function MagasinProvider({ children }) {
   // Données de fréquentation (S-4) chargées depuis Etape2
   const [frequentationData, setFrequentationData] = useState(null);
 
+  // Type de pondération des semaines (standard / saisonnier / fortePromo)
+  const [typePonderation, setTypePonderation] = useState('standard');
+
   // État gamme / ventes-casse
   const [fichiersVentesCasse, setFichiersVentesCasse] = useState([]);
   const [fichierVentesSelectionne, setFichierVentesSelectionne] = useState(null);
@@ -90,17 +63,21 @@ export function MagasinProvider({ children }) {
   // Dossier d'archives Manager (persisté via IndexedDB)
   const [dossierArchives, setDossierArchivesState] = useState(null);
 
-  // Charger le handle depuis IndexedDB au montage
+  // Charger les handles depuis IndexedDB au montage
   useEffect(() => {
+    // Dossier archives
     loadHandle('dossierArchives').then(async (handle) => {
       if (!handle) return;
-      // Vérifier la permission
-      try {
-        const perm = await handle.queryPermission({ mode: 'readwrite' });
-        if (perm === 'granted') {
-          setDossierArchivesState(handle);
-        }
-      } catch { /* permission perdue */ }
+      if (await verifyHandlePermission(handle, 'readwrite')) {
+        setDossierArchivesState(handle);
+      }
+    });
+    // Dossier DATA (pré-configuré via PageParametres)
+    loadHandle('dirHandle-data').then(async (handle) => {
+      if (!handle) return;
+      if (await verifyHandlePermission(handle, 'read')) {
+        setDirHandle(handle);
+      }
     });
   }, []);
 
@@ -220,6 +197,8 @@ export function MagasinProvider({ children }) {
     // Fréquentation
     frequentationData,
     setFrequentationData,
+    typePonderation,
+    setTypePonderation,
 
     // Données gamme / ventes-casse
     fichiersVentesCasse,

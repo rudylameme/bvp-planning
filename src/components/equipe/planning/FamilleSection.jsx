@@ -1,7 +1,7 @@
 /**
  * Section d'une famille dans le planning du jour
- * Extraite de PlanningJour.jsx - aucune modification de logique
  */
+import { useMemo } from 'react';
 import { ChevronRight, GripVertical } from 'lucide-react';
 import { FAMILLES_CONFIG, TRANCHES } from './constants';
 import { SortableHeader } from './BarreOutils';
@@ -101,6 +101,15 @@ export default function FamilleSection({
   const isDragging = dragState.type === 'famille' && dragState.dragIndex === familleIndex;
   const isHovered = dragState.type === 'famille' && dragState.hoverIndex === familleIndex;
 
+  // Compter les produits actifs (total > 0 pour le jour sélectionné)
+  const nbProduitsActifs = useMemo(() => {
+    return groupe.tous.filter(produit => {
+      const qtes = calculerQuantites(produit, jourSelectionne, modeRepartition);
+      const total = qtes.total?.preco || qtes.journalier?.preco || 0;
+      return total > 0;
+    }).length;
+  }, [groupe.tous, jourSelectionne, calculerQuantites, modeRepartition]);
+
   return (
     <div
       key={famille}
@@ -131,7 +140,7 @@ export default function FamilleSection({
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm text-white/80">
-            {groupe.tous.length} produit{groupe.tous.length > 1 ? 's' : ''}
+            {nbProduitsActifs}/{groupe.tous.length} produits actifs
           </span>
           {/* Afficher le total quand fermé */}
           {!isOuverte && (

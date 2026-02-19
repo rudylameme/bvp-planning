@@ -12,13 +12,15 @@
  * - Rouge (#EF4444) = Alerte / Perte
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   Store,
   AlertTriangle,
   Lightbulb,
+  Zap,
 } from 'lucide-react';
 import { useMagasin } from '../../contexts/MagasinContext';
+import { construireDonneesParTrancheMagasin } from '../../services/extraction/ventesExtractor';
 
 // Sub-components
 import { Bloc2Benchmark, Bloc3Graphiques } from './diagnostic/CartesDiagnostic';
@@ -97,6 +99,75 @@ const Bloc1Identification = ({ magasin, pdv, semaineSelectionnee, comparaison })
 };
 
 // ============================================================================
+// BLOC OPPORTUNITÉ : Message clé dès le haut de page
+// "Votre plus grande opportunité : l'après-midi"
+// ============================================================================
+const BlocOpportunite = ({ indicateurs, panierMoyen, meilleurePenetration }) => {
+  const parTranche = indicateurs.parTrancheHoraire || {};
+
+  // Calculer les données après-midi (14h-19h)
+  const creneauxApresMidi = ['14h_16h', '16h_19h'];
+  let clientsApresMidi = 0;
+  let acheteursApresMidi = 0;
+  let clientsPerdusApresMidi = 0;
+
+  creneauxApresMidi.forEach(key => {
+    const data = parTranche[key] || {};
+    clientsApresMidi += data.ticketsTotal || 0;
+    acheteursApresMidi += data.ticketsBVP || 0;
+    clientsPerdusApresMidi += data.clientsPerdus || 0;
+  });
+
+  if (clientsApresMidi === 0 || meilleurePenetration === 0) return null;
+
+  const penetrationApresMidi = clientsApresMidi > 0 ? acheteursApresMidi / clientsApresMidi : 0;
+  const clientsPotentiels = Math.round(clientsApresMidi * meilleurePenetration) - acheteursApresMidi;
+  const caPotentielSemaine = clientsPotentiels * panierMoyen;
+
+  // Trouver le créneau avec le plus de clients perdus pour la PRIORITÉ
+  let creneauPriorite = null;
+  let maxPerdus = 0;
+  creneauxApresMidi.forEach(key => {
+    const perdus = parTranche[key]?.clientsPerdus || 0;
+    if (perdus > maxPerdus) { maxPerdus = perdus; creneauPriorite = key; }
+  });
+
+  return (
+    <div className="bg-gradient-to-r from-[#22C55E] to-[#16A34A] rounded-2xl shadow-lg p-6 text-white">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="p-2 bg-white/20 rounded-xl">
+          <Zap className="w-6 h-6" />
+        </div>
+        <h3 className="text-xl font-bold">Votre plus grande opportunité : l'après-midi</h3>
+      </div>
+
+      <p className="text-white/90 text-base leading-relaxed mb-4">
+        Entre 14h et 19h, <strong>{clientsApresMidi.toLocaleString('fr-FR')} clients</strong> passent
+        en caisse chaque semaine. Seulement <strong>{acheteursApresMidi.toLocaleString('fr-FR')}</strong> achètent
+        en BVP ({(penetrationApresMidi * 100).toFixed(1)}%).
+        Si vous atteignez votre propre niveau du matin ({(meilleurePenetration * 100).toFixed(1)}%),
+        c'est <strong>+{caPotentielSemaine.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €/semaine</strong> de CA supplémentaire.
+      </p>
+
+      <div className="grid grid-cols-3 gap-4">
+        <div className="bg-white/15 rounded-xl p-3 text-center">
+          <div className="text-2xl font-black">{clientsPerdusApresMidi.toLocaleString('fr-FR')}</div>
+          <div className="text-xs text-white/70">clients sans achat BVP</div>
+        </div>
+        <div className="bg-white/15 rounded-xl p-3 text-center">
+          <div className="text-2xl font-black">+{clientsPotentiels.toLocaleString('fr-FR')}</div>
+          <div className="text-xs text-white/70">tickets à conquérir</div>
+        </div>
+        <div className="bg-white/25 rounded-xl p-3 text-center">
+          <div className="text-2xl font-black">+{caPotentielSemaine.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €</div>
+          <div className="text-xs text-white/70">CA potentiel / semaine</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================================
 // COMPOSANT : Alerte pas de données
 // ============================================================================
 const AlertePasDeDonnees = ({ magasin, onPrecedent }) => (
@@ -122,6 +193,34 @@ const AlertePasDeDonnees = ({ magasin, onPrecedent }) => (
 // ============================================================================
 const Etape1Diagnostic = ({ onPrecedent }) => {
   const { donneesMagasin, semaineSelectionnee } = useMagasin();
+
+  // ========== MAGASIN CIBLE ==========
+  const [codeMagasinCible, setCodeMagasinCible] = useState(
+    () => localStorage.getItem('bvp_magasin_cible') || null
+  );
+
+  useEffect(() => {
+    if (codeMagasinCible) {
+      localStorage.setItem('bvp_magasin_cible', codeMagasinCible);
+    } else {
+      localStorage.removeItem('bvp_magasin_cible');
+    }
+  }, [codeMagasinCible]);
+
+  // Lookup magasin cible : données globales + pénétration par tranche
+  const donneesMagasinCible = useMemo(() => {
+    if (!codeMagasinCible || !donneesMagasin?.dictionnaireMagasins) return null;
+    const codeNorm = String(codeMagasinCible).replace(/^0+/, '');
+    const global = donneesMagasin.dictionnaireMagasins.get(codeNorm);
+    if (!global) return null;
+
+    const parTrancheHoraire = construireDonneesParTrancheMagasin(
+      codeNorm,
+      donneesMagasin._venteHeureRaw
+    );
+
+    return { ...global, parTrancheHoraire };
+  }, [codeMagasinCible, donneesMagasin]);
 
   const hasDonneesBVP = useMemo(() => {
     if (!donneesMagasin?.indicateurs?.global?.pdv) return false;
@@ -171,7 +270,7 @@ const Etape1Diagnostic = ({ onPrecedent }) => {
 
   return (
     <div className="space-y-8">
-      {/* BLOC 1 : Identification + KPIs */}
+      {/* 1. En-tête magasin */}
       <Bloc1Identification
         magasin={magasin}
         pdv={pdv}
@@ -179,14 +278,25 @@ const Etape1Diagnostic = ({ onPrecedent }) => {
         comparaison={comparaison}
       />
 
-      {/* BLOC 2 : Tableau benchmark */}
+      {/* 2. Potentiel total — l'enjeu global dès le haut */}
+      <Bloc6Potentiel
+        indicateurs={indicateurs}
+        panierMoyen={pdv.ticketMoyen || 0}
+        caBVPActuel={pdv.caBVP || 0}
+      />
+
+      {/* 3. Je me compare — tableau benchmark */}
       <Bloc2Benchmark
         donnees={donneesMagasin}
         indicateurs={indicateurs}
         magasin={magasin}
+        magasinCible={donneesMagasinCible}
+        dictionnaireMagasins={donneesMagasin.dictionnaireMagasins}
+        codeMagasinCible={codeMagasinCible}
+        setCodeMagasinCible={setCodeMagasinCible}
       />
 
-      {/* BLOC 3 : 3 graphiques en barres */}
+      {/* 4. Ma situation — graphiques comparatifs */}
       <Bloc3Graphiques
         pdv={pdv}
         pdvS1={pdvS1}
@@ -194,24 +304,17 @@ const Etape1Diagnostic = ({ onPrecedent }) => {
         moyenneSecteur={moyenneSecteur}
       />
 
-      {/* BLOC 4 : Barres de pénétration */}
-      <Bloc4Penetration indicateurs={indicateurs} />
+      {/* 5. Taux de pénétration par tranche horaire */}
+      <Bloc4Penetration indicateurs={indicateurs} magasinCible={donneesMagasinCible} />
 
-      {/* BLOC 5 : Détail flux clients */}
+      {/* 6. Analyse Flux Client → Achat BVP (chronologique + double barre) */}
       <Bloc5FluxClient
         indicateurs={indicateurs}
         panierMoyen={pdv.ticketMoyen || 0}
         meilleurePenetration={meilleurePenetration}
       />
 
-      {/* BLOC 6 : Potentiel chiffré */}
-      <Bloc6Potentiel
-        indicateurs={indicateurs}
-        panierMoyen={pdv.ticketMoyen || 0}
-        caBVPActuel={pdv.caBVP || 0}
-      />
-
-      {/* BLOC 7 : Plan d'action */}
+      {/* 7. Passez à l'action + 8. Phrase de transition */}
       <Bloc7Action
         indicateurs={indicateurs}
         panierMoyen={pdv.ticketMoyen || 0}
