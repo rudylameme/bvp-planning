@@ -16,10 +16,10 @@ import WizardBenchmark from './components/manager/WizardBenchmark';
 import WizardManager from './components/manager/WizardManager';
 import AccueilEquipe from './components/equipe/AccueilEquipe';
 
-// Profil : 'all' (dev local), 'manager' (univers 1+2), 'equipe' (univers 3)
+// Profil : 'all' (dev local), 'manager' (univers 1+2+3), 'equipe' (univers 3 seul)
 const PROFIL = import.meta.env.VITE_PROFIL || 'all';
 const isManager = PROFIL === 'manager' || PROFIL === 'all';
-const isEquipe = PROFIL === 'equipe' || PROFIL === 'all';
+const isEquipe = PROFIL === 'equipe' || PROFIL === 'all' || PROFIL === 'manager';
 
 // Définition des items par univers
 const ITEMS_BENCHMARK = [
