@@ -71,6 +71,7 @@ const AccueilEquipe = ({ onRetourAccueil }) => {
           ...fichierCharge.configuration,
           semaine: fichierCharge.semaine?.numero || fichierCharge.configuration.semaine,
           annee: fichierCharge.semaine?.annee || fichierCharge.configuration.annee,
+          dateDebut: fichierCharge.semaine?.dateDebut || fichierCharge.configuration?.dateDebut || '',
           // Métadonnées pour l'impression (format V2)
           codePDV: fichierCharge.magasin?.code || '',
           nomPDV: fichierCharge.magasin?.nom || '',
@@ -80,6 +81,7 @@ const AccueilEquipe = ({ onRetourAccueil }) => {
           joursActifs: [],
           semaine: fichierCharge.semaine?.numero,
           annee: fichierCharge.semaine?.annee,
+          dateDebut: fichierCharge.semaine?.dateDebut || '',
           codePDV: fichierCharge.magasin?.code || '',
           nomPDV: fichierCharge.magasin?.nom || '',
           typePonderation: fichierCharge.frequentation?.typePonderation || '',

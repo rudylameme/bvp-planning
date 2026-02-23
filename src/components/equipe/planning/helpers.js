@@ -64,7 +64,19 @@ export function isJourFerme(configuration, jour) {
 export function getDateJour(configuration, jour) {
   if (!configuration?.dateDebut) return jour;
 
-  const dateDebut = new Date(configuration.dateDebut);
+  // Parser la date en heure LOCALE (évite le décalage UTC → veille en France)
+  // "2026-03-23" → new Date(2026, 2, 23) au lieu de new Date("2026-03-23") qui est UTC minuit
+  const parts = String(configuration.dateDebut).split('-');
+  let dateDebut = parts.length === 3
+    ? new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
+    : new Date(configuration.dateDebut);
+
+  // Correction rétrocompatibilité : si dateDebut tombe un dimanche,
+  // c'est un ancien fichier affecté par le bug UTC → avancer de 1 jour (→ lundi)
+  if (dateDebut.getDay() === 0) {
+    dateDebut.setDate(dateDebut.getDate() + 1);
+  }
+
   const indexJour = JOURS.indexOf(jour);
   const date = new Date(dateDebut);
   date.setDate(date.getDate() + indexJour);

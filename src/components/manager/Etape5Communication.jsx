@@ -39,6 +39,14 @@ const POIDS_FREQUENTATION_DEFAUT = {
 // ============================================================================
 
 /** Retourne la date ISO du lundi de la semaine ISO donnée */
+/** Formate une date locale en YYYY-MM-DD (sans passer par UTC/toISOString) */
+const formatDateLocale = (d) => {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 const getDateDebutSemaine = (semaine, annee) => {
   const jan4 = new Date(annee, 0, 4);
   const dayOfWeek = jan4.getDay() || 7;
@@ -46,13 +54,14 @@ const getDateDebutSemaine = (semaine, annee) => {
   lundi1.setDate(jan4.getDate() - dayOfWeek + 1);
   const result = new Date(lundi1);
   result.setDate(lundi1.getDate() + (semaine - 1) * 7);
-  return result.toISOString().split('T')[0];
+  return formatDateLocale(result);
 };
 
 const getDateFinSemaine = (semaine, annee) => {
-  const debut = new Date(getDateDebutSemaine(semaine, annee));
+  const parts = getDateDebutSemaine(semaine, annee).split('-');
+  const debut = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
   debut.setDate(debut.getDate() + 6);
-  return debut.toISOString().split('T')[0];
+  return formatDateLocale(debut);
 };
 
 const padSemaine = (s) => String(s).padStart(2, '0');

@@ -48,8 +48,31 @@ export function genererFicheJourHTML(jour, {
   const jourIndex = JOURS.indexOf(jour);
   const jourLabel = JOURS_LABELS[jourIndex];
   const jourComplet = JOURS_COMPLETS[jourIndex];
-  const dateJour = getDateJour(jour);
   const maintenant = new Date().toLocaleDateString('fr-FR');
+
+  // Calculer la date complète du jour
+  // 1) Essayer via getDateJour (utilise configuration.dateDebut)
+  let dateJourBrut = getDateJour(jour);
+  // 2) Fallback : calculer depuis semaine + année si getDateJour n'a pas pu résoudre
+  if (dateJourBrut === jour && configuration?.semaine && configuration?.annee) {
+    try {
+      // Calcul ISO : le lundi de la semaine ISO donnée
+      const jan4 = new Date(configuration.annee, 0, 4);
+      const dayOfWeek = jan4.getDay() || 7;
+      const lundi = new Date(jan4);
+      lundi.setDate(jan4.getDate() - dayOfWeek + 1 + (configuration.semaine - 1) * 7);
+      const dateJour = new Date(lundi);
+      dateJour.setDate(lundi.getDate() + jourIndex);
+      dateJourBrut = dateJour.toLocaleDateString('fr-FR', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+      });
+    } catch { /* fallback au jourComplet */ }
+  }
+
+  // Formater : première lettre en majuscule → "Mardi 25 Février 2026"
+  const dateJourFormatee = typeof dateJourBrut === 'string' && dateJourBrut !== jour
+    ? dateJourBrut.replace(/^./, c => c.toUpperCase())
+    : jourComplet;
 
   // Info PDV et pondération (ajoutés dans AccueilEquipe.jsx)
   const codePDV = configuration?.codePDV || '';
@@ -212,11 +235,10 @@ export function genererFicheJourHTML(jour, {
         <div class="header">
           <div class="header-top">
             <span class="header-label">Planning</span>
-            <span class="header-jour">${jourComplet}</span>
-            <span class="header-date"> - ${dateJour}</span>
+            <span class="header-jour">${dateJourFormatee}</span>
           </div>
           <div class="famille-bandeau" style="background: ${couleur};">
-            ${famille} — ${jourComplet} — ${magasinDisplay || ''}
+            ${famille} — ${dateJourFormatee} — ${magasinDisplay || ''}
           </div>
           <div class="header-info">
             ${magasinDisplay ? magasinDisplay + ' | ' : ''}Impression: ${maintenant}${typePonderation ? ` | Pondération: ${typePonderation}` : ''}
@@ -230,7 +252,7 @@ export function genererFicheJourHTML(jour, {
         </div>
 
         <div class="footer">
-          BVP Planning V5 • ${magasinDisplay} • ${jourComplet} • ${famille}
+          BVP Planning V5 • ${magasinDisplay} • ${dateJourFormatee} • ${famille}
         </div>
       </div>`;
     }).filter(Boolean).join('\n');
@@ -246,8 +268,7 @@ export function genererFicheJourHTML(jour, {
     <div class="header">
       <div class="header-top">
         <span class="header-label">Planning</span>
-        <span class="header-jour">${jourComplet}</span>
-        <span class="header-date"> - ${dateJour}</span>
+        <span class="header-jour">${dateJourFormatee}</span>
       </div>
       <div class="header-info">
         ${magasinDisplay ? magasinDisplay + ' | ' : ''}Impression: ${maintenant}${typePonderation ? ` | Pondération: ${typePonderation}` : ''}
@@ -261,7 +282,7 @@ export function genererFicheJourHTML(jour, {
     </div>
 
     <div class="footer">
-      BVP Planning V5 • ${magasinDisplay} • ${jourComplet}
+      BVP Planning V5 • ${magasinDisplay} • ${dateJourFormatee}
     </div>
   </div>`;
 }
@@ -282,8 +303,7 @@ export function getFicheCSS() {
     .header { margin-bottom: 4px; padding-bottom: 3px; border-bottom: 2px solid #000; }
     .header-top { display: flex; align-items: baseline; gap: 4px; }
     .header-label { font-size: 8px; }
-    .header-jour { font-size: 16px; font-weight: bold; }
-    .header-date { font-size: 12px; font-weight: bold; }
+    .header-jour { font-size: 16px; font-weight: bold; text-transform: capitalize; }
     .header-info { font-size: 7px; color: #444; margin-top: 1px; }
 
     /* ── Tableau ── */

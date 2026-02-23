@@ -75,7 +75,7 @@ const ETATS_CRENEAU = {
 const CYCLE_ETATS = ['ouvert', 'ferme_habituel', 'ferme_exceptionnel'];
 
 // Familles par défaut si produitsGamme non disponible
-const FAMILLES_DEFAUT = ['BOULANGERIE', 'VIENNOISERIE', 'PATISSERIE', 'SNACKING', 'AUTRE'];
+const FAMILLES_DEFAUT = ['BOULANGERIE', 'VIENNOISERIE', 'SNACKING', 'PATISSERIE', 'AUTRE'];
 
 // ============================================================================
 // Génère l'état initial des créneaux (Lundi matin/apm fermé par défaut)
@@ -300,7 +300,13 @@ const Etape3Configuration = () => {
   const familles = useMemo(() => {
     if (produitsGamme && produitsGamme.length > 0) {
       const set = new Set(produitsGamme.map(p => p.famille || p.rayon || 'AUTRE').filter(Boolean));
-      return [...set].sort();
+      // Trier selon l'ordre préféré, inconnues à la fin
+      const ordre = FAMILLES_DEFAUT;
+      return [...set].sort((a, b) => {
+        const ia = ordre.indexOf(a);
+        const ib = ordre.indexOf(b);
+        return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+      });
     }
     return FAMILLES_DEFAUT;
   }, [produitsGamme]);

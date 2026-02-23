@@ -119,7 +119,7 @@ function BarreTranches({ famille, groups, onChange }) {
                         {i < group.length - 1 && (
                           <button
                             onClick={() => toggleBorder(segIdx)}
-                            className="w-px h-full flex-shrink-0 border-l border-dashed border-white/60 hover:border-red-400 hover:w-1 hover:bg-red-100/50 cursor-pointer transition-all z-20"
+                            className="w-px h-full flex-shrink-0 border-l border-dashed border-gray-400/70 hover:border-red-400 hover:w-1 hover:bg-red-100/50 cursor-pointer transition-all z-20"
                             title="Cliquer pour séparer"
                           />
                         )}
@@ -133,7 +133,7 @@ function BarreTranches({ famille, groups, onChange }) {
               {gIdx < groups.length - 1 && (
                 <button
                   onClick={() => toggleBorder(group[group.length - 1])}
-                  className="w-1 h-10 flex-shrink-0 bg-white hover:bg-purple-300 cursor-pointer rounded-sm transition-colors"
+                  className="w-1 h-10 flex-shrink-0 bg-white border-l border-dashed border-gray-300 hover:bg-purple-300 cursor-pointer rounded-sm transition-colors"
                   title="Cliquer pour fusionner"
                 />
               )}
@@ -185,7 +185,7 @@ export default function TranchesFamille({ tranchesParFamille, onChange, familles
           <div>
             <h3 className="font-bold text-gray-800">Tranches horaires par famille</h3>
             <p className="text-sm text-gray-500">
-              Cliquez entre 2 groupes pour fusionner, dans un groupe pour séparer
+              Cliquez sur l'intersection de l'heure et de la tranche pour fusionner ou séparer
             </p>
           </div>
         </div>
@@ -197,6 +197,41 @@ export default function TranchesFamille({ tranchesParFamille, onChange, familles
           <RotateCcw className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Ligne d'exemple */}
+      <div className="flex items-center gap-3 mb-1">
+        <div className="flex items-center gap-2 w-36 flex-shrink-0">
+          <span className="text-xs italic text-gray-400">Exemple</span>
+        </div>
+        <div className="flex-1 flex items-center h-8 relative">
+          {/* Groupe 1 : 2 tranches fusionnées */}
+          <div className="h-full rounded-lg bg-gray-100 border border-gray-200 relative" style={{ flex: 2 }}>
+            <span className="absolute inset-0 flex items-center justify-center text-gray-400 text-[10px] pointer-events-none">9h-14h</span>
+            <div className="absolute top-0 bottom-0 left-1/2 border-l border-dashed border-gray-400/70" />
+          </div>
+          {/* Séparateur cliquable simulé avec annotation */}
+          <div className="w-1 h-8 flex-shrink-0 bg-purple-300 rounded-sm relative">
+            <div className="absolute -top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-purple-600 font-medium">
+              cliquez ici
+            </div>
+          </div>
+          {/* Groupe 2 : 1 tranche seule */}
+          <div className="h-full rounded-lg bg-gray-100 border border-gray-200 relative" style={{ flex: 1 }}>
+            <span className="absolute inset-0 flex items-center justify-center text-gray-400 text-[10px] pointer-events-none">14h-16h</span>
+          </div>
+          {/* Séparateur simple */}
+          <div className="w-1 h-8 flex-shrink-0 bg-white border-l border-dashed border-gray-300 rounded-sm" />
+          {/* Groupe 3 : 3 tranches fusionnées */}
+          <div className="h-full rounded-lg bg-gray-100 border border-gray-200 relative" style={{ flex: 3 }}>
+            <span className="absolute inset-0 flex items-center justify-center text-gray-400 text-[10px] pointer-events-none">16h →</span>
+          </div>
+        </div>
+        <div className="min-w-[28px] flex-shrink-0" />
+      </div>
+      <p className="text-[11px] text-gray-400 italic ml-[156px] mb-2">
+        Cliquez sur l'intersection entre l'heure et la famille pour fusionner ou séparer les tranches
+      </p>
+      <div className="border-b border-dashed border-gray-200 mb-3" />
 
       {/* Barres par famille */}
       <div className="space-y-3">
