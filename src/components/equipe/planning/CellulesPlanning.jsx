@@ -44,17 +44,19 @@ export const formatEcart = (ecart) => {
 /**
  * Composant pour afficher une cellule simple (valeur uniquement)
  */
-export function CelluleSimple({ valeur, variant = 'preco', isPlaque = false }) {
+export function CelluleSimple({ valeur, variant = 'preco', isPlaque = false, isLot = false }) {
   const bgClasses = {
     preco: 'bg-blue-50 text-blue-700',
     histo: 'bg-gray-100 text-gray-600',
     ecart: '' // La couleur est gérée dynamiquement
   };
 
-  // Afficher "Pl." si c'est une valeur en plaques
-  const displayValue = isPlaque && valeur !== '-' && valeur !== null
-    ? `${valeur} Pl.`
-    : valeur;
+  // Afficher "Pl." ou "Bte" selon le mode
+  let displayValue = valeur;
+  if (valeur !== '-' && valeur !== null) {
+    if (isPlaque) displayValue = `${valeur} Pl.`;
+    else if (isLot) displayValue = `${valeur} Bte`;
+  }
 
   return (
     <span className={`inline-block px-2 py-0.5 rounded font-medium text-sm min-w-[32px] ${bgClasses[variant]}`}>
@@ -98,7 +100,7 @@ export function CelluleQuantite({ preco, unitesParPlaque, affichage, variant = '
   // Couleurs selon le variant et si c'est le créneau actif
   let bgClass;
   if (isActif) {
-    bgClass = 'bg-[#8B1538] text-white';
+    bgClass = 'bg-emerald-700 text-white';
   } else if (variant === 'journalier') {
     bgClass = 'bg-green-50 text-green-700';
   } else {

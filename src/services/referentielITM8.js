@@ -26,12 +26,38 @@ let referentielCache = null;
  *   poids: number,
  *   unitesParVente: number (nombre d'unités dans 1 vente, ex: Constance x3+1 = 4),
  *   unitesParPlaque: number (nombre d'unités dans 1 plaque de cuisson),
- *   codePLU: string (code PLU pour les étiquettes)
+ *   codePLU: string (code PLU pour les étiquettes),
+ *   marque: string (marque produit, ex: "P&C", "ARGRU", "DOTS")
  * }
  */
 
 /**
- * Charge le référentiel ITM8 depuis le fichier Excel
+ * Mapping famille V2 → rayon (le V2 n'a plus de colonne RAYON)
+ */
+const mapFamilleV2VersRayon = (libelleFamille) => {
+  const f = (libelleFamille || '').toUpperCase();
+  if (f.includes('PAIN')) return 'BOULANGERIE';
+  if (f.includes('VIENNOISERIE')) return 'VIENNOISERIE';
+  if (f.includes('PATISSERIE')) return 'PATISSERIE';
+  if (f.includes('SNACKING') || f.includes('TRAITEUR')) return 'SNACKING';
+  return 'AUTRE';
+};
+
+/**
+ * Auto-détecte le format du référentiel (V1 ou V2)
+ * V1 : colonne "ITM8" (sans espace)
+ * V2 : colonne "ITM 8" (avec espace)
+ */
+const detecterFormatReferentiel = (headers) => {
+  if (headers.some(h => h === 'ITM 8')) return 'V2';
+  if (headers.some(h => h === 'ITM8')) return 'V1';
+  // Fallback par recherche souple
+  if (headers.some(h => String(h).trim() === 'ITM 8')) return 'V2';
+  return 'V1';
+};
+
+/**
+ * Charge le référentiel ITM8 depuis le fichier Excel (auto-détection V1/V2)
  */
 export const chargerReferentielITM8 = async (filePath) => {
   try {
@@ -45,11 +71,18 @@ export const chargerReferentielITM8 = async (filePath) => {
     const worksheet = workbook.Sheets[sheetName];
     const data = XLSX.utils.sheet_to_json(worksheet);
 
-    // Fonction pour trouver une colonne par recherche floue
+    if (!data.length) {
+      return null;
+    }
+
+    // Auto-détecter le format
+    const headers = Object.keys(data[0]);
+    const format = detecterFormatReferentiel(headers);
+
+    // Fonction pour trouver une colonne par recherche floue (V1 uniquement)
     const trouverColonne = (row, motsCles) => {
       const keys = Object.keys(row);
       for (const key of keys) {
-        // Normaliser: minuscules, sans espaces, sans apostrophes
         const keyNormalized = key.toLowerCase()
           .replace(/\s+/g, '')
           .replace(/['\']/g, '');
@@ -72,46 +105,84 @@ export const chargerReferentielITM8 = async (filePath) => {
     const rayonsSet = new Set();
     const programmesSet = new Set();
 
-    data.forEach((row, index) => {
-      const itm8 = row['ITM8'];
-      const rayon = (row['RAYON'] || '').trim();
-      const programme = (row['Programme de cuisson'] || '').trim();
+    if (format === 'V2') {
+      // ── FORMAT V2 (enrichi avec données V1 : programme, unités, poids) ──
+      data.forEach((row) => {
+        const itm8 = row['ITM 8'];
+        const libelle = (row['LIBELLE CODE PLU'] || '').toString().trim();
+        const famille = (row['LIBELLE FAMILLE'] || '').toString().trim();
+        // Attention : trailing space possible sur LIBELLE SOUS FAMILLE
+        const sousFamille = (row['LIBELLE SOUS FAMILLE'] || row['LIBELLE SOUS FAMILLE '] || '').toString().trim();
+        const ean13Raw = (row['EAN PPV'] || '').toString().trim();
+        const codePLU = (row['PLU'] || '').toString().trim();
+        const marque = (row['MARQUE'] || '').toString().trim();
+        const rayon = mapFamilleV2VersRayon(famille);
 
-      // unit/lot = nombre d'unités dans 1 vente (ex: Constance x3+1 = 4 unités)
-      // Chercher avec plusieurs variantes
-      const unitesParVenteRaw = trouverColonne(row, ['unit/lot', 'unit / lot', 'unitlot', 'unit par lot']);
-      const unitesParVente = Number(unitesParVenteRaw) || 1;
+        // Colonnes V1 intégrées dans V2 (programme cuisson, conditionnement)
+        const programme = (row['Programme de cuisson'] || '').toString().trim();
+        const unitesParPlaqueRaw = row["Nombre d'unit par plaque"];
+        const unitesParPlaque = Number(unitesParPlaqueRaw) || 0;
+        const unitesParVenteRaw = trouverColonne(row, ['unit / lot', 'unit/lot', 'unitlot', 'unit par lot']);
+        const unitesParVente = Number(unitesParVenteRaw) || 1;
+        const poids = Number(row['Poids (produit fini)']) || 0;
 
-      // Nombre d'unités par plaque de cuisson
-      // Chercher DIRECTEMENT par le nom exact de la colonne
-      const unitesParPlaqueRaw = row["Nombre d'unit par plaque"];
-      const unitesParPlaque = Number(unitesParPlaqueRaw) || 0;
+        if (itm8 && libelle) {
+          itm8Map.set(itm8, {
+            itm8,
+            ean13: ean13Raw,
+            libelle,
+            rayon,
+            programme,
+            famille,
+            sousFamille,
+            poids,
+            unitesParVente,
+            unitesParPlaque,
+            codePLU,
+            marque,
+          });
 
-      // Code PLU pour les étiquettes
-      const codePLU = (row['Code PLU'] || row['PLU'] || '').toString().trim();
+          rayonsSet.add(rayon);
+          if (programme) programmesSet.add(programme);
+        }
+      });
+    } else {
+      // ── FORMAT V1 (ancien treville) ──
+      data.forEach((row) => {
+        const itm8 = row['ITM8'];
+        const rayon = (row['RAYON'] || '').trim();
+        const programme = (row['Programme de cuisson'] || '').trim();
 
-      // Code EAN13 (peut contenir plusieurs codes séparés par ";")
-      const ean13Raw = (row['EAN13'] || '').toString().trim();
+        const unitesParVenteRaw = trouverColonne(row, ['unit/lot', 'unit / lot', 'unitlot', 'unit par lot']);
+        const unitesParVente = Number(unitesParVenteRaw) || 1;
 
-      if (itm8 && rayon && programme) {
-        itm8Map.set(itm8, {
-          itm8,
-          ean13: ean13Raw,
-          libelle: row['Libellé produit'] || '',
-          rayon,
-          programme,
-          famille: row['Libellé Fam'] || '',
-          sousFamille: row['Libellé SFam'] || '',
-          poids: row['Poids (produit fini)'] || 0,
-          unitesParVente: Number(unitesParVente) || 1,
-          unitesParPlaque: Number(unitesParPlaque) || 0,
-          codePLU: codePLU
-        });
+        const unitesParPlaqueRaw = row["Nombre d'unit par plaque"];
+        const unitesParPlaque = Number(unitesParPlaqueRaw) || 0;
 
-        rayonsSet.add(rayon);
-        programmesSet.add(programme);
-      }
-    });
+        const codePLU = (row['Code PLU'] || row['PLU'] || '').toString().trim();
+        const ean13Raw = (row['EAN13'] || '').toString().trim();
+
+        if (itm8 && rayon && programme) {
+          itm8Map.set(itm8, {
+            itm8,
+            ean13: ean13Raw,
+            libelle: row['Libellé produit'] || '',
+            rayon,
+            programme,
+            famille: row['Libellé Fam'] || '',
+            sousFamille: row['Libellé SFam'] || '',
+            poids: row['Poids (produit fini)'] || 0,
+            unitesParVente: Number(unitesParVente) || 1,
+            unitesParPlaque: Number(unitesParPlaque) || 0,
+            codePLU,
+            marque: '',
+          });
+
+          rayonsSet.add(rayon);
+          programmesSet.add(programme);
+        }
+      });
+    }
 
     // Créer un index par libellé normalisé pour la recherche par nom
     const libelleMap = new Map();
@@ -229,6 +300,15 @@ export const getListeProgrammes = () => {
 export const isReferentielCharge = () => {
   return referentielCache !== null;
 };
+
+/**
+ * Obtenir le cache du référentiel (pour le nettoyage de gamme)
+ */
+export const getReferentielCache = () => {
+  return referentielCache;
+};
+
+export { mapFamilleV2VersRayon };
 
 /**
  * Mapper le rayon vers l'ancienne famille (BOULANGERIE, VIENNOISERIE, PATISSERIE)

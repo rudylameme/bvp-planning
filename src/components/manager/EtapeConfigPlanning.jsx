@@ -28,6 +28,7 @@ import {
   Edit3,
   X,
   TrendingUp,
+  Database,
 } from 'lucide-react';
 import { useMagasin } from '../../contexts/MagasinContext';
 import { calculateWeekDates, getCurrentWeek } from '../../utils/weekCalculator';
@@ -171,7 +172,11 @@ const EtapeConfigPlanning = () => {
     dossierArchives,
     setDossierArchives,
     setArchiveProduitsEnAttente,
+    dossierEquipe,
+    setPersonnalisationsEquipe,
   } = useMagasin();
+
+  const [etapeChargement, setEtapeChargement] = useState('');
 
   // ── Scanner le dossier (réutilisable) ──
   const scannerDossier = async (handle) => {
@@ -264,6 +269,18 @@ const EtapeConfigPlanning = () => {
   const [archiveTrouvee, setArchiveTrouvee] = useState(null);
   const [rechercheArchiveEnCours, setRechercheArchiveEnCours] = useState(false);
 
+  // Overlay global : visible tant qu'une opération de chargement est en cours
+  const isChargementGlobal = chargement || rechercheAS1EnCours || rechercheFreqEnCours || rechercheArchiveEnCours;
+
+  // Message d'étape dynamique selon la phase active
+  const messageChargementGlobal = useMemo(() => {
+    if (etapeChargement) return etapeChargement; // message prioritaire du handleSelectMagasin
+    if (rechercheAS1EnCours) return 'Recherche des données année précédente (AS-1)…';
+    if (rechercheFreqEnCours) return 'Recherche de la fréquentation (S-4)…';
+    if (rechercheArchiveEnCours) return 'Recherche des archives…';
+    return 'Préparation…';
+  }, [etapeChargement, rechercheAS1EnCours, rechercheFreqEnCours, rechercheArchiveEnCours]);
+
   // ── Objectif ──
   const [benchmarkPourcent, setBenchmarkPourcent] = useState(
     () => {
@@ -339,27 +356,52 @@ const EtapeConfigPlanning = () => {
     setAfficherResultats(false);
 
     if (semaineSelectionnee && dirHandle) {
+      // Forcer React à peindre l'overlay avant le traitement CPU-intensif
+      const attendrePeinture = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 150)));
+
       try {
         setChargement(true);
         setErreur(null);
+        setEtapeChargement('Ouverture du fichier…');
+        await attendrePeinture();
+
         const fileHandle = await dirHandle.getFileHandle(semaineSelectionnee.fichier);
         const file = await fileHandle.getFile();
+
+        setEtapeChargement('Extraction des données du magasin…');
+        await attendrePeinture();
+
         const donnees = await extraireDonneesMagasin(file, magasin.code, dirHandle);
         setDonneesMagasin(donnees);
 
         if (fichierVentesSelectionne) {
           try {
+            setEtapeChargement('Analyse de la gamme produits…');
+            await attendrePeinture();
+
             const vcFileHandle = await dirHandle.getFileHandle(fichierVentesSelectionne.nom);
             const vcFile = await vcFileHandle.getFile();
             const donneesVC = await extraireProduitsVentesCasse(vcFile);
             setDonneesGamme(donneesVC);
-            setProduitsGamme(formaterPourPilotageCA(donneesVC));
+
+            setEtapeChargement('Nettoyage intelligent de la gamme…');
+            await attendrePeinture();
+
+            const semApp = semaineAppliquee || semainePlanning;
+            const moisP = semApp ? new Date(semApp.annee, 0, 1 + (semApp.semaine - 1) * 7).getMonth() + 1 : null;
+            setProduitsGamme(formaterPourPilotageCA(donneesVC, {
+              semaineNumero: semApp?.semaine,
+              moisPlanning: moisP,
+            }));
           } catch { /* non bloquant */ }
         }
+
+        setEtapeChargement('Terminé !');
       } catch {
         setErreur('Impossible de charger les données du magasin.');
       } finally {
         setChargement(false);
+        setEtapeChargement('');
       }
     }
   };
@@ -536,6 +578,46 @@ const EtapeConfigPlanning = () => {
     })();
     return () => { cancelled = true; };
   }, [dossierArchives, semaineAppliquee, magasinSelectionne]);
+
+  // ═══════════════════════════════════════════════════════
+  // RECHERCHE FICHIER EQUIPE (retour personnalisations équipe)
+  // ═══════════════════════════════════════════════════════
+  useEffect(() => {
+    if (!dossierEquipe || !semaineAppliquee || !magasinSelectionne) {
+      setPersonnalisationsEquipe(null);
+      return;
+    }
+    const codePDV = magasinSelectionne.code;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const ok = await checkHandlePermission(dossierEquipe, 'read');
+        if (!ok || cancelled) return;
+      } catch { return; }
+
+      // Chercher le fichier EQUIPE pour la semaine en cours puis S-1, S-2...
+      for (let offset = 0; offset <= 4; offset++) {
+        if (cancelled) return;
+        const sem = offset === 0
+          ? semaineAppliquee
+          : calculerSemaineMoinsN(semaineAppliquee.semaine, semaineAppliquee.annee, offset);
+        const nomFichier = `EQUIPE-${codePDV}-S${String(sem.semaine).padStart(2, '0')}-${sem.annee}.bvp.json`;
+        try {
+          const fileHandle = await dossierEquipe.getFileHandle(nomFichier);
+          if (cancelled) return;
+          const file = await fileHandle.getFile();
+          const data = JSON.parse(await file.text());
+          if (data.type === 'equipe' && data.personnalisations) {
+            setPersonnalisationsEquipe(data.personnalisations);
+          }
+          return; // Fichier trouvé, on arrête
+        } catch { /* fichier non trouvé, essayer la semaine suivante */ }
+      }
+      if (!cancelled) setPersonnalisationsEquipe(null);
+    })();
+    return () => { cancelled = true; };
+  }, [dossierEquipe, semaineAppliquee, magasinSelectionne]);
 
   // ── Persister semaine planning dans le contexte ──
   useEffect(() => {
@@ -773,11 +855,11 @@ const EtapeConfigPlanning = () => {
                 </div>
               )}
 
-              {/* Chargement / Magasin sélectionné */}
+              {/* Chargement inline (petit indicateur en complément de l'overlay) */}
               {chargement && magasinSelectionne && (
                 <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-3">
                   <Loader2 className="w-5 h-5 text-amber-600 animate-spin" />
-                  <p className="font-medium text-amber-800 text-sm">Chargement des données…</p>
+                  <p className="font-medium text-amber-800 text-sm">{etapeChargement || 'Chargement des données…'}</p>
                 </div>
               )}
               {!chargement && magasinSelectionne && donneesMagasin && (
@@ -889,6 +971,30 @@ const EtapeConfigPlanning = () => {
             <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-3">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
               <p className="text-red-800 text-sm">{erreur}</p>
+            </div>
+          )}
+
+          {/* Overlay plein écran de chargement — couvre TOUTES les phases */}
+          {isChargementGlobal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+              <div className="bg-white rounded-2xl shadow-2xl p-8 mx-4 max-w-sm w-full text-center">
+                <div className="flex justify-center mb-4">
+                  <div className="relative">
+                    <Loader2 className="w-12 h-12 text-mousquetaires-rouge animate-spin" />
+                    <Database className="w-5 h-5 text-mousquetaires-rouge absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                  </div>
+                </div>
+                <h3 className="text-lg font-bold text-gray-800 mb-2">Chargement en cours</h3>
+                <p className="text-sm text-gray-500 mb-3">
+                  {messageChargementGlobal}
+                </p>
+                <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                  <div className="bg-mousquetaires-rouge h-1.5 rounded-full animate-pulse" style={{ width: '60%' }} />
+                </div>
+                <p className="text-xs text-gray-400 mt-3">
+                  Merci de patienter, ne fermez pas la page
+                </p>
+              </div>
             </div>
           )}
         </>

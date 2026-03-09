@@ -58,7 +58,7 @@ const WizardContent = ({ onRetourAccueil }) => {
   // Charger le référentiel ITM8 au montage (pour les PLU, familles, rayons)
   useEffect(() => {
     if (!isReferentielCharge()) {
-      chargerReferentielITM8('/Data/liste des produits BVP treville.xlsx');
+      chargerReferentielITM8('/Data/referentiel V2.xlsx');
     }
   }, []);
 

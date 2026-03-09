@@ -206,7 +206,7 @@ export default function ProgrammeGroup({
                 {/* Bouton édition - visible au survol */}
                 <button
                   onClick={() => onEditProduit && onEditProduit(produit)}
-                  className="opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-[#8B1538] hover:bg-[#8B1538]/10 rounded-lg transition-all print:hidden"
+                  className="opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-emerald-700 hover:bg-emerald-700/10 rounded-lg transition-all print:hidden"
                   title="Modifier ce produit"
                 >
                   <Edit3 className="w-4 h-4" />
@@ -221,7 +221,7 @@ export default function ProgrammeGroup({
                   return (
                     <td
                       key={tranche.key}
-                      className={`text-center px-3 py-3 ${estActif ? 'bg-[#8B1538]/5' : ''}`}
+                      className={`text-center px-3 py-3 ${estActif ? 'bg-emerald-700/5' : ''}`}
                     >
                       <CelluleQuantite
                         preco={qteCol.preco || 0}

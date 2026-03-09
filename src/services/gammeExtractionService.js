@@ -26,6 +26,7 @@
 
 import * as XLSX from 'xlsx';
 import { rechercherParLibelle, rechercherParLibelleFuzzy, rechercherParEAN, isReferentielCharge, mapRayonVersFamille } from './referentielITM8';
+import { nettoyerGamme } from './nettoyageGamme';
 
 // Cache pour éviter de relire les fichiers
 const cache = {
@@ -754,10 +755,11 @@ export async function extraireProduitsParRayon(file, catalogueRayons = null) {
  * @param {Object} data - Données extraites par extraireProduitsVentesCasse
  * @returns {Array} Tableau de produits formatés pour le pilotage CA
  */
-export function formaterPourPilotageCA(data) {
+export function formaterPourPilotageCA(data, options = {}) {
+  const { semaineNumero, moisPlanning } = options;
   const { produits, statistiques } = data;
 
-  return produits.map((p, index) => {
+  const produitsFormates = produits.map((p, index) => {
     // Chercher dans le référentiel : priorité EAN, puis libellé exact, puis libellé fuzzy
     let infoRef = null;
     if (isReferentielCharge()) {
@@ -781,14 +783,16 @@ export function formaterPourPilotageCA(data) {
       rayon = mapRayonVersFamille(infoRef.rayon);
     } else {
       const lib = p.libelle.toLowerCase();
-      if (lib.includes('baguette') || lib.includes('pain') || lib.includes('boule') || lib.includes('ficelle') || lib.includes('campagne')) {
+      if (lib.includes('baguette') || lib.includes('pain') || lib.includes('boule') || lib.includes('ficelle') || lib.includes('campagne') || lib.includes('tradition') || lib.includes('cereale') || lib.includes('céréale') || lib.includes('constance') || lib.includes('buchette')) {
         rayon = 'BOULANGERIE';
-      } else if (lib.includes('croissant') || lib.includes('pain au chocolat') || lib.includes('brioche') || lib.includes('chocolatine') || lib.includes('chausson')) {
+      } else if (lib.includes('croissant') || lib.includes('pain au chocolat') || lib.includes('brioche') || lib.includes('chocolatine') || lib.includes('chausson') || lib.includes('viennois') || lib.includes('pain raisin') || lib.includes('suisse')) {
         rayon = 'VIENNOISERIE';
-      } else if (lib.includes('tarte') || lib.includes('éclair') || lib.includes('mille') || lib.includes('gâteau') || lib.includes('flan') || lib.includes('paris')) {
+      } else if (lib.includes('tarte') || lib.includes('éclair') || lib.includes('eclair') || lib.includes('mille') || lib.includes('gâteau') || lib.includes('gateau') || lib.includes('flan') || lib.includes('paris') || lib.includes('beignet') || lib.includes('donut') || lib.includes('cookie') || lib.includes('brownie') || lib.includes('muffin') || lib.includes('macaron') || lib.includes('palmier') || lib.includes('galette') || lib.includes('buche') || lib.includes('bûche') || lib.includes('canele') || lib.includes('canelé') || lib.includes('meringuette') || lib.includes('meringue') || lib.includes('moelleux') || lib.includes('mouna') || lib.includes('opera') || lib.includes('opéra') || lib.includes('tropezienne') || lib.includes('tropézienne') || lib.includes('fraisier') || lib.includes('paris brest') || lib.includes('millefeuille') || lib.includes('mille-feuille') || lib.includes('religieuse') || lib.includes('gaufre') || lib.includes('craquotant') || lib.includes('fondant') || lib.includes('tiramisu')) {
         rayon = 'PATISSERIE';
-      } else if (lib.includes('sandwich') || lib.includes('pizza') || lib.includes('quiche') || lib.includes('croque') || lib.includes('salade')) {
+      } else if (lib.includes('sandwich') || lib.includes('pizza') || lib.includes('quiche') || lib.includes('croque') || lib.includes('salade') || lib.includes('wrap') || lib.includes('panini') || lib.includes('hot dog') || lib.includes('focaccia') || lib.includes('empanada')) {
         rayon = 'SNACKING';
+      } else if (lib.includes('pave') || lib.includes('pavé') || lib.includes('miche') || lib.includes('boule') || lib.includes('campagn')) {
+        rayon = 'BOULANGERIE';
       }
     }
 
@@ -852,6 +856,11 @@ export function formaterPourPilotageCA(data) {
       actif: true, // Tous les produits actifs par défaut
     };
   });
+
+  // Nettoyage intelligent de la gamme
+  const produitsNettoyes = nettoyerGamme(produitsFormates, semaineNumero, moisPlanning);
+
+  return produitsNettoyes;
 }
 
 /**

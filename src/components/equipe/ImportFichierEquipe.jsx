@@ -114,7 +114,7 @@ export default function ImportFichierEquipe({ onFichierCharge }) {
         {/* En-tête */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-[#E8E1D5]/50 rounded-full mb-4">
-            <FileJson className="w-10 h-10 text-[#8B1538]" />
+            <FileJson className="w-10 h-10 text-emerald-700" />
           </div>
           <h2 className="text-2xl font-bold text-[#58595B] mb-2">
             Bienvenue !
@@ -131,16 +131,16 @@ export default function ImportFichierEquipe({ onFichierCharge }) {
           onDrop={handleDrop}
           className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${
             isDragging
-              ? 'border-[#ED1C24] bg-[#ED1C24]/5'
-              : 'border-gray-300 hover:border-[#ED1C24]/50'
+              ? 'border-emerald-600 bg-emerald-600/5'
+              : 'border-gray-300 hover:border-emerald-600/50'
           }`}
         >
-          <Upload className={`w-12 h-12 mx-auto mb-4 ${isDragging ? 'text-[#ED1C24]' : 'text-gray-400'}`} />
+          <Upload className={`w-12 h-12 mx-auto mb-4 ${isDragging ? 'text-emerald-600' : 'text-gray-400'}`} />
           <p className="text-gray-600 mb-4">
             Glissez-déposez votre fichier ici
           </p>
           <p className="text-sm text-gray-400 mb-4">ou</p>
-          <label className="inline-flex items-center gap-2 px-6 py-3 bg-[#ED1C24] text-white rounded-lg font-medium hover:bg-[#8B1538] cursor-pointer transition-colors">
+          <label className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 cursor-pointer transition-colors">
             <Upload className="w-5 h-5" />
             Charger le fichier magasin
             <input
@@ -191,7 +191,7 @@ export default function ImportFichierEquipe({ onFichierCharge }) {
           {/* Magasin */}
           <div className="flex items-center gap-3">
             <div className="p-2 bg-[#E8E1D5]/50 rounded-lg">
-              <Store className="w-5 h-5 text-[#8B1538]" />
+              <Store className="w-5 h-5 text-emerald-700" />
             </div>
             <div>
               <p className="text-xs text-gray-500">Magasin</p>
@@ -205,7 +205,7 @@ export default function ImportFichierEquipe({ onFichierCharge }) {
           {/* Semaine */}
           <div className="flex items-center gap-3">
             <div className="p-2 bg-[#E8E1D5]/50 rounded-lg">
-              <Calendar className="w-5 h-5 text-[#8B1538]" />
+              <Calendar className="w-5 h-5 text-emerald-700" />
             </div>
             <div>
               <p className="text-xs text-gray-500">Semaine</p>
@@ -221,7 +221,7 @@ export default function ImportFichierEquipe({ onFichierCharge }) {
           {/* Produits */}
           <div className="flex items-center gap-3">
             <div className="p-2 bg-[#E8E1D5]/50 rounded-lg">
-              <Package className="w-5 h-5 text-[#8B1538]" />
+              <Package className="w-5 h-5 text-emerald-700" />
             </div>
             <div>
               <p className="text-xs text-gray-500">Produits actifs</p>
@@ -250,7 +250,7 @@ export default function ImportFichierEquipe({ onFichierCharge }) {
         </button>
         <button
           onClick={confirmerChargement}
-          className="flex-1 px-6 py-3 bg-[#ED1C24] text-white rounded-lg font-medium hover:bg-[#8B1538] transition-colors"
+          className="flex-1 px-6 py-3 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors"
         >
           Confirmer
         </button>

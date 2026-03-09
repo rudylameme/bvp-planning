@@ -130,11 +130,14 @@ export function genererFicheJourHTML(jour, {
 
           const upp = produit.unitesParPlaque || 0;
 
-          const formatQte = (qte) => {
-            if (produit.unitesParLot && produit.unitesParLot > 1) {
-              return `<strong>${qte}</strong><sub>(=${qte * produit.unitesParLot})</sub>`;
+          const formatQte = (qteUnites) => {
+            if (produit.unitesParLot && produit.unitesParLot > 1 && qteUnites > 0) {
+              // Arrondi supérieur : unités → lots (boîtes)
+              const lots = Math.ceil(qteUnites / produit.unitesParLot);
+              const unitesReelles = lots * produit.unitesParLot;
+              return `<strong>${lots} Bte</strong><sub>(${unitesReelles} u.)</sub>`;
             }
-            return `<strong>${qte}</strong>`;
+            return `<strong>${qteUnites}</strong>`;
           };
 
           let tranchesColsHTML = '';

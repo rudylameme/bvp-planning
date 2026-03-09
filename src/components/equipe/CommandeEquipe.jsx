@@ -242,11 +242,39 @@ export default function CommandeEquipe({ fichierManager = null }) {
     const semaine = managerData.semaine?.numero || managerData.configuration?.semaine;
     const annee = managerData.semaine?.annee || managerData.configuration?.annee;
 
+    // Récupérer les personnalisations du planning (localStorage)
+    let personnalisations = {};
+    try {
+      const modifsSaved = localStorage.getItem('bvp_produits_modifies');
+      if (modifsSaved) {
+        const modifs = JSON.parse(modifsSaved);
+        // Convertir format PlanningJour → format equipe.json
+        // PlanningJour: { [produit.id]: { libelle, famille, programme, plu, unitesParPlaque, unitesParLot } }
+        // equipe.json: { [itm8]: { nomPersonnalise, programmeFour, unitesParPlaque, unitesParLot, plu, famille } }
+        const produitsIndex = {};
+        (managerData.produits || []).forEach(p => {
+          produitsIndex[p.id] = p;
+        });
+        Object.entries(modifs).forEach(([prodId, modif]) => {
+          const prod = produitsIndex[prodId];
+          const itm8 = prod?.itm8 || prodId;
+          personnalisations[itm8] = {
+            nomPersonnalise: modif.libelle || null,
+            programmeFour: modif.programme || null,
+            unitesParPlaque: modif.unitesParPlaque || 0,
+            unitesParLot: modif.unitesParLot || 0,
+            plu: modif.plu || null,
+            famille: modif.famille || null,
+          };
+        });
+      }
+    } catch { /* ignorer erreurs localStorage */ }
+
     const fichier = creerFichierEquipe({
       magasin: managerData.magasin,
       semaine,
       annee,
-      personnalisations: {},
+      personnalisations,
       inventaires,
       plaquageJ1: { produits: [], familles: [] },
       operateur: nomOperateur.trim()
@@ -335,7 +363,7 @@ export default function CommandeEquipe({ fichierManager = null }) {
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
           <div className="w-20 h-20 bg-[#E8E1D5]/50 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Package className="w-10 h-10 text-[#8B1538]" />
+            <Package className="w-10 h-10 text-emerald-700" />
           </div>
           <h1 className="text-2xl font-bold text-[#58595B] mb-2">Commande</h1>
           <p className="text-gray-600 mb-8">
@@ -343,7 +371,7 @@ export default function CommandeEquipe({ fichierManager = null }) {
           </p>
           <button
             onClick={() => inputFileRef.current?.click()}
-            className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-[#ED1C24] text-white text-lg font-medium rounded-xl hover:bg-[#8B1538] transition-colors"
+            className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-emerald-600 text-white text-lg font-medium rounded-xl hover:bg-emerald-700 transition-colors"
           >
             <Upload className="w-6 h-6" />
             Importer le fichier Manager
@@ -404,12 +432,12 @@ export default function CommandeEquipe({ fichierManager = null }) {
         <div className="max-w-5xl mx-auto px-4 py-2 border-t border-gray-100">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 flex-shrink-0">
-              <Calendar className="w-5 h-5 text-[#8B1538]" />
+              <Calendar className="w-5 h-5 text-emerald-700" />
               <label className="text-sm font-medium text-gray-700">Livraison :</label>
               <select
                 value={dateLivraisonIdx}
                 onChange={(e) => setDateLivraisonIdx(parseInt(e.target.value))}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium focus:ring-2 focus:ring-[#ED1C24]/20 focus:border-[#ED1C24]"
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600"
               >
                 {datesLivraison.map((d, i) => (
                   <option key={d.iso} value={i}>{d.label}</option>
@@ -423,7 +451,7 @@ export default function CommandeEquipe({ fichierManager = null }) {
                 value={recherche}
                 onChange={(e) => setRecherche(e.target.value)}
                 placeholder="Rechercher..."
-                className="w-full pl-9 pr-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ED1C24]/20 focus:border-[#ED1C24] text-sm"
+                className="w-full pl-9 pr-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 text-sm"
               />
             </div>
           </div>
@@ -485,8 +513,8 @@ export default function CommandeEquipe({ fichierManager = null }) {
                         <th className="text-center px-2 py-2 font-medium text-gray-600 w-20">Ventes</th>
                         <th className="text-center px-2 py-2 font-medium text-gray-600 w-24">Stock</th>
                         <th className="text-center px-2 py-2 font-medium text-gray-600 w-20">Besoin</th>
-                        <th className="text-center px-2 py-2 font-medium text-[#8B1538] w-20 bg-[#E8E1D5]/30">Préco</th>
-                        <th className="text-center px-2 py-2 font-medium text-[#8B1538] w-20 bg-[#ED1C24]/5">À cmd</th>
+                        <th className="text-center px-2 py-2 font-medium text-emerald-700 w-20 bg-[#E8E1D5]/30">Préco</th>
+                        <th className="text-center px-2 py-2 font-medium text-emerald-700 w-20 bg-emerald-600/5">À cmd</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -568,7 +596,7 @@ export default function CommandeEquipe({ fichierManager = null }) {
                                 onChange={(e) => handleStockChange(produit.itm8, e.target.value)}
                                 onKeyDown={(e) => handleKeyDown(e, produit.itm8, produitsOrdre)}
                                 placeholder="?"
-                                className={`w-20 px-2 py-1.5 text-center font-bold border-2 rounded-lg focus:ring-2 focus:ring-[#ED1C24]/30 focus:border-[#ED1C24] ${
+                                className={`w-20 px-2 py-1.5 text-center font-bold border-2 rounded-lg focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 ${
                                   enRupture
                                     ? 'border-red-400 bg-red-50 text-red-700'
                                     : stockCartons !== null
@@ -586,14 +614,14 @@ export default function CommandeEquipe({ fichierManager = null }) {
                             {/* Préco Manager (cartons par livraison) */}
                             <td className="text-center px-2 py-2 bg-[#E8E1D5]/20">
                               {precoManager !== null ? (
-                                <span className="font-semibold text-[#8B1538]">{precoManager}</span>
+                                <span className="font-semibold text-emerald-700">{precoManager}</span>
                               ) : (
                                 <span className="text-gray-400">-</span>
                               )}
                             </td>
 
                             {/* À commander (cartons) */}
-                            <td className={`text-center px-2 py-2 font-bold bg-[#ED1C24]/5 ${aCommander > 0 ? 'text-[#8B1538]' : 'text-gray-500'}`}>
+                            <td className={`text-center px-2 py-2 font-bold bg-emerald-600/5 ${aCommander > 0 ? 'text-emerald-700' : 'text-gray-500'}`}>
                               {stockCartons !== null ? aCommander : '-'}
                             </td>
                           </tr>
@@ -619,7 +647,7 @@ export default function CommandeEquipe({ fichierManager = null }) {
                 value={nomOperateur}
                 onChange={(e) => setNomOperateur(e.target.value)}
                 placeholder="Votre nom..."
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ED1C24]/20 focus:border-[#ED1C24] text-sm"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 text-sm"
               />
             </div>
             <button
@@ -631,7 +659,7 @@ export default function CommandeEquipe({ fichierManager = null }) {
             </button>
             <button
               onClick={handleExporter}
-              className="flex items-center gap-2 px-6 py-3 bg-[#ED1C24] text-white rounded-xl font-medium hover:bg-[#8B1538] transition-colors"
+              className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors"
             >
               <Download className="w-5 h-5" />
               Exporter

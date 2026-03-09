@@ -228,13 +228,23 @@ const construireArchive = ({
         label: l.label || `Livraison ${l.id}`,
       })),
       operationsSpeciales: [],
-      repartitionParFamille: {
-        BOULANGERIE: 'tranches',
-        VIENNOISERIE: 'tranches',
-        PATISSERIE: 'journalier',
-        SNACKING: 'journalier',
-        AUTRE: 'journalier',
-      },
+      // repartitionParFamille déduite des tranchesParFamille du manager :
+      // si une famille a plus d'1 tranche → mode "tranches", sinon → "journalier"
+      repartitionParFamille: (() => {
+        const tpf = joursOuverture?.tranchesParFamille;
+        if (!tpf) return {
+          BOULANGERIE: 'tranches',
+          VIENNOISERIE: 'tranches',
+          PATISSERIE: 'journalier',
+          SNACKING: 'journalier',
+          AUTRE: 'journalier',
+        };
+        const result = {};
+        Object.entries(tpf).forEach(([famille, tranches]) => {
+          result[famille] = (Array.isArray(tranches) && tranches.length > 1) ? 'tranches' : 'journalier';
+        });
+        return result;
+      })(),
     },
 
     promotions,
@@ -257,7 +267,7 @@ const construireArchive = ({
       version: 'ITM8-2026',
       inclus: true,
       familles,
-      source: 'liste des produits BVP treville.xlsx',
+      source: 'referentiel V2.xlsx',
     },
   };
 

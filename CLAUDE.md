@@ -5,6 +5,23 @@
 
 ---
 
+## 📖 RÈGLE N°0 : TOUJOURS LIRE LE CDC ET LE METTRE À JOUR
+
+**À chaque nouvelle conversation Claude Code sur ce projet :**
+
+1. **EN DÉBUT DE SESSION** : lire les fichiers suivants pour comprendre l'objectif et l'état actuel de l'application :
+   - `CLAUDE.md` (ce fichier — règles, architecture, interdictions)
+   - `CAHIER_DES_CHARGES_V5.md` (spécifications fonctionnelles de référence)
+   - `ADDENDUM_CDC_V5.2.md` (modifications V5.2 et V5.3 — contient la vraie structure du fichier .bvp.json)
+
+2. **EN FIN DE SESSION** : après chaque modification validée par l'utilisateur, mettre à jour :
+   - `CLAUDE.md` — ajouter les anomalies corrigées, nouvelles interdictions, fichiers modifiés
+   - `ADDENDUM_CDC_V5.2.md` — documenter les changements fonctionnels (nouvelle section ou ajout à la section existante)
+
+3. **OBJECTIF** : ces documents constituent la mémoire du projet entre les sessions. Sans eux, le contexte est perdu. Chaque modification non documentée est une dette technique.
+
+---
+
 ## ⚠️ RÈGLE N°1 : NE JAMAIS CASSER CE QUI FONCTIONNE
 
 1. **Avant toute modification** : lire le fichier concerné EN ENTIER
@@ -65,7 +82,8 @@ src/
 │   ├── planningCalculator.js         (623 lignes) Planning initial (redistribution, fermetures)
 │   ├── planningRecalculator.js       (350 lignes) Recalcul avec variantes/modifications
 │   ├── caCalculator.js               (140 lignes) Calcul CA produit/rayon/objectif
-│   ├── referentielITM8.js            (358 lignes) Référentiel produits ITM8/EAN/PLU
+│   ├── referentielITM8.js            (430 lignes) Référentiel produits ITM8/EAN/PLU (auto-détection V1/V2)
+│   ├── nettoyageGamme.js            (460 lignes) Nettoyage intelligent gamme (6 passes)
 │   ├── conditionnementService.js     (228 lignes) CDT (conditionnement), cartons
 │   ├── productClassifier.js          (155 lignes) Classification par mots-clés
 │   ├── fichierEchangeService.js      (462 lignes) Format .bvp.json manager/équipe
@@ -241,7 +259,7 @@ const ETAPES = [
 | 3 | Etape2bImportVentes | Import ventes/casse (min 3 semaines) | Fichier Excel ventes | donneesGamme, produitsGamme |
 | 4 | Etape3Configuration | Jours ouverture, tranches, redistribution | — | joursOuverture (creneaux, redistribution, regroupements, nbTranches) |
 | 5 | Etape4PilotageCA | Gamme, limites progression, promos, commande | produitsGamme | planifieManager, promosActives, commandeConfig |
-| 6 | Etape5Communication | Export archive .bvp.json V3.0 | Tout le contexte | Fichier MANAGER-{code}-S{sem}-{annee}.bvp.json |
+| 6 | Etape5Communication | Export archive .bvp.json V3.0 | Tout le contexte | Fichier MANAGER-{code}-S{sem}-{annee}.bvp.json (dateDebut via `formatDateLocale()`, pas `toISOString()`) |
 
 ### Contexte global — MagasinContext
 
@@ -697,7 +715,7 @@ Nom du fichier : `MANAGER-{codePDV}-S{semaine}-{annee}.bvp.json`
     nbTranches,           // 3, 4, 5 ou 6
     livraisons,           // config livraisons
     operationsSpeciales,  // fermetures exceptionnelles
-    repartitionParFamille // 'tranches' | 'journalier' par famille
+    repartitionParFamille // 'tranches' | 'journalier' par famille — DÉDUIT de tranchesParFamille (>1 tranche → 'tranches', 1 seule → 'journalier')
   },
 
   promotions: [{
@@ -1001,6 +1019,7 @@ Source : `src/styles/mousquetaires-theme.js` lignes 69-114
 8. **NE JAMAIS** modifier les 6 tranches internes — c'est la base de tous les calculs
 9. **NE JAMAIS** supprimer le localStorage équipe sans migration
 10. **NE JAMAIS** modifier la formule de marge Mousquetaires (TVA 5.5%, calcul PV HT, PA HT)
+11. **NE JAMAIS** utiliser `toISOString().split('T')[0]` pour formater une date locale → utiliser `formatDateLocale()` (bug UTC corrigé le 23/02/2026)
 
 ---
 
@@ -1013,8 +1032,10 @@ Source : `src/styles/mousquetaires-theme.js` lignes 69-114
 - [ ] Le toggle Unités/Plaques fonctionne dans les 2 sens
 - [ ] Les produits à quantité 0 sont bien masqués
 - [ ] Le drag & drop des familles/programmes fonctionne
-- [ ] L'impression (PlanningJour, PlanningHebdo) génère un rendu correct
+- [ ] L'impression (PlanningJour, PlanningHebdo) génère un rendu correct avec date complète
+- [ ] L'export Excel génère un fichier .xlsx avec colonnes PLU/EAN séparées et vue semaine
 - [ ] Les 3 types de pondération produisent des résultats différents
+- [ ] **CLAUDE.md** et **ADDENDUM_CDC_V5.2.md** sont mis à jour avec les modifications effectuées
 - [ ] L'export .bvp.json contient tous les champs requis par le schéma
 - [ ] Les archives existantes (.bvp.json V2.0, V2.1, V3.0) restent lisibles
 - [ ] Les constantes métier n'ont pas été modifiées par inadvertance
@@ -1035,3 +1056,122 @@ Source : `src/styles/mousquetaires-theme.js` lignes 69-114
 5. **Preset 4T** : Le preset 4 tranches est mentionné dans la documentation (constants.js L65-92) mais sa composition exacte n'est pas aussi claire que les presets 3T, 5T et 6T.
 
 6. **Distribution par défaut famille** : `WizardResponsable.jsx` (L38-45) définit `REPARTITION_DEFAUT` avec `NEGOCE: 'journalier'` mais la famille NEGOCE n'apparaît pas dans `LIMITES_PROGRESSION_DEFAUT` — cohérence à vérifier.
+
+7. ~~**Bug UTC dateDebut**~~ **CORRIGÉ le 23/02/2026** : `getDateDebutSemaine()` dans `Etape5Communication.jsx` utilisait `toISOString().split('T')[0]` qui convertit en UTC → en France (UTC+1), un lundi minuit devenait dimanche 23h UTC → date de la veille stockée dans le .bvp.json. Corrigé avec `formatDateLocale()`. Rétrocompatibilité assurée dans `helpers.js` (si dateDebut = dimanche → +1 jour).
+
+8. ~~**`repartitionParFamille` codée en dur**~~ **CORRIGÉ le 23/02/2026** : Dans `Etape5Communication.jsx`, la `repartitionParFamille` était codée en dur avec des valeurs par défaut au lieu d'être déduite de `tranchesParFamille` configuré par le manager. Corrigé : si une famille a >1 tranche → 'tranches', si 1 seule tranche → 'journalier'. Règle métier : c'est le manager qui décide, pas l'équipe.
+
+9. ~~**Nettoyage gamme — 5 bugs**~~ **CORRIGÉ le 23/02/2026** :
+   - **Bug 3** : L'ordre des passes doublons/PRE-PAC était incorrect — la fusion de doublons avant PRE/PAC empêchait la détection PRE car les libellés normalisés sont identiques. Corrigé : PRE/PAC (passe 2) avant doublons (passe 3). Ajout de `PRECUIT` dans le regex PRE. Recherche équivalent PAC dans tous les produits (actifs ET inactifs).
+   - **Bug 2** : Les galettes n'étaient pas marquées "hors-saison" car la passe 4 ignorait les produits déjà inactifs (promos). Corrigé : la passe hors-saison s'applique aussi aux produits déjà désactivés (écrase `raisonDesactivation: 'promo'` par `'hors-saison'`).
+   - **Bug 1** : Presque tous les produits en rayon "AUTRE" car les EAN V2 (internes/balance) ne matchent pas les EAN standards des ventes. Corrigé : (a) enrichissement du rayon depuis le ref V2 quand un match est trouvé, (b) heuristique élargie avec plus de mots-clés (tradition, buchette, beignet, donut, cookie, wrap, panini...).
+   - **Bug 4** : 266 "à créer" — seuil fuzzy trop strict. Corrigé : (a) seuil abaissé à 0.4, (b) score pondéré 50% Jaccard + 50% couverture tokens vente, (c) matching par sous-chaîne (inclusion) ajouté avant le fuzzy, (d) filtre P&C : ne pas proposer un produit P&C "à créer" si un non-P&C avec le même libellé normalisé existe.
+   - **Bug 5** : Ajout de la gestion manuelle des doublons — boutons "Séparer" et "Fusionner avec..." dans OngletGamme. Corrections persistées dans localStorage (`bvp_corrections_doublons`). Passe 6 ajoutée dans `nettoyerGamme()`.
+
+10. ~~**Nettoyage gamme V2 — 2 bugs**~~ **CORRIGÉ le 23/02/2026** :
+   - **Bug critique** : L'archive `.bvp.json` (semaine précédente) écrasait les résultats du nettoyage. Dans `MagasinContext.jsx`, le `useEffect` qui applique l'archive remettait `actif: true` et `rayon` d'avant le ref V2 sur les produits. Corrigé : ne PAS écraser `actif` si `raisonDesactivation` est défini (promo, hors-saison, doublon), ne PAS écraser `rayon` si `matchRefV2` est défini.
+   - **Bug secondaire** : Faux positifs fuzzy matching — des produits étaient matchés à tort avec un seul token en commun (ex: `BUGNES CITRON` → `ENTREMET CITRON` sur le mot "CITRON"). Corrigé : exiger au minimum 2 tokens communs pour valider un match fuzzy.
+
+11. ~~**Nettoyage gamme V3 — 3 corrections structurelles**~~ **CORRIGÉ le 24/02/2026** :
+   - **Correction 1** : `normaliserLibelle()` ne gérait pas les fractions (1/2, 1/3), ni le "/" comme séparateur, ni les nombres seuls, lots (X8) ou diamètres (D22). Corrigé : fractions → DEMI/TIERS/QUART, "/" → espace, retrait des nombres 2-4 chiffres, X\d+, D\d+, OFF, S.A, PRECUIT dans les exclusions.
+   - **Correction 2** : Le fuzzy matching comparait les tokens en exact uniquement → "FOUR" ≠ "FOURRES", "POM" ≠ "POMME". Corrigé : ajout de `scoreTokens()` avec correspondance par préfixe (min 3 chars) valant 0.7 au lieu de 1.0. Le `calculerScore()` utilise maintenant un matching bijectif (chaque token ref utilisé une seule fois).
+   - **Correction 3** : Heuristique rayon enrichie dans `gammeExtractionService.js` avec : canelé, meringuette, meringue, moelleux, mouna, opéra, tropézienne, fraisier, paris brest, millefeuille, religieuse, gaufre, craquotant, fondant, tiramisu (PATISSERIE) + pavé, miche, boule, campagn (BOULANGERIE).
+
+---
+
+## 🧹 NETTOYAGE INTELLIGENT DE LA GAMME
+
+Source : `src/services/nettoyageGamme.js`
+
+### Pipeline de nettoyage (6 passes)
+
+| Passe | Nom | Description |
+|-------|-----|-------------|
+| 1 | Promos | Désactive les produits commençant par `*` |
+| 2 | PRE/PAC | Désactive les PRE si un PAC équivalent existe (même libellé normalisé) |
+| 3 | Doublons | Fusionne les doublons (même libellé normalisé), garde le CA le plus élevé |
+| 4 | Hors saison | Désactive galettes (jan), Noël (nov-dec), bûches (nov-dec). Exception : BUCHETTE = pain |
+| 5 | Matching V2 | Enrichit avec le référentiel V2 (ITM8, EAN, sous-chaîne, fuzzy). Ajoute les "à créer" |
+| 6 | Corrections manuelles | Applique les séparations/fusions manuelles depuis localStorage |
+
+### Clés localStorage
+
+- `bvp_corrections_doublons` : `{ separations: string[], fusions: [{ source, cible }] }`
+
+### Fichiers impactés
+
+| Fichier | Rôle |
+|---------|------|
+| `nettoyageGamme.js` | Service de nettoyage (6 passes) |
+| `gammeExtractionService.js` | Appel `nettoyerGamme()` en fin de `formaterPourPilotageCA()` |
+| `OngletGamme.jsx` | Tags visuels, compteurs, filtres, boutons Séparer/Fusionner |
+| `Etape4PilotageCA.jsx` | Passe `onReloadGamme` pour les corrections manuelles |
+
+---
+
+## 📊 EXPORT EXCEL — PLANNING ÉQUIPE
+
+Source : `src/components/equipe/planning/exportExcel.js`
+
+### Vue semaine (défaut depuis le 23/02/2026)
+
+Le bouton Excel génère un fichier `.xlsx` avec **tous les jours de la semaine** :
+
+```
+Famille | Programme | Produit | Code PLU | Code EAN | Lundi - Matin | Lundi - 12h-14h | ... | Total Lundi | Mardi - Matin | ... | Total Semaine
+```
+
+- Colonnes **Code PLU** et **Code EAN** séparées (anciennement une seule colonne "Code PLU/EAN")
+- Pour chaque jour : colonnes par tranche horaire + total du jour
+- Dernière colonne : total semaine
+- Fichier nommé : `Planning-Semaine-S{sem}-{codePDV}.xlsx`
+
+### Vue jour (legacy, accessible via option `vueSemaine: false`)
+
+```
+Famille | Programme | Produit | Code PLU | Code EAN | [tranches] | Total jour | Historique
+```
+
+- Même structure qu'avant mais avec PLU/EAN séparés
+- Fichier nommé : `Planning-{Jour}-S{sem}-{codePDV}.xlsx`
+
+### Modes d'impression Excel
+
+- **continu** : 1 seul onglet "Planning Semaine" avec toutes les familles
+- **séparé** : 1 onglet par famille (nom de l'onglet = nom de la famille)
+- Filtre familles respecté (`famillesImpression`)
+
+---
+
+## 🖨️ IMPRESSION — DATES COMPLÈTES
+
+Source : `src/components/equipe/planning/SectionImpression.jsx`
+
+### Format de date dans les en-têtes
+
+L'en-tête de chaque fiche affiche la date complète : **"Planning Lundi 23 Mars 2026"**
+
+- Calculée via `getDateJour()` dans `helpers.js` (utilise `configuration.dateDebut`)
+- Fallback si `dateDebut` absent : calcul ISO depuis `configuration.semaine` + `configuration.annee`
+- Première lettre en majuscule automatique
+
+### Impression semaine
+
+`handlePrintSemaine()` génère **7 fiches** (Lundi → Dimanche), une par page A4, avec saut de page entre chaque. Les options d'impression (mode continu/séparé, sélection de familles) sont respectées sur chaque fiche.
+
+---
+
+## 🔧 CORRECTIONS — DATES ET FUSEAUX HORAIRES
+
+### Bug UTC corrigé le 23/02/2026
+
+**Fichiers impactés :**
+
+| Fichier | Correction |
+|---------|-----------|
+| `Etape5Communication.jsx` | `toISOString()` → `formatDateLocale()` (évite conversion UTC) |
+| `helpers.js` | Parsing `new Date(Y, M-1, D)` au lieu de `new Date("Y-M-D")` + correction rétrocompat si dateDebut = dimanche |
+| `AccueilEquipe.jsx` | Propagation de `dateDebut` dans l'objet `configuration` passé à PlanningJour |
+| `SectionImpression.jsx` | Utilisation de `dateJourFormatee` au lieu du doublon jourComplet + dateJour |
+
+**Règle :** ne JAMAIS utiliser `toISOString().split('T')[0]` pour formater une date locale en YYYY-MM-DD. Toujours utiliser `formatDateLocale()` ou `new Date(year, month-1, day)` pour éviter les décalages UTC.

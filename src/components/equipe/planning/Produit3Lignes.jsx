@@ -18,37 +18,68 @@ const TRANCHES_CONFIG = [
 export default function Produit3Lignes({ produit, qtes, modeRepartition, affichage, colonnesVisibles, trancheActuelle }) {
   const unitesParPlaque = produit.unitesParPlaque;
   const isPlaque = affichage === 'plaques' && unitesParPlaque > 0;
+  const unitesParLot = produit.unitesParLot || 0;
+  const isLot = unitesParLot > 1;
+
+  // Convertir unités → lots (arrondi supérieur)
+  // Ex: 30 unités ÷ 12/lot = ceil(2.5) = 3 lots = 36 unités réelles
+  const convertirEnLots = (qteUnites) => {
+    if (!isLot || !qteUnites || qteUnites <= 0) return qteUnites;
+    return Math.ceil(qteUnites / unitesParLot);
+  };
 
   // Utiliser les colonnes visibles ou toutes les tranches par défaut
   const tranchesAffichees = colonnesVisibles || TRANCHES_CONFIG;
 
   // Préparer les données pour chaque ligne (en utilisant les colonnes visibles)
   const lignesData = modeRepartition === 'tranches' ? {
-    preco: tranchesAffichees.map(t => convertirEnPlaques(getQteColonne(t, qtes.tranches).preco || 0, unitesParPlaque, affichage)),
+    preco: tranchesAffichees.map(t => {
+      const raw = getQteColonne(t, qtes.tranches).preco || 0;
+      const val = convertirEnPlaques(raw, unitesParPlaque, affichage);
+      return isLot ? convertirEnLots(val) : val;
+    }),
     histo: tranchesAffichees.map(t => {
       const qte = getQteColonne(t, qtes.tranches);
-      return qte.histo ? convertirEnPlaques(qte.histo, unitesParPlaque, affichage) : null;
+      if (!qte.histo) return null;
+      const val = convertirEnPlaques(qte.histo, unitesParPlaque, affichage);
+      return isLot ? convertirEnLots(val) : val;
     }),
     ecart: tranchesAffichees.map(t => {
       const qte = getQteColonne(t, qtes.tranches);
       return calculerEcart(qte.preco || 0, qte.histo);
     }),
-    totalPreco: convertirEnPlaques(qtes.total.preco, unitesParPlaque, affichage),
-    totalHisto: qtes.total.histo ? convertirEnPlaques(qtes.total.histo, unitesParPlaque, affichage) : null,
+    totalPreco: (() => {
+      const val = convertirEnPlaques(qtes.total.preco, unitesParPlaque, affichage);
+      return isLot ? convertirEnLots(val) : val;
+    })(),
+    totalHisto: (() => {
+      if (!qtes.total.histo) return null;
+      const val = convertirEnPlaques(qtes.total.histo, unitesParPlaque, affichage);
+      return isLot ? convertirEnLots(val) : val;
+    })(),
     totalEcart: calculerEcart(qtes.total.preco, qtes.total.histo)
   } : {
-    preco: [convertirEnPlaques(qtes.journalier.preco, unitesParPlaque, affichage)],
-    histo: [qtes.journalier.histo ? convertirEnPlaques(qtes.journalier.histo, unitesParPlaque, affichage) : null],
+    preco: [(() => {
+      const val = convertirEnPlaques(qtes.journalier.preco, unitesParPlaque, affichage);
+      return isLot ? convertirEnLots(val) : val;
+    })()],
+    histo: [(() => {
+      if (!qtes.journalier.histo) return null;
+      const val = convertirEnPlaques(qtes.journalier.histo, unitesParPlaque, affichage);
+      return isLot ? convertirEnLots(val) : val;
+    })()],
     ecart: [calculerEcart(qtes.journalier.preco, qtes.journalier.histo)],
     totalPreco: null,
     totalHisto: null,
     totalEcart: null
   };
 
-  // Formater avec "Pl." si nécessaire
+  // Formater avec "Pl." ou "Bte" si nécessaire
   const formatVal = (val) => {
     if (val === null || val === '-') return '-';
-    return isPlaque ? `${val} Pl.` : val;
+    if (isPlaque) return `${val} Pl.`;
+    if (isLot) return `${val} Bte`;
+    return val;
   };
 
   return (
@@ -64,6 +95,9 @@ export default function Produit3Lignes({ produit, qtes, modeRepartition, afficha
             {produit.unitesParPlaque > 0 && (
               <span className="text-gray-400">• {produit.unitesParPlaque}/plaque</span>
             )}
+            {isLot && (
+              <span className="text-amber-600 font-medium">• {unitesParLot}/lot</span>
+            )}
           </div>
         </td>
         <td className="px-2 py-1 text-center">
@@ -78,9 +112,9 @@ export default function Produit3Lignes({ produit, qtes, modeRepartition, afficha
               return (
                 <td
                   key={tranche.key}
-                  className={`text-center px-3 py-1 ${estActif ? 'bg-[#8B1538]/5' : ''}`}
+                  className={`text-center px-3 py-1 ${estActif ? 'bg-emerald-700/5' : ''}`}
                 >
-                  <CelluleSimple valeur={lignesData.preco[idx]} variant="preco" isPlaque={isPlaque} />
+                  <CelluleSimple valeur={lignesData.preco[idx]} variant="preco" isPlaque={isPlaque} isLot={isLot} />
                 </td>
               );
             })}
@@ -92,7 +126,7 @@ export default function Produit3Lignes({ produit, qtes, modeRepartition, afficha
           </>
         ) : (
           <td className="text-center px-4 py-1">
-            <CelluleSimple valeur={lignesData.preco[0]} variant="preco" isPlaque={isPlaque} />
+            <CelluleSimple valeur={lignesData.preco[0]} variant="preco" isPlaque={isPlaque} isLot={isLot} />
           </td>
         )}
       </tr>
@@ -111,9 +145,9 @@ export default function Produit3Lignes({ produit, qtes, modeRepartition, afficha
               return (
                 <td
                   key={tranche.key}
-                  className={`text-center px-3 py-1 ${estActif ? 'bg-[#8B1538]/5' : ''}`}
+                  className={`text-center px-3 py-1 ${estActif ? 'bg-emerald-700/5' : ''}`}
                 >
-                  <CelluleSimple valeur={lignesData.histo[idx] ?? '-'} variant="histo" isPlaque={isPlaque && lignesData.histo[idx] !== null} />
+                  <CelluleSimple valeur={lignesData.histo[idx] ?? '-'} variant="histo" isPlaque={isPlaque && lignesData.histo[idx] !== null} isLot={isLot && lignesData.histo[idx] !== null} />
                 </td>
               );
             })}
@@ -125,7 +159,7 @@ export default function Produit3Lignes({ produit, qtes, modeRepartition, afficha
           </>
         ) : (
           <td className="text-center px-4 py-1">
-            <CelluleSimple valeur={lignesData.histo[0] ?? '-'} variant="histo" isPlaque={isPlaque && lignesData.histo[0] !== null} />
+            <CelluleSimple valeur={lignesData.histo[0] ?? '-'} variant="histo" isPlaque={isPlaque && lignesData.histo[0] !== null} isLot={isLot && lignesData.histo[0] !== null} />
           </td>
         )}
       </tr>
@@ -144,7 +178,7 @@ export default function Produit3Lignes({ produit, qtes, modeRepartition, afficha
               return (
                 <td
                   key={tranche.key}
-                  className={`text-center px-3 py-1 ${estActif ? 'bg-[#8B1538]/5' : ''}`}
+                  className={`text-center px-3 py-1 ${estActif ? 'bg-emerald-700/5' : ''}`}
                 >
                   <CelluleEcart ecart={lignesData.ecart[idx]} />
                 </td>

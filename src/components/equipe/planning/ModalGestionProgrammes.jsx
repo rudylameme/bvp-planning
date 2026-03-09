@@ -69,7 +69,7 @@ export default function ModalGestionProgrammes({ programmes, produitsParProgramm
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-[#8B1538] text-white rounded-t-xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-emerald-700 text-white rounded-t-xl">
           <div className="flex items-center gap-2">
             <Settings className="w-5 h-5" />
             <h2 className="text-lg font-semibold">Gérer les programmes de cuisson</h2>
@@ -98,7 +98,7 @@ export default function ModalGestionProgrammes({ programmes, produitsParProgramm
               value={nouveauProgramme}
               onChange={(e) => setNouveauProgramme(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleAjouter()}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B1538] focus:border-transparent"
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 focus:border-transparent"
               placeholder="Nouveau programme..."
             />
             <button
@@ -129,7 +129,7 @@ export default function ModalGestionProgrammes({ programmes, produitsParProgramm
                           type="text"
                           value={editingValue}
                           onChange={(e) => setEditingValue(e.target.value)}
-                          className="flex-1 px-3 py-1 border border-[#8B1538] rounded focus:ring-2 focus:ring-[#8B1538]"
+                          className="flex-1 px-3 py-1 border border-emerald-700 rounded focus:ring-2 focus:ring-emerald-700"
                           autoFocus
                         />
                         <button
@@ -195,7 +195,7 @@ export default function ModalGestionProgrammes({ programmes, produitsParProgramm
             </button>
             <button
               onClick={handleSave}
-              className="flex-1 px-4 py-3 bg-[#8B1538] text-white rounded-lg hover:bg-[#6d1029] transition-colors font-medium flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-3 bg-emerald-700 text-white rounded-lg hover:bg-emerald-800 transition-colors font-medium flex items-center justify-center gap-2"
             >
               <Save className="w-4 h-4" />
               Enregistrer

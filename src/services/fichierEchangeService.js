@@ -228,7 +228,7 @@ export function creerFichierEquipe({
     operateur,
 
     // Personnalisations produits
-    // Structure: { [itm8]: { nomPersonnalise, programmeFour, unitesParPlaque } }
+    // Structure: { [itm8]: { nomPersonnalise, programmeFour, unitesParPlaque, unitesParLot } }
     personnalisations,
 
     // Inventaires par produit

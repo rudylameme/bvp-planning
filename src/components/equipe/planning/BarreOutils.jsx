@@ -30,8 +30,8 @@ export function SortableHeader({ label, sortKey, align = 'left', className = '',
         <span>{label}</span>
         {isActive ? (
           sortConfig.direction === 'asc'
-            ? <ChevronUp className="w-4 h-4 text-[#ED1C24]" />
-            : <ChevronDown className="w-4 h-4 text-[#ED1C24]" />
+            ? <ChevronUp className="w-4 h-4 text-emerald-600" />
+            : <ChevronDown className="w-4 h-4 text-emerald-600" />
         ) : (
           <ArrowUpDown className="w-3 h-3 text-gray-400" />
         )}
@@ -104,7 +104,7 @@ export function EnTetePlanning({
             onClick={() => handleSort('famille')}
             className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1 ${
               sortConfig.key === 'famille'
-                ? 'bg-white shadow text-[#ED1C24]'
+                ? 'bg-white shadow text-emerald-600'
                 : 'text-gray-600 hover:text-[#58595B]'
             }`}
             title="Trier par famille (BOULANGERIE en premier)"
@@ -120,7 +120,7 @@ export function EnTetePlanning({
             onClick={() => handleSort('programme')}
             className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1 ${
               sortConfig.key === 'programme'
-                ? 'bg-white shadow text-[#ED1C24]'
+                ? 'bg-white shadow text-emerald-600'
                 : 'text-gray-600 hover:text-[#58595B]'
             }`}
             title="Trier par type de cuisson"
@@ -140,7 +140,7 @@ export function EnTetePlanning({
             onClick={() => setModeSimplifie(true)}
             className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1 ${
               modeSimplifie
-                ? 'bg-white shadow text-[#8B1538]'
+                ? 'bg-white shadow text-emerald-700'
                 : 'text-gray-600 hover:text-[#58595B]'
             }`}
             title="Afficher uniquement les quantités"
@@ -152,7 +152,7 @@ export function EnTetePlanning({
             onClick={() => setModeSimplifie(false)}
             className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1 ${
               !modeSimplifie
-                ? 'bg-white shadow text-[#8B1538]'
+                ? 'bg-white shadow text-emerald-700'
                 : 'text-gray-600 hover:text-[#58595B]'
             }`}
             title="Afficher Préco / Histo / %"
@@ -205,7 +205,7 @@ export function EnTetePlanning({
               onClick={() => setShowOptionsImpression(!showOptionsImpression)}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-l-lg text-sm font-medium transition-colors border ${
                 showOptionsImpression
-                  ? 'bg-white border-[#8B1538] text-[#8B1538] shadow'
+                  ? 'bg-white border-emerald-700 text-emerald-700 shadow'
                   : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
               }`}
               title="Options d'impression"
@@ -213,7 +213,7 @@ export function EnTetePlanning({
               <SlidersHorizontal className="w-4 h-4" />
               <span className="hidden sm:inline">Options</span>
               {!toutesSelectionnees && (
-                <span className="text-[10px] bg-[#8B1538] text-white rounded-full px-1.5 py-0.5 leading-none">
+                <span className="text-[10px] bg-emerald-700 text-white rounded-full px-1.5 py-0.5 leading-none">
                   {nbFamillesSelectionnees}
                 </span>
               )}
@@ -233,7 +233,7 @@ export function EnTetePlanning({
                         checked={modeImpression === 'continu'}
                         onChange={() => setModeImpression('continu')}
                         className="w-3.5 h-3.5"
-                        style={{ accentColor: '#8B1538' }}
+                        style={{ accentColor: 'emerald-700' }}
                       />
                       <div>
                         <span className="text-sm font-medium text-gray-700">Tout en continu</span>
@@ -247,7 +247,7 @@ export function EnTetePlanning({
                         checked={modeImpression === 'separe'}
                         onChange={() => setModeImpression('separe')}
                         className="w-3.5 h-3.5"
-                        style={{ accentColor: '#8B1538' }}
+                        style={{ accentColor: 'emerald-700' }}
                       />
                       <div>
                         <span className="text-sm font-medium text-gray-700">Séparé par famille</span>
@@ -274,7 +274,7 @@ export function EnTetePlanning({
                           setFamillesImpression(null);
                         }
                       }}
-                      className="text-[11px] text-[#8B1538] hover:underline font-medium"
+                      className="text-[11px] text-emerald-700 hover:underline font-medium"
                     >
                       {toutesSelectionnees ? 'Tout désélectionner' : 'Tout sélectionner'}
                     </button>
@@ -332,7 +332,7 @@ export function EnTetePlanning({
           <button
             onClick={onPrintSemaine}
             disabled={aucuneSelectionnee}
-            className="flex items-center gap-2 px-4 py-2 bg-[#8B1538] text-white rounded-r-lg hover:bg-[#8B1538]/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-700 text-white rounded-r-lg hover:bg-emerald-700/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             title="Imprimer toute la semaine (7 fiches, une par jour)"
           >
             <Calendar className="w-4 h-4" />
@@ -345,7 +345,7 @@ export function EnTetePlanning({
           Object.keys(sectionsOuvertes.familles).length > 0 || Object.keys(sectionsOuvertes.programmes).length > 0) && (
           <button
             onClick={reinitialiserPrefs}
-            className="flex items-center gap-2 px-3 py-2 text-gray-500 hover:text-[#ED1C24] hover:bg-gray-100 rounded-lg transition-colors"
+            className="flex items-center gap-2 px-3 py-2 text-gray-500 hover:text-emerald-600 hover:bg-gray-100 rounded-lg transition-colors"
             title="Réinitialiser l'ordre et les sections"
           >
             <RotateCcw className="w-4 h-4" />
@@ -374,8 +374,8 @@ export function BarreInfoCreneaux({
     <div className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-lg print:hidden flex-wrap gap-2">
       {/* Créneau actuel */}
       <div className="flex items-center gap-2">
-        <Clock className="w-4 h-4 text-[#8B1538]" />
-        <span className="text-sm font-medium text-[#8B1538]">
+        <Clock className="w-4 h-4 text-emerald-700" />
+        <span className="text-sm font-medium text-emerald-700">
           Créneau actuel : {TRANCHES_CONFIG.find(t => t.key === trancheActuelle)?.label || trancheActuelle}
         </span>
       </div>
@@ -432,7 +432,7 @@ export function SelecteurJour({ jourSelectionne, setJourSelectionne, isJourFerme
           disabled={isJourFerme(jour)}
           className={`flex-1 py-3 px-2 rounded-lg text-sm font-medium transition-colors ${
             jourSelectionne === jour
-              ? 'bg-[#ED1C24] text-white'
+              ? 'bg-emerald-600 text-white'
               : isJourFerme(jour)
                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 : 'bg-gray-50 text-[#58595B] hover:bg-gray-100'

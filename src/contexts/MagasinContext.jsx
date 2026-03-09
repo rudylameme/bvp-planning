@@ -63,6 +63,12 @@ export function MagasinProvider({ children }) {
   // Dossier d'archives Manager (persisté via IndexedDB)
   const [dossierArchives, setDossierArchivesState] = useState(null);
 
+  // Dossier équipe — partagé Manager↔Équipe (persisté via IndexedDB)
+  const [dossierEquipe, setDossierEquipeState] = useState(null);
+
+  // Personnalisations équipe lues depuis le fichier EQUIPE-*.bvp.json
+  const [personnalisationsEquipe, setPersonnalisationsEquipe] = useState(null);
+
   // Charger les handles depuis IndexedDB au montage
   useEffect(() => {
     // Dossier archives
@@ -79,6 +85,13 @@ export function MagasinProvider({ children }) {
         setDirHandle(handle);
       }
     });
+    // Dossier équipe
+    loadHandle('dossierEquipe').then(async (handle) => {
+      if (!handle) return;
+      if (await verifyHandlePermission(handle, 'read')) {
+        setDossierEquipeState(handle);
+      }
+    });
   }, []);
 
   // Setter qui persiste aussi dans IndexedDB
@@ -86,6 +99,13 @@ export function MagasinProvider({ children }) {
     setDossierArchivesState(handle);
     if (handle) {
       saveHandle('dossierArchives', handle);
+    }
+  }, []);
+
+  const setDossierEquipe = useCallback((handle) => {
+    setDossierEquipeState(handle);
+    if (handle) {
+      saveHandle('dossierEquipe', handle);
     }
   }, []);
 
@@ -107,8 +127,15 @@ export function MagasinProvider({ children }) {
       if (!match) return pg;
       matchCount++;
       const changes = {};
-      if (typeof match.actif === 'boolean') changes.actif = match.actif;
-      if (match.rayon) changes.rayon = match.rayon;
+      // Ne PAS écraser actif si le nettoyage a désactivé le produit
+      // (raisonDesactivation = promo, hors-saison, doublon-fusion, doublon-pre, article-a-creer)
+      if (typeof match.actif === 'boolean' && !pg.raisonDesactivation) {
+        changes.actif = match.actif;
+      }
+      // Ne PAS écraser rayon si le nettoyage l'a enrichi depuis le référentiel V2
+      if (match.rayon && !pg.matchRefV2) {
+        changes.rayon = match.rayon;
+      }
       if (Object.keys(changes).length > 0) {
         changedCount++;
         return { ...pg, ...changes };
@@ -121,6 +148,44 @@ export function MagasinProvider({ children }) {
     }
     setArchiveProduitsEnAttente(null);
   }, [archiveProduitsEnAttente, produitsGamme]);
+
+  // Appliquer les personnalisations équipe (unitesParLot, programme, etc.) aux produitsGamme
+  useEffect(() => {
+    if (!personnalisationsEquipe || !produitsGamme || produitsGamme.length === 0) return;
+
+    let changedCount = 0;
+    const updated = produitsGamme.map(pg => {
+      // Chercher par itm8 dans les personnalisations
+      const perso = personnalisationsEquipe[pg.itm8];
+      if (!perso) return pg;
+
+      const changes = {};
+      if (perso.unitesParLot && perso.unitesParLot > 1) {
+        changes.unitesParLot = perso.unitesParLot;
+      }
+      if (perso.unitesParPlaque && perso.unitesParPlaque > 0) {
+        changes.unitesParPlaque = perso.unitesParPlaque;
+      }
+      if (perso.programmeFour) {
+        changes.programme = perso.programmeFour;
+      }
+      if (perso.plu) {
+        changes.plu = perso.plu;
+      }
+      if (perso.nomPersonnalise) {
+        changes.libellePersonnalise = perso.nomPersonnalise;
+      }
+      if (Object.keys(changes).length > 0) {
+        changedCount++;
+        return { ...pg, ...changes };
+      }
+      return pg;
+    });
+
+    if (changedCount > 0) {
+      setProduitsGamme(updated);
+    }
+  }, [personnalisationsEquipe, produitsGamme]);
 
   // Reset complet
   const reinitialiser = useCallback(() => {
@@ -147,6 +212,7 @@ export function MagasinProvider({ children }) {
     setPromosActives([]);
     setPromosPrecedentes([]);
     setArchiveProduitsEnAttente(null);
+    setPersonnalisationsEquipe(null);
   }, []);
 
   // Vérifie si l'import est complet (prêt à passer à l'étape suivante)
@@ -229,6 +295,12 @@ export function MagasinProvider({ children }) {
     // Dossier archives
     dossierArchives,
     setDossierArchives,
+
+    // Dossier équipe + personnalisations
+    dossierEquipe,
+    setDossierEquipe,
+    personnalisationsEquipe,
+    setPersonnalisationsEquipe,
 
     // Helpers
     reinitialiser,

@@ -49,7 +49,7 @@ const BenchmarkContent = ({ onRetourAccueil, onAllerPlanning }) => {
   // Charger le référentiel ITM8 au montage
   useEffect(() => {
     if (!isReferentielCharge()) {
-      chargerReferentielITM8('/Data/liste des produits BVP treville.xlsx');
+      chargerReferentielITM8('/Data/referentiel V2.xlsx');
     }
   }, []);
 

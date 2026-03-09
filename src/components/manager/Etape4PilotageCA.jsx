@@ -27,6 +27,7 @@ import OngletGamme from './pilotage/OngletGamme';
 import OngletLimites from './pilotage/OngletMatrice';
 import OngletSuivi from './pilotage/OngletStats';
 import DashboardCA from './pilotage/DashboardCA';
+import { appliquerCorrectionsManuelles } from '../../services/nettoyageGamme';
 
 // ============================================================================
 // CONSTANTES
@@ -237,6 +238,11 @@ const Etape4PilotageCA = () => {
     return map;
   }, [produits]);
 
+  // Callback pour re-appliquer les corrections manuelles (après Séparer/Fusionner)
+  const handleReloadGamme = useCallback(() => {
+    setProduits(prev => appliquerCorrectionsManuelles([...prev]));
+  }, []);
+
   // Set des itm8 en promo (pour icône dans Gamme)
   const promoItm8Set = useMemo(() => {
     return new Set(promosActives.map(p => p.itm8).filter(Boolean));
@@ -284,18 +290,28 @@ const Etape4PilotageCA = () => {
     // Taux de casse global = PA HT Casse / PV TTC Ventes * 100
     const tauxCasse = caHisto > 0 ? (casseMontant / caHisto) * 100 : 0;
 
+    // Arrondir une quantité au lot supérieur si unitesParLot > 1
+    // Ex: 30 unités, lot=12 → ceil(30/12)×12 = 36 unités
+    const arrondirEnLots = (qte, upl) => {
+      if (!upl || upl <= 1 || qte <= 0) return qte;
+      return Math.ceil(qte / upl) * upl;
+    };
+
     // CA Prévision = pour chaque produit actif : quantité planifiée × prix moyen unitaire
     // Si le Manager a saisi une valeur planifiée, on l'utilise directement
     // Sinon on utilise le potentiel limité par la matrice (par famille × jour)
+    // Si unitesParLot > 1, les quantités sont arrondies au lot supérieur
     const caPrevi = produitsActifs.reduce((sum, p) => {
       const moyQte = p.moyHebdo || 0;
       const caHebdo = p.caSemaine || 0;
       const prixMoyen = moyQte > 0 ? caHebdo / moyQte : 0;
+      const upl = p.unitesParLot || p.unitesParVente || 0;
 
       // Vérifier si le Manager a saisi une valeur planifiée
       const planifie = planifieManager[p.id];
       if (planifie != null && planifie > 0) {
-        return sum + (planifie * prixMoyen);
+        const qteArrondie = arrondirEnLots(planifie, upl);
+        return sum + (qteArrondie * prixMoyen);
       }
 
       // Sinon : potentiel limité par la matrice
@@ -310,8 +326,9 @@ const Etape4PilotageCA = () => {
         totalLimite += appliquerLimite(potJour, histJour, limite);
       });
       const potentielLimite = Math.round(totalLimite);
+      const qteArrondie = arrondirEnLots(potentielLimite, upl);
 
-      return sum + (potentielLimite * prixMoyen);
+      return sum + (qteArrondie * prixMoyen);
     }, 0);
 
     // Progression = (CA Prévisionnel - CA Objectif) / CA Objectif × 100
@@ -422,6 +439,7 @@ const Etape4PilotageCA = () => {
             onChangePlanifie={handleChangePlanifie}
             promoItm8Set={promoItm8Set}
             promoPrecedenteMap={promoPrecedenteMap}
+            onReloadGamme={handleReloadGamme}
           />
         )}
         {ongletActif === 'limites' && (

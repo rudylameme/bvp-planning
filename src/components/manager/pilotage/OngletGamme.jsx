@@ -1,7 +1,7 @@
 /**
  * Onglet Gamme - Sélection des produits avec tableau flat
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -11,10 +11,13 @@ import {
   X,
   ArrowUp,
   ArrowDown,
+  Unlink,
+  Link,
 } from 'lucide-react';
 import { formatEuro } from '../../../utils/formatUtils';
 import PopupCasse from './PopupCasse';
 import PopupVentes from './PopupVentes';
+import { normaliserLibelle, separerDoublon, fusionnerManuellement, dissocierRefV2 } from '../../../services/nettoyageGamme';
 
 // Ordre d'affichage des rayons
 const ORDRE_RAYONS = {
@@ -39,6 +42,75 @@ const getCouleurTauxCasse = (taux) => {
   if (taux < 5) return { text: 'text-green-600', bg: 'bg-green-100' };
   if (taux <= 20) return { text: 'text-amber-600', bg: 'bg-amber-100' };
   return { text: 'text-red-600', bg: 'bg-red-100' };
+};
+
+// Tags visuels pour les raisons de désactivation / enrichissement
+const TAGS_CONFIG = {
+  'promo':          { bg: 'bg-red-200',    text: 'text-red-800',    label: 'Promo' },
+  'hors-saison':    { bg: 'bg-orange-200', text: 'text-orange-800', label: 'Hors saison' },
+  'doublon-pre':    { bg: 'bg-slate-200',  text: 'text-slate-700',  label: '\u2192 version PAC' },
+  'doublon-fusion': { bg: 'bg-slate-200',  text: 'text-slate-700',  label: 'Doublon fusionn\u00e9' },
+  'article-a-creer':{ bg: 'bg-blue-200',   text: 'text-blue-800',   label: '\u00c0 cr\u00e9er' },
+};
+
+/**
+ * Mini-modal pour choisir un produit cible de fusion
+ */
+const ModalFusionner = ({ produit, produitsActifs, onFusionner, onClose }) => {
+  const [rechercheFusion, setRechercheFusion] = useState('');
+  const candidats = useMemo(() => {
+    return produitsActifs
+      .filter(p => p.id !== produit.id && p.rayon === produit.rayon)
+      .filter(p => !rechercheFusion || p.libelle.toLowerCase().includes(rechercheFusion.toLowerCase()))
+      .slice(0, 10);
+  }, [produitsActifs, produit, rechercheFusion]);
+
+  return (
+    <div className="absolute z-50 top-full left-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-xl p-3 w-80">
+      <div className="text-xs font-semibold text-gray-600 mb-2">Fusionner avec :</div>
+      <input
+        type="text"
+        placeholder="Rechercher..."
+        value={rechercheFusion}
+        onChange={(e) => setRechercheFusion(e.target.value)}
+        className="w-full px-2 py-1 border border-gray-300 rounded text-sm mb-2 focus:ring-1 focus:ring-[#8B1538] outline-none"
+        autoFocus
+      />
+      <div className="max-h-40 overflow-y-auto space-y-1">
+        {candidats.map(c => (
+          <button
+            key={c.id}
+            onClick={() => { onFusionner(produit, c); onClose(); }}
+            className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-blue-50 transition-colors truncate"
+          >
+            {c.libelle}
+          </button>
+        ))}
+        {candidats.length === 0 && <div className="text-xs text-gray-400 py-2 text-center">Aucun candidat</div>}
+      </div>
+      <button onClick={onClose} className="mt-2 w-full text-xs text-gray-500 hover:text-gray-700">Annuler</button>
+    </div>
+  );
+};
+
+const BadgeNettoyage = ({ raison, marque }) => {
+  const tags = [];
+  if (raison && TAGS_CONFIG[raison]) {
+    const cfg = TAGS_CONFIG[raison];
+    tags.push(
+      <span key={raison} className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${cfg.bg} ${cfg.text}`}>
+        {cfg.label}
+      </span>
+    );
+  }
+  if (marque && marque.toUpperCase() === 'P&C') {
+    tags.push(
+      <span key="pc" className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-200 text-amber-800">
+        P&C
+      </span>
+    );
+  }
+  return tags.length > 0 ? <span className="inline-flex gap-1 ml-1.5">{tags}</span> : null;
 };
 
 /**
@@ -69,19 +141,30 @@ const BadgeRayon = ({ rayon, onClick }) => {
  * Tableau des produits (flat, avec rayon en colonne)
  * Colonnes : Actif | Produit | Rayon | Casse % | Moy. Hebdo | Potentiel | CA Hebdo | Tendance | Fiabilité
  */
-const TableauProduits = ({ produits, onToggle, onChangeRayon, recherche, filtreRayon, planifieManager, onChangePlanifie, promoItm8Set, promoPrecedenteMap }) => {
+const TableauProduits = ({ produits, onToggle, onChangeRayon, recherche, filtreRayon, filtreStatut, planifieManager, onChangePlanifie, promoItm8Set, promoPrecedenteMap, onSeparer, onFusionner, onDissocier }) => {
   const [tri, setTri] = useState({ colonne: 'caSemaine', ordre: 'desc' });
   const [popupCasseId, setPopupCasseId] = useState(null);
   const [popupVentesId, setPopupVentesId] = useState(null);
   const [editingPlanifieId, setEditingPlanifieId] = useState(null);
   const [editingPlanifieValue, setEditingPlanifieValue] = useState('');
+  const [fusionModalId, setFusionModalId] = useState(null);
+
+  // Produits actifs pour la modal de fusion
+  const produitsActifs = useMemo(() => produits.filter(p => p.actif), [produits]);
 
   // Filtrer les produits
   const produitsFiltres = useMemo(() => {
     return produits
       .filter((p) => !recherche || p.libelle.toLowerCase().includes(recherche.toLowerCase()))
-      .filter((p) => !filtreRayon || filtreRayon === 'tous' || p.rayon === filtreRayon);
-  }, [produits, recherche, filtreRayon]);
+      .filter((p) => !filtreRayon || filtreRayon === 'tous' || p.rayon === filtreRayon)
+      .filter((p) => {
+        if (!filtreStatut || filtreStatut === 'tous') return true;
+        if (filtreStatut === 'actifs') return p.actif;
+        if (filtreStatut === 'desactives') return !p.actif && !p.aCreer;
+        if (filtreStatut === 'a-creer') return p.aCreer;
+        return true;
+      });
+  }, [produits, recherche, filtreRayon, filtreStatut]);
 
   const handleTri = (colonne) => {
     setTri((prev) => ({
@@ -188,15 +271,62 @@ const TableauProduits = ({ produits, onToggle, onChangeRayon, recherche, filtreR
                   {produit.actif ? <Check size={14} /> : <X size={14} />}
                 </button>
               </td>
-              <td className="px-3 py-2">
+              <td className="px-3 py-2 relative">
                 <span className="font-medium text-gray-800">
                   {produit.libelle}
                   {promoItm8Set?.has(produit.itm8) && (
                     <span className="ml-1.5 text-blue-500" title="Produit en promo">🏷️</span>
                   )}
+                  <BadgeNettoyage raison={produit.raisonDesactivation} marque={produit.marqueRefV2} />
                 </span>
+                {produit.libelleRefV2 && produit.libelleRefV2 !== produit.libelle && (
+                  <div className="text-[10px] text-blue-500 italic inline-flex items-center gap-1">
+                    Ref: {produit.libelleRefV2}
+                    {onDissocier && (
+                      <button
+                        type="button"
+                        onClick={() => onDissocier(produit)}
+                        className="inline-flex items-center justify-center w-3.5 h-3.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                        title="Dissocier de cette référence (mauvais match)"
+                      >
+                        <X size={8} />
+                      </button>
+                    )}
+                  </div>
+                )}
                 {(produit.ean13 || produit.ean || produit.codeEAN) && (
                   <div className="text-xs text-gray-400">EAN: {produit.ean13 || produit.ean || produit.codeEAN}</div>
+                )}
+                {/* Boutons actions doublons */}
+                <div className="flex gap-1 mt-0.5">
+                  {!produit.actif && (produit.raisonDesactivation === 'doublon-fusion' || produit.raisonDesactivation === 'doublon-pre') && onSeparer && (
+                    <button
+                      type="button"
+                      onClick={() => onSeparer(produit)}
+                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium text-violet-700 bg-violet-50 border border-violet-200 rounded hover:bg-violet-100 transition-colors"
+                      title="Réactiver ce produit (le séparer du doublon)"
+                    >
+                      <Unlink size={10} /> Séparer
+                    </button>
+                  )}
+                  {produit.actif && !produit.aCreer && onFusionner && (
+                    <button
+                      type="button"
+                      onClick={() => setFusionModalId(fusionModalId === produit.id ? null : produit.id)}
+                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 bg-slate-50 border border-slate-200 rounded hover:bg-slate-100 transition-colors"
+                      title="Fusionner avec un autre produit"
+                    >
+                      <Link size={10} /> Fusionner...
+                    </button>
+                  )}
+                </div>
+                {fusionModalId === produit.id && (
+                  <ModalFusionner
+                    produit={produit}
+                    produitsActifs={produitsActifs}
+                    onFusionner={onFusionner}
+                    onClose={() => setFusionModalId(null)}
+                  />
                 )}
               </td>
               <td className="px-3 py-2 text-center">
@@ -354,9 +484,32 @@ const TableauProduits = ({ produits, onToggle, onChangeRayon, recherche, filtreR
 /**
  * Onglet Gamme - Sélection des produits
  */
-const OngletGamme = ({ produits, onToggle, onToggleFiltres, onChangeRayon, planifieManager, onChangePlanifie, promoItm8Set, promoPrecedenteMap }) => {
+const OngletGamme = ({ produits, onToggle, onToggleFiltres, onChangeRayon, planifieManager, onChangePlanifie, promoItm8Set, promoPrecedenteMap, onReloadGamme }) => {
   const [recherche, setRecherche] = useState('');
   const [filtreRayon, setFiltreRayon] = useState('tous');
+  const [filtreStatut, setFiltreStatut] = useState('tous');
+
+  // Callback pour séparer un doublon (le réactiver)
+  const handleSeparer = useCallback((produit) => {
+    const norm = normaliserLibelle(produit.libelle);
+    separerDoublon(norm);
+    if (onReloadGamme) onReloadGamme();
+  }, [onReloadGamme]);
+
+  // Callback pour fusionner manuellement un produit avec un autre
+  const handleFusionner = useCallback((source, cible) => {
+    const normSource = normaliserLibelle(source.libelle);
+    const normCible = normaliserLibelle(cible.libelle);
+    fusionnerManuellement(normSource, normCible);
+    if (onReloadGamme) onReloadGamme();
+  }, [onReloadGamme]);
+
+  // Callback pour dissocier un produit de sa ref V2
+  const handleDissocier = useCallback((produit) => {
+    const norm = normaliserLibelle(produit.libelle);
+    dissocierRefV2(norm);
+    if (onReloadGamme) onReloadGamme();
+  }, [onReloadGamme]);
 
   // Rayons disponibles dans les produits
   const rayonsDisponibles = useMemo(() => {
@@ -364,20 +517,67 @@ const OngletGamme = ({ produits, onToggle, onToggleFiltres, onChangeRayon, plani
     return rayons.sort((a, b) => (ORDRE_RAYONS[a] || 99) - (ORDRE_RAYONS[b] || 99));
   }, [produits]);
 
+  // Compteurs pour le nettoyage
+  const compteurs = useMemo(() => {
+    const c = { actifs: 0, promos: 0, doublons: 0, horsSaison: 0, aCreer: 0 };
+    produits.forEach(p => {
+      if (p.actif) c.actifs++;
+      if (p.raisonDesactivation === 'promo') c.promos++;
+      if (p.raisonDesactivation === 'doublon-fusion' || p.raisonDesactivation === 'doublon-pre') c.doublons++;
+      if (p.raisonDesactivation === 'hors-saison') c.horsSaison++;
+      if (p.aCreer) c.aCreer++;
+    });
+    return c;
+  }, [produits]);
+
   // Produits filtrés (visibles) — pour les boutons Tout activer/désactiver
   const produitsFiltres = useMemo(() => {
     return produits
       .filter((p) => !recherche || p.libelle.toLowerCase().includes(recherche.toLowerCase()))
-      .filter((p) => !filtreRayon || filtreRayon === 'tous' || p.rayon === filtreRayon);
-  }, [produits, recherche, filtreRayon]);
+      .filter((p) => !filtreRayon || filtreRayon === 'tous' || p.rayon === filtreRayon)
+      .filter((p) => {
+        if (!filtreStatut || filtreStatut === 'tous') return true;
+        if (filtreStatut === 'actifs') return p.actif;
+        if (filtreStatut === 'desactives') return !p.actif && !p.aCreer;
+        if (filtreStatut === 'a-creer') return p.aCreer;
+        return true;
+      });
+  }, [produits, recherche, filtreRayon, filtreStatut]);
 
   const nbFiltres = produitsFiltres.length;
 
   return (
     <div className="space-y-4">
+      {/* Compteurs nettoyage */}
+      <div className="flex flex-wrap items-center gap-3 px-1 text-sm">
+        <span className="font-semibold text-green-700 bg-green-50 px-2.5 py-1 rounded-lg border border-green-200">
+          {compteurs.actifs} actifs
+        </span>
+        {compteurs.promos > 0 && (
+          <span className="text-red-700 bg-red-50 px-2.5 py-1 rounded-lg border border-red-200">
+            {compteurs.promos} promos
+          </span>
+        )}
+        {compteurs.doublons > 0 && (
+          <span className="text-slate-700 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
+            {compteurs.doublons} doublons
+          </span>
+        )}
+        {compteurs.horsSaison > 0 && (
+          <span className="text-orange-700 bg-orange-50 px-2.5 py-1 rounded-lg border border-orange-200">
+            {compteurs.horsSaison} hors saison
+          </span>
+        )}
+        {compteurs.aCreer > 0 && (
+          <span className="text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">
+            {compteurs.aCreer} à créer
+          </span>
+        )}
+      </div>
+
       {/* Barre d'outils */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1">
+      <div className="flex items-center gap-4 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
           <input
             type="text"
@@ -398,6 +598,18 @@ const OngletGamme = ({ produits, onToggle, onToggleFiltres, onChangeRayon, plani
           {rayonsDisponibles.map((rayon) => (
             <option key={rayon} value={rayon}>{rayon}</option>
           ))}
+        </select>
+
+        {/* Filtre par statut */}
+        <select
+          value={filtreStatut}
+          onChange={(e) => setFiltreStatut(e.target.value)}
+          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B1538] focus:border-[#8B1538] outline-none bg-white"
+        >
+          <option value="tous">Tous les statuts</option>
+          <option value="actifs">Actifs uniquement</option>
+          <option value="desactives">Désactivés uniquement</option>
+          <option value="a-creer">Articles à créer</option>
         </select>
 
         <button
@@ -421,10 +633,14 @@ const OngletGamme = ({ produits, onToggle, onToggleFiltres, onChangeRayon, plani
         onChangeRayon={onChangeRayon}
         recherche={recherche}
         filtreRayon={filtreRayon}
+        filtreStatut={filtreStatut}
         planifieManager={planifieManager}
         onChangePlanifie={onChangePlanifie}
         promoItm8Set={promoItm8Set}
         promoPrecedenteMap={promoPrecedenteMap}
+        onSeparer={handleSeparer}
+        onFusionner={handleFusionner}
+        onDissocier={handleDissocier}
       />
     </div>
   );

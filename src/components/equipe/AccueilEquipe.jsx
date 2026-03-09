@@ -101,7 +101,7 @@ const AccueilEquipe = ({ onRetourAccueil }) => {
     return (
       <div className="min-h-screen bg-[#F5F2ED]">
         {/* Header */}
-        <div className="bg-[#ED1C24] text-white px-6 py-4">
+        <div className="bg-emerald-600 text-white px-6 py-4">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
@@ -134,7 +134,7 @@ const AccueilEquipe = ({ onRetourAccueil }) => {
     return (
       <div className="min-h-screen bg-[#F5F2ED]">
         {/* Header avec bouton retour */}
-        <div className="bg-[#ED1C24] text-white px-6 py-4">
+        <div className="bg-emerald-600 text-white px-6 py-4">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
@@ -176,7 +176,7 @@ const AccueilEquipe = ({ onRetourAccueil }) => {
   return (
     <div className="min-h-screen bg-[#F5F2ED]">
       {/* Header */}
-      <div className="bg-[#ED1C24] text-white px-6 py-4">
+      <div className="bg-emerald-600 text-white px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
@@ -218,7 +218,7 @@ const AccueilEquipe = ({ onRetourAccueil }) => {
           </div>
           <button
             onClick={handleChangerFichier}
-            className="px-4 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            className="px-4 py-2 text-sm text-gray-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
           >
             Changer
           </button>
@@ -232,14 +232,14 @@ const AccueilEquipe = ({ onRetourAccueil }) => {
               <button
                 key={module.id}
                 onClick={() => setModuleActif(module.id)}
-                className="bg-white rounded-2xl shadow-lg p-6 text-left transition-all hover:shadow-xl hover:-translate-y-1 border-2 border-transparent hover:border-[#ED1C24]/20"
+                className="bg-white rounded-2xl shadow-lg p-6 text-left transition-all hover:shadow-xl hover:-translate-y-1 border-2 border-transparent hover:border-emerald-500/20"
               >
                 <div className={`w-14 h-14 ${module.color} rounded-xl flex items-center justify-center mb-4`}>
                   <Icon className="w-7 h-7 text-white" />
                 </div>
                 <h3 className="text-lg font-bold text-gray-800 mb-2">{module.label}</h3>
                 <p className="text-sm text-gray-500 mb-4">{module.description}</p>
-                <div className="flex items-center gap-2 text-[#ED1C24] font-medium">
+                <div className="flex items-center gap-2 text-emerald-600 font-medium">
                   <span>Accéder</span>
                   <ArrowLeft className="w-4 h-4 rotate-180" />
                 </div>

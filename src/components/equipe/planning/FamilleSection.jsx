@@ -39,19 +39,19 @@ function TotauxFamille({
                 <td
                   key={tranche.key}
                   className={`text-center px-3 py-3 ${
-                    estActif ? 'bg-[#8B1538]/10 text-[#8B1538]' : 'text-gray-800'
+                    estActif ? 'bg-emerald-700/10 text-emerald-700' : 'text-gray-800'
                   }`}
                 >
                   {totalColonne}
                 </td>
               );
             })}
-            <td className="text-center px-3 py-3 bg-gray-200 text-[#8B1538]">
+            <td className="text-center px-3 py-3 bg-gray-200 text-emerald-700">
               {totaux.total.preco}
             </td>
           </>
         ) : (
-          <td className="text-center px-4 py-3 text-[#8B1538]">
+          <td className="text-center px-4 py-3 text-emerald-700">
             {totaux.total.preco}
           </td>
         )}
@@ -120,7 +120,7 @@ export default function FamilleSection({
       onDragEnd={handleDragEndFamille}
       className={`bg-white rounded-lg shadow overflow-hidden print:shadow-none print:border print:border-gray-300 transition-all duration-200 ${
         isDragging ? 'opacity-50 scale-[0.98]' : ''
-      } ${isHovered ? 'ring-2 ring-[#ED1C24] ring-offset-2' : ''}`}
+      } ${isHovered ? 'ring-2 ring-emerald-600 ring-offset-2' : ''}`}
     >
       {/* En-tête famille - Cliquable pour déplier/replier + Draggable */}
       <div
@@ -185,7 +185,7 @@ export default function FamilleSection({
                           key={tranche.key}
                           className={`text-center px-3 py-3 font-medium min-w-[80px] transition-colors ${
                             estActif
-                              ? 'bg-[#8B1538] text-white'
+                              ? 'bg-emerald-700 text-white'
                               : 'text-gray-600'
                           }`}
                         >

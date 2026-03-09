@@ -15,6 +15,7 @@ export default function ModalEditionProduit({ produit, programmes, onSave, onClo
     programme: produit.programme || '',
     plu: produit.plu || '',
     unitesParPlaque: produit.unitesParPlaque || 0,
+    unitesParLot: produit.unitesParLot || 0,
   });
 
   const handleSubmit = (e) => {
@@ -22,6 +23,7 @@ export default function ModalEditionProduit({ produit, programmes, onSave, onClo
     onSave({
       ...formData,
       unitesParPlaque: parseInt(formData.unitesParPlaque, 10) || 0,
+      unitesParLot: parseInt(formData.unitesParLot, 10) || 0,
     });
   };
 
@@ -29,7 +31,7 @@ export default function ModalEditionProduit({ produit, programmes, onSave, onClo
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-[#8B1538] text-white rounded-t-xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-emerald-700 text-white rounded-t-xl">
           <div className="flex items-center gap-2">
             <Edit3 className="w-5 h-5" />
             <h2 className="text-lg font-semibold">Modifier le produit</h2>
@@ -53,7 +55,7 @@ export default function ModalEditionProduit({ produit, programmes, onSave, onClo
               type="text"
               value={formData.libelle}
               onChange={(e) => setFormData({ ...formData, libelle: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B1538] focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 focus:border-transparent"
               placeholder="Ex: BAG CONSTANCE PAC 250G"
               required
             />
@@ -67,7 +69,7 @@ export default function ModalEditionProduit({ produit, programmes, onSave, onClo
             <select
               value={formData.famille}
               onChange={(e) => setFormData({ ...formData, famille: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B1538] focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 focus:border-transparent"
             >
               {FAMILLES_LISTE.map(f => (
                 <option key={f} value={f}>{f}</option>
@@ -83,7 +85,7 @@ export default function ModalEditionProduit({ produit, programmes, onSave, onClo
             <select
               value={formData.programme}
               onChange={(e) => setFormData({ ...formData, programme: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B1538] focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 focus:border-transparent"
             >
               <option value="">-- Sans programme --</option>
               {programmes.map(p => (
@@ -101,7 +103,7 @@ export default function ModalEditionProduit({ produit, programmes, onSave, onClo
               type="text"
               value={formData.plu}
               onChange={(e) => setFormData({ ...formData, plu: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B1538] focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 focus:border-transparent"
               placeholder="Ex: 10159"
             />
           </div>
@@ -116,11 +118,29 @@ export default function ModalEditionProduit({ produit, programmes, onSave, onClo
               min="0"
               value={formData.unitesParPlaque}
               onChange={(e) => setFormData({ ...formData, unitesParPlaque: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B1538] focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 focus:border-transparent"
               placeholder="0"
             />
             <p className="text-xs text-gray-500 mt-1">
               Nombre de produits qui tiennent sur une plaque de four
+            </p>
+          </div>
+
+          {/* Unités par lot (conditionnement de vente) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Unités par lot <span className="text-gray-400">(conditionnement)</span>
+            </label>
+            <input
+              type="number"
+              min="0"
+              value={formData.unitesParLot}
+              onChange={(e) => setFormData({ ...formData, unitesParLot: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 focus:border-transparent"
+              placeholder="0"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Ex : 12 pour un lot de 12 chouquettes. La fiche de production affichera les quantités en boîtes (arrondi supérieur).
             </p>
           </div>
 
@@ -135,7 +155,7 @@ export default function ModalEditionProduit({ produit, programmes, onSave, onClo
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-3 bg-[#8B1538] text-white rounded-lg hover:bg-[#6d1029] transition-colors font-medium flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-3 bg-emerald-700 text-white rounded-lg hover:bg-emerald-800 transition-colors font-medium flex items-center justify-center gap-2"
             >
               <Save className="w-4 h-4" />
               Enregistrer

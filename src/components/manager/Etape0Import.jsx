@@ -70,6 +70,7 @@ const Etape0Import = () => {
     setFichierVentesSelectionne,
     setDonneesGamme,
     setProduitsGamme,
+    semainePlanning,
   } = useMagasin();
 
   const { selectDirectory } = useFileAccess();
@@ -78,6 +79,7 @@ const Etape0Import = () => {
   const [rechercheMagasin, setRechercheMagasin] = useState('');
   const [magasinsTrouves, setMagasinsTrouves] = useState([]);
   const [afficherResultats, setAfficherResultats] = useState(false);
+  const [etapeChargement, setEtapeChargement] = useState('');
 
   // Scanner le contenu d'un dossier (fichiers, semaines, infoPDV, ventes/casse)
   const scannerDossier = async (handle) => {
@@ -217,10 +219,20 @@ const Etape0Import = () => {
       try {
         setChargement(true);
         setErreur(null);
+        setEtapeChargement('Ouverture du fichier…');
 
         // Récupérer le fichier de la semaine
         const fileHandle = await dirHandle.getFileHandle(semaineSelectionnee.fichier);
         const file = await fileHandle.getFile();
+
+        // Forcer React à peindre l'overlay avant le traitement CPU-intensif
+        // requestAnimationFrame garantit que le prochain frame est prêt,
+        // puis setTimeout laisse le temps au navigateur de réellement peindre
+        const attendrePeinture = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 150)));
+
+        await attendrePeinture();
+        setEtapeChargement('Extraction des données du magasin…');
+        await attendrePeinture();
 
         // Extraire les données
         const donnees = await extraireDonneesMagasin(file, magasin.code, dirHandle);
@@ -229,21 +241,35 @@ const Etape0Import = () => {
         // Charger les données gamme/ventes si un fichier ventes/casse est disponible
         if (fichierVentesSelectionne) {
           try {
+            setEtapeChargement('Analyse de la gamme produits…');
+            await attendrePeinture();
+
             const vcFileHandle = await dirHandle.getFileHandle(fichierVentesSelectionne.nom);
             const vcFile = await vcFileHandle.getFile();
             const donneesVC = await extraireProduitsVentesCasse(vcFile);
             setDonneesGamme(donneesVC);
-            const produitsFormates = formaterPourPilotageCA(donneesVC);
+
+            setEtapeChargement('Nettoyage intelligent de la gamme…');
+            await attendrePeinture();
+
+            const moisP = semainePlanning ? new Date(semainePlanning.annee, 0, 1 + (semainePlanning.semaine - 1) * 7).getMonth() + 1 : null;
+            const produitsFormates = formaterPourPilotageCA(donneesVC, {
+              semaineNumero: semainePlanning?.semaine,
+              moisPlanning: moisP,
+            });
             setProduitsGamme(produitsFormates);
           } catch (vcError) {
             // Ce n'est pas bloquant, on continue sans données gamme
           }
         }
+
+        setEtapeChargement('Terminé !');
       } catch (error) {
         // TODO: logger professionnel
         setErreur('Impossible de charger les données du magasin.');
       } finally {
         setChargement(false);
+        setEtapeChargement('');
       }
     }
   };
@@ -259,16 +285,25 @@ const Etape0Import = () => {
       try {
         setChargement(true);
         setErreur(null);
+        setEtapeChargement('Changement de semaine…');
+        const attendrePeinture = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 150)));
+        await attendrePeinture();
 
         const fileHandle = await dirHandle.getFileHandle(semaine.fichier);
         const file = await fileHandle.getFile();
+
+        setEtapeChargement('Extraction des données du magasin…');
+        await attendrePeinture();
+
         const donnees = await extraireDonneesMagasin(file, magasinSelectionne.code, dirHandle);
         setDonneesMagasin(donnees);
+        setEtapeChargement('Terminé !');
       } catch (error) {
         // TODO: logger professionnel
         setErreur('Impossible de charger les données pour cette semaine.');
       } finally {
         setChargement(false);
+        setEtapeChargement('');
       }
     }
   };
@@ -468,11 +503,27 @@ const Etape0Import = () => {
             </div>
           )}
 
-          {/* Chargement en cours */}
-          {chargement && magasinSelectionne && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-3">
-              <Loader2 className="w-5 h-5 text-amber-600 animate-spin flex-shrink-0" />
-              <p className="font-medium text-amber-800 text-sm">Chargement des données…</p>
+          {/* Overlay plein écran de chargement */}
+          {chargement && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+              <div className="bg-white rounded-2xl shadow-2xl p-8 mx-4 max-w-sm w-full text-center">
+                <div className="flex justify-center mb-4">
+                  <div className="relative">
+                    <Loader2 className="w-12 h-12 text-mousquetaires-rouge animate-spin" />
+                    <Database className="w-5 h-5 text-mousquetaires-rouge absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                  </div>
+                </div>
+                <h3 className="text-lg font-bold text-gray-800 mb-2">Chargement en cours</h3>
+                <p className="text-sm text-gray-500 mb-3">
+                  {etapeChargement || 'Préparation…'}
+                </p>
+                <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                  <div className="bg-mousquetaires-rouge h-1.5 rounded-full animate-pulse" style={{ width: '60%' }} />
+                </div>
+                <p className="text-xs text-gray-400 mt-3">
+                  Merci de patienter, ne fermez pas la page
+                </p>
+              </div>
             </div>
           )}
 

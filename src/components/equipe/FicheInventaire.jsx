@@ -148,7 +148,7 @@ export default function FicheInventaire({ produits, managerData, dateLivraison, 
           <span className="text-sm text-gray-500">{produitsAvecPreco.length} produits</span>
           <button
             onClick={handlePrint}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[#ED1C24] text-white rounded-lg font-medium hover:bg-[#8B1538] transition-colors"
+            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors"
           >
             Imprimer
           </button>

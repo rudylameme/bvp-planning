@@ -120,6 +120,7 @@ export default function PlanningJour({ donneesMagasin }) {
           programme: modif.programme,
           plu: modif.plu,
           unitesParPlaque: modif.unitesParPlaque,
+          unitesParLot: modif.unitesParLot || produit.unitesParLot,
         };
       }
       return produit;

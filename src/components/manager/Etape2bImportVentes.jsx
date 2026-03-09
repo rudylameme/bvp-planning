@@ -36,6 +36,7 @@ const Etape2bImportVentes = () => {
     produitsGamme,
     setProduitsGamme,
     frequentationData,
+    semainePlanning,
   } = useMagasin();
 
   const [chargement, setChargement] = useState(false);
@@ -62,7 +63,11 @@ const Etape2bImportVentes = () => {
         poidsJoursFrequentation: frequentationData?.poidsJours || null,
       });
       setDonneesGamme(donneesVC);
-      const produitsFormates = formaterPourPilotageCA(donneesVC);
+      const moisP = semainePlanning ? new Date(semainePlanning.annee, 0, 1 + (semainePlanning.semaine - 1) * 7).getMonth() + 1 : null;
+      const produitsFormates = formaterPourPilotageCA(donneesVC, {
+        semaineNumero: semainePlanning?.semaine,
+        moisPlanning: moisP,
+      });
       setProduitsGamme(produitsFormates);
       setFichierVentesSelectionne({ nom: file.name });
     } catch (error) {
