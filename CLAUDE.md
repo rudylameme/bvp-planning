@@ -34,6 +34,26 @@
 
 ---
 
+## 🚀 RÈGLE N°2 : NE JAMAIS TOUCHER AUX DOSSIERS DIST NI AUX ADRESSES VERCEL
+
+**Il existe 3 adresses Vercel en production :**
+1. **`dist-equipe/`** → déployé automatiquement sur Vercel (utilisé par les équipes en magasin)
+2. **`dist-manager/`** → déployé automatiquement sur Vercel (utilisé par les managers)
+3. **`bvp-planning.vercel.app`** → figé sur la **V4** par décision utilisateur (09/03/2026)
+
+**Interdictions strictes :**
+- Ne JAMAIS modifier directement les dossiers `dist-equipe/` ou `dist-manager/`
+- Ne JAMAIS lancer `npm run build` sans validation explicite de l'utilisateur
+- Ne JAMAIS faire de `git commit` ou `git push` sans demande explicite de l'utilisateur
+- Ne JAMAIS réactiver l'auto-deploy sur `bvp-planning.vercel.app` (V4 figée)
+
+**Ce qui est autorisé :**
+- Modifier librement les fichiers sources dans `src/` pour le développement local
+- Tester en local via `npm run dev` sur `localhost`
+- L'utilisateur décide quand builder et déployer vers les dist
+
+---
+
 ## 🏗️ ARCHITECTURE DU PROJET
 
 ### Point d'entrée
@@ -751,6 +771,94 @@ Nom du fichier : `MANAGER-{codePDV}-S{semaine}-{annee}.bvp.json`
 }
 ```
 
+### ARCHITECTURE DE PERSISTANCE — ZÉRO LOCALSTORAGE (décision 12/03/2026)
+
+**Principe fondamental : TOUTE donnée modifiable doit être persistée dans les fichiers .bvp.json, JAMAIS dans localStorage.**
+
+Le localStorage est lié à un navigateur sur un PC donné. Si l'équipier change de poste, tout est perdu.
+L'objectif est que chaque profil puisse travailler depuis n'importe quel PC en chargeant simplement son fichier.
+
+#### Deux fichiers, deux auteurs
+
+| Fichier | Écrit par | Lu par | Contenu |
+|---------|-----------|--------|---------|
+| `MANAGER-{codePDV}-S{XX}-{YYYY}[_vN].bvp.json` | Manager uniquement | Manager + Équipe | Planning, produits, commandes, promos, fréquentation, configuration |
+| `EQUIPE-{codePDV}-S{XX}-{YYYY}[_vN].bvp.json` | Équipe uniquement | Manager + Équipe | Personnalisations produits, programmes personnalisés, inventaires, plaquageJ1, préférences affichage |
+
+**Règle stricte : chaque profil écrit UNIQUEMENT dans son propre fichier pour éviter les conflits d'écriture simultanée.**
+Chaque profil peut LIRE le fichier de l'autre à tout moment.
+
+#### Dossiers désignés par l'utilisateur
+
+Les dossiers d'échange sont sélectionnés dans `PageParametres` et persistés via IndexedDB (File System Access API) :
+
+| Profil | Item PageParametres | Clé IndexedDB | Usage |
+|--------|---------------------|---------------|-------|
+| Manager | "Dossier archives Manager" | `dossierArchives` | Lecture/écriture des fichiers MANAGER |
+| Manager | "Dossier equipe" | `dossierEquipe` | Écriture du fichier pour l'équipe + lecture du retour EQUIPE |
+| Équipe | (à ajouter) "Dossier partagé" | `dossierEquipe` | Lecture du fichier MANAGER + écriture du fichier EQUIPE |
+
+**Important :** Côté Équipe, il faut remplacer l'import fichier unitaire actuel par la désignation d'un dossier partagé (même principe que le Manager). L'app scannera ce dossier pour trouver automatiquement le dernier fichier Manager de la semaine courante.
+
+#### Versioning des fichiers
+
+Quand le Manager (ou l'Équipe) régénère un fichier pour la même semaine :
+1. L'outil scanne le dossier pour trouver les fichiers existants pour cette semaine
+2. Il identifie la version la plus haute (v1, v2, v3...)
+3. Il charge cette version pour pré-remplir les données
+4. Il sauvegarde en version N+1
+
+Nommage : `MANAGER-07499-S12-2026.bvp.json` (v1 implicite), puis `MANAGER-07499-S12-2026_v2.bvp.json`, `_v3`, etc.
+Même logique pour `EQUIPE-07499-S12-2026.bvp.json`, `_v2`, etc.
+
+L'outil charge toujours la version la plus récente. Les anciennes versions sont conservées (historique).
+
+#### Contenu du fichier EQUIPE (personnalisations PlanningJour)
+
+Toutes les données actuellement dans localStorage doivent migrer vers le fichier EQUIPE :
+
+| Ancienne clé localStorage | Nouvelle clé dans equipe.bvp.json | Description |
+|---------------------------|-----------------------------------|-------------|
+| `bvp_produits_modifies` | `personnalisations` | Modifications produits : libellé, famille, programme, PLU, unités/plaque, unités/lot |
+| `bvp_programmes_personnalises` | `programmesPersonnalises` | Programmes de cuisson ajoutés/renommés par l'équipe |
+| `bvp_planning_jour_prefs` | `preferencesAffichage` | Ordre des familles, sections ouvertes/fermées |
+| `bvp_fichier_magasin` | (supprimé) | Remplacé par la lecture directe du fichier MANAGER dans le dossier partagé |
+| `bvp_impression_mode` | `preferencesAffichage.modeImpression` | Mode d'impression (continu/séparé) |
+| `bvp_impression_familles` | `preferencesAffichage.famillesImpression` | Familles sélectionnées pour l'impression |
+
+#### Flux de travail complet
+
+**Manager :**
+1. Ouvre l'app → PageParametres → désigne ses dossiers (DATA_perso, Mercalys, Archives, Equipe)
+2. Configure sa semaine dans le Wizard
+3. Exporte → le fichier MANAGER est écrit dans le dossier Archives ET copié dans le dossier Equipe
+4. Si modification en cours de semaine : l'outil charge la dernière version, le Manager ajuste, sauvegarde en v+1
+5. L'outil peut aussi lire le fichier EQUIPE pour récupérer les personnalisations terrain
+
+**Équipe :**
+1. Ouvre l'app → PageParametres → désigne le dossier partagé
+2. L'app scanne et charge automatiquement le dernier fichier MANAGER de la semaine courante
+3. L'équipier travaille (planning, personnalisations, inventaire)
+4. Chaque sauvegarde écrit le fichier EQUIPE dans le même dossier partagé
+5. Si changement de PC : l'équipier désigne le même dossier → retrouve toutes ses données
+
+#### État d'avancement de la migration
+
+- [x] Fichier MANAGER : export dans dossierArchives (Etape5Communication.jsx)
+- [x] Fichier MANAGER : copie dans dossierEquipe (Etape5Communication.jsx)
+- [x] Manager lit le fichier EQUIPE depuis dossierEquipe (EtapeConfigPlanning.jsx lignes 582-620)
+- [x] Manager lit les archives MANAGER depuis dossierArchives (EtapeConfigPlanning.jsx lignes 530-580)
+- [x] Équipe : remplacer import fichier par sélection dossier partagé dans PageParametres (AppV5.jsx ITEMS_EQUIPE → directory)
+- [x] Équipe : scanner le dossier pour charger le dernier MANAGER automatiquement (dossierEquipeService.js + AccueilEquipe.jsx)
+- [x] Équipe : écrire le fichier EQUIPE dans le dossier partagé (PlanningJour.jsx → sauvegarderFichierEquipe debounced 2s)
+- [x] Équipe : charger les personnalisations depuis le fichier EQUIPE au lieu de localStorage (PlanningJour.jsx init depuis donneesEquipe)
+- [x] Versioning : détection et lecture de la version la plus haute (dossierEquipeService.js parseNomFichier + scan)
+- [ ] Versioning : incrémentation de version quand le Manager régénère (côté Manager, à faire)
+- [x] CommandeEquipe : sauvegarde auto inventaires dans fichier EQUIPE (debounced) + export vers dossier partagé
+- [ ] Migration : supprimer progressivement les clés localStorage après validation terrain
+
+---
+
 ### Format fichier échange V2.0
 
 Source : `src/services/fichierEchangeService.js` lignes 65-249
@@ -1017,9 +1125,10 @@ Source : `src/styles/mousquetaires-theme.js` lignes 69-114
 6. **NE JAMAIS** toucher au référentiel ITM8 (structure des Maps, normalisation des codes)
 7. **NE JAMAIS** casser la compatibilité entre les 2 wizards (Manager et Responsable)
 8. **NE JAMAIS** modifier les 6 tranches internes — c'est la base de tous les calculs
-9. **NE JAMAIS** supprimer le localStorage équipe sans migration
+9. **NE JAMAIS** supprimer le localStorage équipe sans migration → **Migration en cours (12/03/2026)** : toutes les données localStorage doivent migrer vers les fichiers .bvp.json. Voir section "ARCHITECTURE DE PERSISTANCE — ZÉRO LOCALSTORAGE". Pendant la transition, lire en priorité depuis le fichier .bvp.json, fallback sur localStorage si fichier absent.
 10. **NE JAMAIS** modifier la formule de marge Mousquetaires (TVA 5.5%, calcul PV HT, PA HT)
 11. **NE JAMAIS** utiliser `toISOString().split('T')[0]` pour formater une date locale → utiliser `formatDateLocale()` (bug UTC corrigé le 23/02/2026)
+12. **NE JAMAIS** réactiver l'auto-deploy Vercel sur le projet `bvp-planning` (URL: `bvp-planning.vercel.app`) — ce site est figé sur la **V4** par décision utilisateur (09/03/2026). Seuls `dist-manager` et `dist-equipe` se déploient automatiquement.
 
 ---
 

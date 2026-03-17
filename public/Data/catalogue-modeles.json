@@ -1,0 +1,6462 @@
+[
+  {
+    "segment": "ENTREE DE GAMME",
+    "itm8": "47416090",
+    "ean13": "3250390882763",
+    "libelle": "PAIN PARISIEN CRU 400G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 8
+  },
+  {
+    "segment": "ENTREE DE GAMME",
+    "itm8": "47416080",
+    "ean13": "3250393453434",
+    "libelle": "PAIN PARISIEN PRECUITE 400G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 8
+  },
+  {
+    "segment": "ENTREE DE GAMME",
+    "itm8": "47416090",
+    "ean13": "3250390882763",
+    "libelle": "PAIN PARISIEN CRU 400G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 9
+  },
+  {
+    "segment": "ENTREE DE GAMME",
+    "itm8": "47416080",
+    "ean13": "3250393453434",
+    "libelle": "PAIN PARISIEN PRECUITE 400G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 9
+  },
+  {
+    "segment": "ENTREE DE GAMME",
+    "itm8": "47416020",
+    "ean13": "3250390882701",
+    "libelle": "BAGUETTE CRUE 250G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 9
+  },
+  {
+    "segment": "ENTREE DE GAMME",
+    "itm8": "47416010",
+    "ean13": "3250390882664",
+    "libelle": "BAGUETTE PRECUITE 250G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 9
+  },
+  {
+    "segment": "ENTREE DE GAMME",
+    "itm8": "18113636",
+    "ean13": "3250390886761",
+    "libelle": "PALETTE BAGUETTE CRUE 250G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 9
+  },
+  {
+    "segment": "ENTREE DE GAMME",
+    "itm8": "18113632",
+    "ean13": "3250390886754",
+    "libelle": "PALETTE BAGUETTE PREC 250G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 9
+  },
+  {
+    "segment": "ENTREE DE GAMME",
+    "itm8": "47416015",
+    "ean13": "3250390882688",
+    "libelle": "DEMI BAGUETTE PRECUITE 125G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 9
+  },
+  {
+    "segment": "ENTREE DE GAMME",
+    "itm8": "47416237",
+    "ean13": "3250390968351",
+    "libelle": "PETIT PAIN NATURE & GRAINES PRECUITE 75G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M8",
+    "page": 9
+  },
+  {
+    "segment": "ENTREE DE GAMME",
+    "itm8": "18083619",
+    "ean13": "3250392201555",
+    "libelle": "PETIT PAIN PRECUIT / 60G CUIT",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 9
+  },
+  {
+    "segment": "ENTREE DE GAMME",
+    "itm8": "18108673",
+    "ean13": "3250392355678",
+    "libelle": "BOULE BLANCHE CRUE/60G (3 bases)",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 9
+  },
+  {
+    "segment": "ENTREE DE GAMME",
+    "itm8": "18130435",
+    "ean13": "3250392745325",
+    "libelle": "FALUCHE CRUE 105G (1 base)",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 9
+  },
+  {
+    "segment": "LES CLASSIQUES",
+    "itm8": "18224531",
+    "ean13": "3250393012068",
+    "libelle": "P&C BAGUETTE CONSTANCE HVE 250G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 9
+  },
+  {
+    "segment": "LES CLASSIQUES",
+    "itm8": "18311269",
+    "ean13": "3700854601114",
+    "libelle": "BAGUETTE RUSTIQUE PREC. 250G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M3",
+    "page": 9
+  },
+  {
+    "segment": "LES CLASSIQUES",
+    "itm8": "18083459",
+    "ean13": "3250393046940",
+    "libelle": "P&C BAGUETTE CONSTANCE CEREALES 250G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 9
+  },
+  {
+    "segment": "LES CLASSIQUES",
+    "itm8": "18224528",
+    "ean13": "3250393012082",
+    "libelle": "P&C BAGUETTE CONSTANCE HVE 3+1 OFFERTE 1KG",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M3",
+    "page": 9
+  },
+  {
+    "segment": "LES CLASSIQUES",
+    "itm8": "18306810",
+    "ean13": "3250393454202",
+    "libelle": "LOT BAGUETTE RUSTIQUE X4 1KG",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 9
+  },
+  {
+    "segment": "LES CLASSIQUES",
+    "itm8": "18083478",
+    "ean13": "3250393047152",
+    "libelle": "P&C BAGUETTE CONSTANCE CEREALES 3+1 OFFERTE 1KG",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M3",
+    "page": 9
+  },
+  {
+    "segment": "LES CLASSIQUES",
+    "itm8": "18224530",
+    "ean13": "3250393012044",
+    "libelle": "P&C DEMI CONSTANCE HVE 125G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M6",
+    "page": 9
+  },
+  {
+    "segment": "LES CLASSIQUES",
+    "itm8": "18130428",
+    "ean13": "3250393047039",
+    "libelle": "P&C DEMI CONSTANCE CEREALES 125G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 9
+  },
+  {
+    "segment": "LES CLASSIQUES",
+    "itm8": "47416374",
+    "ean13": "3250390424536",
+    "libelle": "PAIN POLKA LONG PRECUIT 500G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 9
+  },
+  {
+    "segment": "LES CLASSIQUES",
+    "itm8": "18027884",
+    "ean13": "3250391665488",
+    "libelle": "PAIN AUX CEREALES CRU 300G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 9
+  },
+  {
+    "segment": "LES CLASSIQUES",
+    "itm8": "18027872",
+    "ean13": "3250391660735",
+    "libelle": "PAIN AUX CEREALES PRECUIT 300G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 9
+  },
+  {
+    "segment": "LES CLASSIQUES",
+    "itm8": "18137528",
+    "ean13": "3250392518981",
+    "libelle": "LA GENEREUSE PRECUITE 300G",
+    "modeles": {
+      "M1": 0,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M2",
+    "page": 9
+  },
+  {
+    "segment": "LES CLASSIQUES",
+    "itm8": "47416095",
+    "ean13": "3250390882800",
+    "libelle": "BOULOT CRU 500G CUIT (10 bases)",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 9
+  },
+  {
+    "segment": "LES CLASSIQUES",
+    "itm8": "47416092",
+    "ean13": "3250390882787",
+    "libelle": "BOULOT PRECUIT 500G (10 bases)",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 1,
+      "M4": 1,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 0
+    },
+    "modeleMin": "M3",
+    "page": 9
+  },
+  {
+    "segment": "LES CLASSIQUES",
+    "itm8": "47416120",
+    "ean13": "3250393437144",
+    "libelle": "P&C PAIN CAMPAGNE CRU 350G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 9
+  },
+  {
+    "segment": "LES CLASSIQUES",
+    "itm8": "47416110",
+    "ean13": "3250393437151",
+    "libelle": "P&C PAIN DE CAMPAGNE PRECUIT 350G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 1,
+      "M4": 1,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 0
+    },
+    "modeleMin": "M3",
+    "page": 9
+  },
+  {
+    "segment": "LES CLASSIQUES",
+    "itm8": "47416285",
+    "ean13": "3250390896357",
+    "libelle": "PAIN AU SEIGLE CRU 300G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 9
+  },
+  {
+    "segment": "LES CLASSIQUES",
+    "itm8": "47416275",
+    "ean13": "3250390896333",
+    "libelle": "PAIN AU SEIGLE PRECUIT 300G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M4",
+    "page": 9
+  },
+  {
+    "segment": "LES CLASSIQUES",
+    "itm8": "47416180",
+    "ean13": "3250390883029",
+    "libelle": "MICHE BLANCHE CRUE 400G (9 bases)",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 9
+  },
+  {
+    "segment": "LES CLASSIQUES",
+    "itm8": "47416190",
+    "ean13": "3605580021291",
+    "libelle": "MICHE BLANCHE PREC 400G/CUIT",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M6",
+    "page": 9
+  },
+  {
+    "segment": "LES CLASSIQUES",
+    "itm8": "47416155",
+    "ean13": "3250392270544",
+    "libelle": "BOULE DE CAMPAGNE CRUE 400G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M6",
+    "page": 9
+  },
+  {
+    "segment": "LES PREMIUMS",
+    "itm8": "47416384",
+    "ean13": "3250393047664",
+    "libelle": "P&C PAVE MULTICEREALES 400G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 9
+  },
+  {
+    "segment": "LES PREMIUMS",
+    "itm8": "18302585",
+    "ean13": "3250393456428",
+    "libelle": "BAGUETTE A BASE DE FARINE LABEL ROUGE 250G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 9
+  },
+  {
+    "segment": "LES PREMIUMS",
+    "itm8": "18120759",
+    "ean13": "3250393047008",
+    "libelle": "P&C PAIN A BASE FARINE LABEL ROUGE 450G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M4",
+    "page": 9
+  },
+  {
+    "segment": "LES PREMIUMS",
+    "itm8": "18120743",
+    "ean13": "3250393047183",
+    "libelle": "P&C PAIN CAMPAGNARD CRC HVE 400G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M3",
+    "page": 9
+  },
+  {
+    "segment": "LES PREMIUMS",
+    "itm8": "18181519",
+    "ean13": "3250393047275",
+    "libelle": "P&C PAIN PAVE CRC HVE 550G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 9
+  },
+  {
+    "segment": "LES PREMIUMS",
+    "itm8": "18147561",
+    "ean13": "3250393047480",
+    "libelle": "P&C PAIN PAILLASSE 350G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M3",
+    "page": 9
+  },
+  {
+    "segment": "LES PREMIUMS",
+    "itm8": "18313300",
+    "ean13": "3511241341700",
+    "libelle": "BOULE RUSTIQUE PREC. 500G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M6",
+    "page": 9
+  },
+  {
+    "segment": "LES PAINS PLAISIR",
+    "itm8": "47416326",
+    "ean13": "3250393445637",
+    "libelle": "P&C PAIN AUX NOIX CRU 300G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 10
+  },
+  {
+    "segment": "LES PAINS PLAISIR",
+    "itm8": "47416327",
+    "ean13": "3250393445347",
+    "libelle": "P&C PAIN AUX NOIX PRECUIT 300G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 10
+  },
+  {
+    "segment": "LES PAINS PLAISIR",
+    "itm8": "18012897",
+    "ean13": "3250393047060",
+    "libelle": "P&C PAIN MAIS ET GRAINES DE TOURNESOL CRU 300G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 10
+  },
+  {
+    "segment": "LES PAINS PLAISIR",
+    "itm8": "47416335",
+    "ean13": "3250393047367",
+    "libelle": "P&C PAIN MAIS ET GRAINES DE TOURNESOL PRECUIT 300G",
+    "modeles": {
+      "M1": 0,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M2",
+    "page": 10
+  },
+  {
+    "segment": "LES PAINS PLAISIR",
+    "itm8": "18226039",
+    "ean13": "3250393220517",
+    "libelle": "P&C PAIN NORDIQUE 300G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M4",
+    "page": 10
+  },
+  {
+    "segment": "LES PAINS PLAISIR",
+    "itm8": "18106554",
+    "ean13": "3250393455667",
+    "libelle": "P&C PAIN SPORTIF 300G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M4",
+    "page": 10
+  },
+  {
+    "segment": "LES PAINS PLAISIR",
+    "itm8": "18302796",
+    "ean13": "3419280100039",
+    "libelle": "PAIN AUX FIGUES 320G PREC",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 10
+  },
+  {
+    "segment": "LES PAINS PLAISIR",
+    "itm8": "18302737",
+    "ean13": "3419280099340",
+    "libelle": "PAIN OLIVES NOIRES 315G PREC",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M6",
+    "page": 10
+  },
+  {
+    "segment": "LES PAINS PLAISIR",
+    "itm8": "18336582",
+    "ean13": "3760008857521",
+    "libelle": "NAVETTES NATURE X20 300G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 10
+  },
+  {
+    "segment": "LES PAINS SANTE",
+    "itm8": "18145368",
+    "ean13": "3250393047244",
+    "libelle": "P&C PAIN EPEAUTRE 400G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 10
+  },
+  {
+    "segment": "LES PAINS SANTE",
+    "itm8": "18028827",
+    "ean13": "3250393443787",
+    "libelle": "P&C PAIN BASE FARINE COMPLETE CRU 300G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 10
+  },
+  {
+    "segment": "LES PAINS SANTE",
+    "itm8": "18125572",
+    "ean13": "3250393443794",
+    "libelle": "P&C PAIN BASE FARINE COMPLETE PRECUIT 300G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 10
+  },
+  {
+    "segment": "LES PAINS SANTE",
+    "itm8": "18030738",
+    "ean13": "3250393047121",
+    "libelle": "P&C PAIN PAVE AUX 2 LINS BBC CRC HVE 300G",
+    "modeles": {
+      "M1": 0,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M2",
+    "page": 10
+  },
+  {
+    "segment": "LES PAINS SANTE",
+    "itm8": "18297191",
+    "ean13": "3700442602158",
+    "libelle": "BOULE TRANCHEE SANS GLUTEN WISO 400G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 10
+  },
+  {
+    "segment": "LES PAINS SANTE",
+    "itm8": "18297190",
+    "ean13": "3700442602066",
+    "libelle": "PAIN AUX CEREALES SANS GLUTEN WISO 350G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M6",
+    "page": 10
+  },
+  {
+    "segment": "LES PAINS SANTE",
+    "itm8": "18297189",
+    "ean13": "3700442602059",
+    "libelle": "PAIN DE MIE SANS GLUTEN WISO 350G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M6",
+    "page": 10
+  },
+  {
+    "segment": "LES PAINS SANTE",
+    "itm8": "18297192",
+    "ean13": "3700442602509",
+    "libelle": "BOULE AUX GRAINES TRANCHEE WISO - 400G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 10
+  },
+  {
+    "segment": "LES PAINS SANTE",
+    "itm8": "18313299",
+    "ean13": "3511241341601",
+    "libelle": "PAIN SANS SEL PREC. 300G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M8",
+    "page": 10
+  },
+  {
+    "segment": "LES PAINS SANTE",
+    "itm8": "24270036",
+    "ean13": "3760281664373",
+    "libelle": "PAIN AUX GRAINES IG BAS 350G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M8",
+    "page": 10
+  },
+  {
+    "segment": "LE BIO",
+    "itm8": "18153450",
+    "ean13": "3250393047541",
+    "libelle": "P&C BAGUETTE BIO 250G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 10
+  },
+  {
+    "segment": "LE BIO",
+    "itm8": "18206452",
+    "ean13": "3250393047633",
+    "libelle": "P&C BAGUETTE CEREALES BIO 250G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 10
+  },
+  {
+    "segment": "LE BIO",
+    "itm8": "18029004",
+    "ean13": "3250393047459",
+    "libelle": "P&C PAIN 5 CEREALES ET GRAINES BIO 300G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M3",
+    "page": 10
+  },
+  {
+    "segment": "LE BIO",
+    "itm8": "18227526",
+    "ean13": "3250393047398",
+    "libelle": "P&C PAIN COMPLET BIO 300G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M3",
+    "page": 10
+  },
+  {
+    "segment": "LE BIO",
+    "itm8": "18153451",
+    "ean13": "3250393047572",
+    "libelle": "P&C PAIN PAVE BIO 400G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M6",
+    "page": 10
+  },
+  {
+    "segment": "LE BIO",
+    "itm8": "18029003",
+    "ean13": "3250393047428",
+    "libelle": "P&C BOULE BIO PREC/500G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M6",
+    "page": 10
+  },
+  {
+    "segment": "SNACKING SALE",
+    "itm8": "18184529",
+    "ean13": "3511244340809",
+    "libelle": "FOUGASSE CHEVRE PRECUITE200G",
+    "modeles": {
+      "M1": 0,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M2",
+    "page": 10
+  },
+  {
+    "segment": "SNACKING SALE",
+    "itm8": "18184524",
+    "ean13": "3511244340700",
+    "libelle": "FOUGASSE LARDONS EMMEN PC200G",
+    "modeles": {
+      "M1": 0,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M2",
+    "page": 10
+  },
+  {
+    "segment": "SNACKING SALE",
+    "itm8": "18290149",
+    "ean13": "3511244340908",
+    "libelle": "FOUGASSE CHORIZO",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M3",
+    "page": 10
+  },
+  {
+    "segment": "SNACKING SALE",
+    "itm8": "18201829",
+    "ean13": "3579630303029",
+    "libelle": "CROQUE MONSIEUR170G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M4",
+    "page": 10
+  },
+  {
+    "segment": "SNACKING SALE",
+    "itm8": "18285994",
+    "ean13": "3429711501236",
+    "libelle": "FOZZA 3 FROMAGES 180G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 10
+  },
+  {
+    "segment": "SNACKING SALE",
+    "itm8": "18285993",
+    "ean13": "3429711500970",
+    "libelle": "FOZZA CREME LARDONS 180G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 10
+  },
+  {
+    "segment": "SNACKING SALE",
+    "itm8": "18302584",
+    "ean13": "3419280096134",
+    "libelle": "PANIER VACHE QUI RIT",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M8",
+    "page": 10
+  },
+  {
+    "segment": "SNACKING SALE",
+    "itm8": "18261966",
+    "ean13": "3591270017517",
+    "libelle": "GOURMANDE LARDONS OIGNONS 235G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 10
+  },
+  {
+    "segment": "SNACKING SALE",
+    "itm8": "18261965",
+    "ean13": "3591270017524",
+    "libelle": "GOURMANDE CHORI/POIVRON235G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 10
+  },
+  {
+    "segment": "SNACKING SALE",
+    "itm8": "18261984",
+    "ean13": "3591270017531",
+    "libelle": "GOURMANDE TOMATES 235GR",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 10
+  },
+  {
+    "segment": "SNACKING SALE",
+    "itm8": "18201833",
+    "ean13": "3579630302657",
+    "libelle": "PANINI AU FROMAGE 170G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 10
+  },
+  {
+    "segment": "SNACKING SALE",
+    "itm8": "18201830",
+    "ean13": "3579630303388",
+    "libelle": "BAGUETTE FROM DE CHEVRE /170G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 10
+  },
+  {
+    "segment": "SNACKING SALE",
+    "itm8": "18201832",
+    "ean13": "3579630303395",
+    "libelle": "BAGUETTE PIZZA ROYALE/ 170G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 10
+  },
+  {
+    "segment": "SNACKING SALE",
+    "itm8": "18201834",
+    "ean13": "3579630302664",
+    "libelle": "PANINI MOZARELLA/170G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 10
+  },
+  {
+    "segment": "SNACKING SALE",
+    "itm8": "18201823",
+    "ean13": "3579630212215",
+    "libelle": "QUICHE LORRAINE CRUE 200G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 10
+  },
+  {
+    "segment": "SNACKING SALE",
+    "itm8": "18311264",
+    "ean13": "3511244512800",
+    "libelle": "SUISSE LARDON EMMENTAL PAC130G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 10
+  },
+  {
+    "segment": "SNACKING SALE",
+    "itm8": "18311265",
+    "ean13": "3511244512909",
+    "libelle": "SUISSE A LA MEXICAINE PAC130G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 10
+  },
+  {
+    "segment": "SNACKING SALE",
+    "itm8": "18311266",
+    "ean13": "3511244513005",
+    "libelle": "SUISSE CHEDDAR OIGNONS PAC130G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 10
+  },
+  {
+    "segment": "SNACKING SALE",
+    "itm8": "18311267",
+    "ean13": "3511244513104",
+    "libelle": "SUISSE CHEVRE PESTO PAC 130G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 10
+  },
+  {
+    "segment": "SNACKING SALE",
+    "itm8": "18311268",
+    "ean13": "3511244513203",
+    "libelle": "SUISSE JAMBON VEGETAL PAC 130G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 10
+  },
+  {
+    "segment": "CONSOMMABLE",
+    "itm8": "43416020",
+    "ean13": "3215200002090",
+    "libelle": "BOMBE A DORURE 300 G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 11
+  },
+  {
+    "segment": "CROISSANT",
+    "itm8": "47417028",
+    "ean13": "3250393463280",
+    "libelle": "CROISSANT AU BEURRE AOP XL CRU 70G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 11
+  },
+  {
+    "segment": "CROISSANT",
+    "itm8": "18184431",
+    "ean13": "3250393463297",
+    "libelle": "CROISSANT AU BEURRE AOP XL PREP 70G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 1,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 0
+    },
+    "modeleMin": "M4",
+    "page": 11
+  },
+  {
+    "segment": "PAIN AU CHOCOLAT",
+    "itm8": "47417058",
+    "ean13": "3250393463495",
+    "libelle": "PAIN AU CHOCOLAT BEURRE AOP XL CRU 70G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 11
+  },
+  {
+    "segment": "PAIN AU CHOCOLAT",
+    "itm8": "18184436",
+    "ean13": "3250393463501",
+    "libelle": "PAIN AU CHOCOLAT BEURRE AOP XL PREP 70G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 1,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 0
+    },
+    "modeleMin": "M4",
+    "page": 11
+  },
+  {
+    "segment": "AUTRES CLASSIQUES",
+    "itm8": "18336526",
+    "ean13": "3250393463518",
+    "libelle": "PAIN RAISINS BEUR.AOP 110G CRU",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M7",
+    "page": 11
+  },
+  {
+    "segment": "AUTRES CLASSIQUES",
+    "itm8": "18336531",
+    "ean13": "3250393463525",
+    "libelle": "PAIN RAISINS BEUR.AOP 110G PAC",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 11
+  },
+  {
+    "segment": "AUTRES CLASSIQUES",
+    "itm8": "18336525",
+    "ean13": "3250393463532",
+    "libelle": "CHAUSSON POM BEUR.AOP 120G PAC",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M7",
+    "page": 11
+  },
+  {
+    "segment": "CROISSANT",
+    "itm8": "47417035",
+    "ean13": "3250390883364",
+    "libelle": "CROISSANT PUR BEURRE CRU 50G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 11
+  },
+  {
+    "segment": "CROISSANT",
+    "itm8": "47417038",
+    "ean13": "3250392099947",
+    "libelle": "CROISSANT PUR BEURRE PREPOUSSE 50G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 11
+  },
+  {
+    "segment": "CROISSANT",
+    "itm8": "18125564",
+    "ean13": "3250393442643",
+    "libelle": "CROISSANT PT PRX CR STICK50G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 11
+  },
+  {
+    "segment": "CROISSANT",
+    "itm8": "18255447",
+    "ean13": "3250393442650",
+    "libelle": "CROISSANT PT PRX PP STICK50G",
+    "modeles": {
+      "M1": 0,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 0
+    },
+    "modeleMin": "M2",
+    "page": 11
+  },
+  {
+    "segment": "PAIN AU CHOCOLAT",
+    "itm8": "47417070",
+    "ean13": "3250390883449",
+    "libelle": "PAIN CHOCOLAT PUR BEURRE CRU 60G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 11
+  },
+  {
+    "segment": "PAIN AU CHOCOLAT",
+    "itm8": "47417078",
+    "ean13": "3250392099916",
+    "libelle": "PAIN CHOCOLAT PUR BEURRE PREPOUSSE 60G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 11
+  },
+  {
+    "segment": "PAIN AU CHOCOLAT",
+    "itm8": "18125571",
+    "ean13": "3250393442612",
+    "libelle": "PAIN CHOC.PETT PRX CR STI60G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 11
+  },
+  {
+    "segment": "PAIN AU CHOCOLAT",
+    "itm8": "18255382",
+    "ean13": "3250393442636",
+    "libelle": "PAIN CHOC PTT PRX PP STIK60G",
+    "modeles": {
+      "M1": 0,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 0
+    },
+    "modeleMin": "M2",
+    "page": 11
+  },
+  {
+    "segment": "PAIN AU CHOCOLAT",
+    "itm8": "47417065",
+    "ean13": "3461182221091",
+    "libelle": "MAXI PAIN CHOCO BEUR CRU/105G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 11
+  },
+  {
+    "segment": "PAIN AU CHOCOLAT",
+    "itm8": "18255451",
+    "ean13": "3419280095953",
+    "libelle": "MAXI PAIN AU CHOCOLAT PAC 130G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 1,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 0
+    },
+    "modeleMin": "M4",
+    "page": 11
+  },
+  {
+    "segment": "AUTRES CLASSIQUES",
+    "itm8": "47417095",
+    "ean13": "3250393113239",
+    "libelle": "PAIN AUX RAISINS BEURRE CRU 85G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 11
+  },
+  {
+    "segment": "AUTRES CLASSIQUES",
+    "itm8": "18137384",
+    "ean13": "3250393111327",
+    "libelle": "PAIN RAISINS BEURRE PREPOUSSE 85G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 11
+  },
+  {
+    "segment": "AUTRES CLASSIQUES",
+    "itm8": "47417110",
+    "ean13": "3250390883548",
+    "libelle": "CHAUSSON POMME PUR BEURRE CRU 90G",
+    "modeles": {
+      "M1": 0,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M2",
+    "page": 11
+  },
+  {
+    "segment": "MINI VIENNOISERIES",
+    "itm8": "18274460",
+    "ean13": "3419280090231",
+    "libelle": "MIX MINI VIENNOISERIES PAC",
+    "modeles": {
+      "M1": 0,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M2",
+    "page": 11
+  },
+  {
+    "segment": "VIENNOISERIES PLAISIRS",
+    "itm8": "47417167",
+    "ean13": "3250391218820",
+    "libelle": "SUISSE LONG PEPITE CHOCOLAT CRU 100G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 11
+  },
+  {
+    "segment": "VIENNOISERIES PLAISIRS",
+    "itm8": "18257133",
+    "ean13": "3250393196737",
+    "libelle": "SUISSE LONG PEPITE CHOCOLAT PREPOUSSE 100G",
+    "modeles": {
+      "M1": 0,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 0
+    },
+    "modeleMin": "M2",
+    "page": 11
+  },
+  {
+    "segment": "VIENNOISERIES PLAISIRS",
+    "itm8": "18336581",
+    "ean13": "3419280104822",
+    "libelle": "ROULE A LA CANNELLE PAC 100G",
+    "modeles": {
+      "M1": 0,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M2",
+    "page": 11
+  },
+  {
+    "segment": "VIENNOISERIES PLAISIRS",
+    "itm8": "18130436",
+    "ean13": "3291810789071",
+    "libelle": "TORSADE PEPITE CHOCOLAT CRUE 100G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 11
+  },
+  {
+    "segment": "VIENNOISERIES PLAISIRS",
+    "itm8": "18257218",
+    "ean13": "3291810019734",
+    "libelle": "TORSADE BEURRE PEP CHOC/100G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 1,
+      "M4": 1,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 0
+    },
+    "modeleMin": "M3",
+    "page": 11
+  },
+  {
+    "segment": "VIENNOISERIES PLAISIRS",
+    "itm8": "18300273",
+    "ean13": "3461180352018",
+    "libelle": "CROISSANT AUX ABRICOT PUR BEURRE PREPOUSSE 115G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M3",
+    "page": 11
+  },
+  {
+    "segment": "VIENNOISERIES PLAISIRS",
+    "itm8": "18275674",
+    "ean13": "3248288137071",
+    "libelle": "CROISSANT CACAO/NOIS PREP 85G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M4",
+    "page": 11
+  },
+  {
+    "segment": "VIENNOISERIES PLAISIRS",
+    "itm8": "18333059",
+    "ean13": "3248288136999",
+    "libelle": "CROISSANT FRAMBOISE PREP 85G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 11
+  },
+  {
+    "segment": "VIENNOISERIES PLAISIRS",
+    "itm8": "18125573",
+    "ean13": "3498841484801",
+    "libelle": "CHOUQUETTE SUCREE CRUE 12G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M3",
+    "page": 11
+  },
+  {
+    "segment": "VIENNOISERIES PLAISIRS",
+    "itm8": "47417165",
+    "ean13": "3250390882626",
+    "libelle": "TRIANGLE AMANDES CRU 80G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M3",
+    "page": 11
+  },
+  {
+    "segment": "VIENNOISERIES PLAISIRS",
+    "itm8": "18034483",
+    "ean13": "3355710015446",
+    "libelle": "PALMIER PUR BEURRE CRU 65G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M4",
+    "page": 11
+  },
+  {
+    "segment": "VIENNOISERIES PLAISIRS",
+    "itm8": "18255448",
+    "ean13": "3419280093010",
+    "libelle": "CRAVATE CREME PATISSIERE PREPOUSSE 80G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 11
+  },
+  {
+    "segment": "VIENNOISERIES PLAISIRS",
+    "itm8": "18279693",
+    "ean13": "3461180360624",
+    "libelle": "GRILLE AUX POMMES CRU 110G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 11
+  },
+  {
+    "segment": "VIENNOISERIES PLAISIRS",
+    "itm8": "47417196",
+    "ean13": "3533950000617",
+    "libelle": "GAUFRE DE BRUXELLE X4 280G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M6",
+    "page": 11
+  },
+  {
+    "segment": "VIENNOISERIES PLAISIRS",
+    "itm8": "18302583",
+    "ean13": "3248288093315",
+    "libelle": "PASTEL DE NATA CRU 68G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M6",
+    "page": 11
+  },
+  {
+    "segment": "VIENNOISERIES PLAISIRS",
+    "itm8": "18311261",
+    "ean13": "3511242502605",
+    "libelle": "PATTE D OURS CHOCOLAT PAC 90G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M8",
+    "page": 11
+  },
+  {
+    "segment": "VIENNOISERIES PLAISIRS",
+    "itm8": "18262340",
+    "ean13": "5425035990013",
+    "libelle": "GAUFFRE LIEGE VANILLE PREM110G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M8",
+    "page": 11
+  },
+  {
+    "segment": "VIENNOISERIES PLAISIRS",
+    "itm8": "18311316",
+    "ean13": "3511242502704",
+    "libelle": "DELICE BRIOCHE NATURE 130G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M8",
+    "page": 11
+  },
+  {
+    "segment": "VIENNOISERIES PLAISIRS",
+    "itm8": "18311317",
+    "ean13": "3511242502803",
+    "libelle": "DELICE BRIOCHE PRALINE 130G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M8",
+    "page": 11
+  },
+  {
+    "segment": "BEIGNETS",
+    "itm8": "18246454",
+    "ean13": "3187670235608",
+    "libelle": "BEIGNETS AU CHOCOLAT X4 300G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 12
+  },
+  {
+    "segment": "BEIGNETS",
+    "itm8": "18277724",
+    "ean13": "3187670235202",
+    "libelle": "BEIGNETS FRAMBOISEX4 300G",
+    "modeles": {
+      "M1": 0,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M2",
+    "page": 12
+  },
+  {
+    "segment": "BEIGNETS",
+    "itm8": "18246449",
+    "ean13": "3187670235103",
+    "libelle": "BEIGNETS A LA POMME X4 300G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M3",
+    "page": 12
+  },
+  {
+    "segment": "BEIGNETS",
+    "itm8": "18246465",
+    "ean13": "3187670011660",
+    "libelle": "BEIGNETS AU CHOCOLAT X10 750G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M4",
+    "page": 12
+  },
+  {
+    "segment": "BEIGNETS",
+    "itm8": "18277723",
+    "ean13": "3187670011523",
+    "libelle": "BEIGNET FRAMBOISE X10 750G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 12
+  },
+  {
+    "segment": "BEIGNETS",
+    "itm8": "18246464",
+    "ean13": "3187670011516",
+    "libelle": "BEIGNETS A LA POMME X10 750G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 12
+  },
+  {
+    "segment": "BEIGNETS",
+    "itm8": "18113578",
+    "ean13": "3760008859945",
+    "libelle": "MINI BEIGNETS 3 CHOCOLATS X12 300G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 12
+  },
+  {
+    "segment": "BEIGNETS",
+    "itm8": "18206465",
+    "ean13": "3760008859129",
+    "libelle": "MINI BEIGNETS FOURREES POMME X8 200G",
+    "modeles": {
+      "M1": 0,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M2",
+    "page": 12
+  },
+  {
+    "segment": "BEIGNETS",
+    "itm8": "18300269",
+    "ean13": "3248288177282",
+    "libelle": "MIN BEIGNT FRAMBOISE X8 200G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M7",
+    "page": 12
+  },
+  {
+    "segment": "BEIGNETS",
+    "itm8": "18300277",
+    "ean13": "3760008854995",
+    "libelle": "MINI BEIGNET CHOCO BLCX8 200G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M8",
+    "page": 12
+  },
+  {
+    "segment": "BEIGNETS",
+    "itm8": "18300268",
+    "ean13": "3248288178449",
+    "libelle": "MINI BEIGNETS CHOCOLATX8 200G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 12
+  },
+  {
+    "segment": "BEIGNETS",
+    "itm8": "18228956",
+    "ean13": "3187670012063",
+    "libelle": "BEIGNET VRAC CHOCOLAT 75G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 12
+  },
+  {
+    "segment": "BEIGNETS",
+    "itm8": "18228957",
+    "ean13": "3187670012018",
+    "libelle": "BEIGNET VRAC POMME 75G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 12
+  },
+  {
+    "segment": "GAMME AMERICAINE",
+    "itm8": "18261983",
+    "ean13": "8000500392935",
+    "libelle": "NUTELLA MUFFIN X2 172G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 12
+  },
+  {
+    "segment": "GAMME AMERICAINE",
+    "itm8": "18229970",
+    "ean13": "8000500366899",
+    "libelle": "MUFFIN NUTELLA 86G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M3",
+    "page": 12
+  },
+  {
+    "segment": "GAMME AMERICAINE",
+    "itm8": "18141601",
+    "ean13": "5411823866264",
+    "libelle": "DONUTS SUCRE CRISTAL X4 200G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 12
+  },
+  {
+    "segment": "GAMME AMERICAINE",
+    "itm8": "18141602",
+    "ean13": "5411823866271",
+    "libelle": "DONUTS CHOCOLAT X4 220G",
+    "modeles": {
+      "M1": 0,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M2",
+    "page": 12
+  },
+  {
+    "segment": "GAMME AMERICAINE",
+    "itm8": "18300281",
+    "ean13": "5411823870582",
+    "libelle": "DONUTS BLANC CONFETTIS X4 220G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 12
+  },
+  {
+    "segment": "GAMME AMERICAINE",
+    "itm8": "18336584",
+    "ean13": "5411823865205",
+    "libelle": "MINI DONUTS CHOCOLAT X4 72G STK",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M4",
+    "page": 12
+  },
+  {
+    "segment": "GAMME AMERICAINE",
+    "itm8": "18336585",
+    "ean13": "5411823865212",
+    "libelle": "MINI DONUTS ROSE X4 72G STK",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 12
+  },
+  {
+    "segment": "GAMME AMERICAINE",
+    "itm8": "18125546",
+    "ean13": "5413321001055",
+    "libelle": "DONUTS MILKA X4 224G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 12
+  },
+  {
+    "segment": "GAMME AMERICAINE",
+    "itm8": "18297186",
+    "ean13": "3040400220193",
+    "libelle": "DONUTS OREO X2",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M6",
+    "page": 12
+  },
+  {
+    "segment": "GAMME AMERICAINE",
+    "itm8": "18300274",
+    "ean13": "3461180541085",
+    "libelle": "DONUTS MARS X2",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 12
+  },
+  {
+    "segment": "GAMME AMERICAINE",
+    "itm8": "18300283",
+    "ean13": "5413476308658",
+    "libelle": "DONUTS LOTUS X2",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 12
+  },
+  {
+    "segment": "GAMME AMERICAINE",
+    "itm8": "18147470",
+    "ean13": "5413321002069",
+    "libelle": "MUFFINS FOURRES MILKA X2 220G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M3",
+    "page": 12
+  },
+  {
+    "segment": "GAMME AMERICAINE",
+    "itm8": "18297195",
+    "ean13": "4065698201869",
+    "libelle": "COOKIES MILKA X2 144G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M3",
+    "page": 12
+  },
+  {
+    "segment": "GAMME AMERICAINE",
+    "itm8": "18297193",
+    "ean13": "4017040292407",
+    "libelle": "PALET COOKIE NATURE",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 12
+  },
+  {
+    "segment": "GAMME AMERICAINE",
+    "itm8": "18297194",
+    "ean13": "4017040592392",
+    "libelle": "PALET COOKIE CHOCOLAT",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M6",
+    "page": 12
+  },
+  {
+    "segment": "GAMME AMERICAINE",
+    "itm8": "18052997",
+    "ean13": "3040400210279",
+    "libelle": "BROWNIES BCB X4 240G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M6",
+    "page": 12
+  },
+  {
+    "segment": "GAMME AMERICAINE",
+    "itm8": "18336583",
+    "ean13": "5025183078979",
+    "libelle": "MILKA MINI CRIPIES 154G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 12
+  },
+  {
+    "segment": "GAMME AMERICAINE",
+    "itm8": "18300278",
+    "ean13": "3760008856449",
+    "libelle": "Mini muffins chocolat x8",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 12
+  },
+  {
+    "segment": "GAMME AMERICAINE",
+    "itm8": "18201849",
+    "ean13": "5411823868633",
+    "libelle": "COOKIES NATURE PEPITE CHOCOLAT X2 160G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 12
+  },
+  {
+    "segment": "BRIOCHES",
+    "itm8": "19427273",
+    "ean13": "3173310020369",
+    "libelle": "GACHE TRANCHE EPAISSE PUR BEURRE 600G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 12
+  },
+  {
+    "segment": "BRIOCHES",
+    "itm8": "24754894",
+    "ean13": "3173310025784",
+    "libelle": "GACHE AUX PEPITES DE CHOCOLAT XXXG",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M6",
+    "page": 12
+  },
+  {
+    "segment": "BRIOCHES",
+    "itm8": "43416021",
+    "ean13": "3173310019325",
+    "libelle": "BRIOCHEE TRESSEE LABEL ROUGE CUIT 400G",
+    "modeles": {
+      "M1": 0,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M2",
+    "page": 12
+  },
+  {
+    "segment": "BRIOCHES",
+    "itm8": "19347838",
+    "ean13": "3760233460367",
+    "libelle": "POGNE CUITE 500G",
+    "modeles": {
+      "M1": 0,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M2",
+    "page": 12
+  },
+  {
+    "segment": "BRIOCHES",
+    "itm8": "19347818",
+    "ean13": "3760233460428",
+    "libelle": "SAINT GENIX CUIT 500G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M3",
+    "page": 12
+  },
+  {
+    "segment": "BRIOCHES",
+    "itm8": "19347835",
+    "ean13": "3760233460442",
+    "libelle": "MOUNA CUITE 500G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M3",
+    "page": 12
+  },
+  {
+    "segment": "BRIOCHES",
+    "itm8": "19347739",
+    "ean13": "3760233463528",
+    "libelle": "BRIOCHE NANTERRE PRALINE 400G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 12
+  },
+  {
+    "segment": "BRIOCHES",
+    "itm8": "19347681",
+    "ean13": "3760233463498",
+    "libelle": "BRIOCHE NANTERRE PUR BEURRE 400G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 12
+  },
+  {
+    "segment": "BRIOCHES",
+    "itm8": "19347731",
+    "ean13": "3760233463504",
+    "libelle": "BRIOCHE NANTERRE PEPITE CHOCOLAT 400G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M6",
+    "page": 12
+  },
+  {
+    "segment": "BRIOCHES",
+    "itm8": "19633240",
+    "ean13": "3173310020307",
+    "libelle": "CAKE BRIOCHE TRANCHEE FRUITS 400G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M6",
+    "page": 12
+  },
+  {
+    "segment": "BRIOCHES",
+    "itm8": "18285914",
+    "ean13": "3419280078178",
+    "libelle": "BRIOCHE FEUILL SPIR. CRUE 330G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M6",
+    "page": 12
+  },
+  {
+    "segment": "BRIOCHES",
+    "itm8": "18336604",
+    "ean13": "3511242216205",
+    "libelle": "BOULE BRIOCHE CRUE VRAC 58G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 12
+  },
+  {
+    "segment": "BRIOCHES",
+    "itm8": "24754895",
+    "ean13": "3701686100363",
+    "libelle": "CHINOIS FLEUR D ORANGER 500G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 12
+  },
+  {
+    "segment": "BRIOCHES",
+    "itm8": "19605299",
+    "ean13": "3250393054303",
+    "libelle": "P&C GACHE TRANCHEE BIO 350G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 12
+  },
+  {
+    "segment": "BRIOCHES",
+    "itm8": "19347751",
+    "ean13": "3173310019318",
+    "libelle": "PART BRIOCHE SUCRE PUR BEURRE 370G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 12
+  },
+  {
+    "segment": "BRIOCHES",
+    "itm8": "24551192",
+    "ean13": "3173310025524",
+    "libelle": "BRIOCHE TRESSEE PB 400G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 12
+  },
+  {
+    "segment": "BRIOCHES",
+    "itm8": "18311262",
+    "ean13": "3511242810809",
+    "libelle": "BRIOCHE ETOILE CUIT 500G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 12
+  },
+  {
+    "segment": "BRIOCHES",
+    "itm8": "18311263",
+    "ean13": "3511242810908",
+    "libelle": "MARGUERITE RAISINS OR.CUIT450G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 12
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18097444",
+    "ean13": "3250393069741",
+    "libelle": "P&C MACARONS X12 154G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M3",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18336580",
+    "ean13": "3187670998121",
+    "libelle": "PETITS FOURS CHOCOLAT X16 208G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M6",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18336579",
+    "ean13": "3187670616216",
+    "libelle": "PETITS FOURS FRUITES X16 225G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18003020",
+    "ean13": "3660133005388",
+    "libelle": "PLATEAU MIGNARDISES X16 420G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE FRAICHE",
+    "itm8": "24108582",
+    "ean13": "3567741002580",
+    "libelle": "MACARONS FRUITES X10 135G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18330270",
+    "ean13": "3250393451454",
+    "libelle": "TARTE AU FLAN S.A 550G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18330256",
+    "ean13": "3250393451386",
+    "libelle": "PARTS DE TARTE FLAN S.A X2 160G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M4",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18297188",
+    "ean13": "3700203510784",
+    "libelle": "TARTE FLAN CRUE / 545G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "47419368",
+    "ean13": "3355710016443",
+    "libelle": "MAXI FLAN 10 PARTS PREDECOUPES PRECUIT 1,7KG",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE FRAICHE",
+    "itm8": "24280049",
+    "ean13": "3456580000904",
+    "libelle": "FLAN NATURE 1K5",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "47419401",
+    "ean13": "3355710817125",
+    "libelle": "BANDE DE FLAN CRUE 580G CUITE",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18254409",
+    "ean13": "3355710818924",
+    "libelle": "MAXI FLAN 805G CUIT",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18117781",
+    "ean13": "3250392401221",
+    "libelle": "P&C PARTS DE FLAN X2 CUIT 320G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18330271",
+    "ean13": "3250393456961",
+    "libelle": "PART FLAN S.A",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18330257",
+    "ean13": "3250393456978",
+    "libelle": "PART POMME S.A",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18330268",
+    "ean13": "3250393456992",
+    "libelle": "PART MOELLEUX S.A",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18330258",
+    "ean13": "3250393456985",
+    "libelle": "PART POIRE AMANDINE S.A",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE FRAICHE",
+    "itm8": "24430148",
+    "ean13": "3456580128141",
+    "libelle": "PART TARTE CITRON 130G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE FRAICHE",
+    "itm8": "24430145",
+    "ean13": "3456580128554",
+    "libelle": "PART TARTE ABRICOTS 130G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE FRAICHE",
+    "itm8": "24633561",
+    "ean13": "3456580128738",
+    "libelle": "PART BROOKIE 90G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE FRAICHE",
+    "itm8": "24633560",
+    "ean13": "3456580128721",
+    "libelle": "PART BROWNIE 85G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE FRAICHE",
+    "itm8": "24666101",
+    "ean13": "3456580128844",
+    "libelle": "PART COOKIE 85G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18306798",
+    "ean13": "3250393451317",
+    "libelle": "ECLAIRS CHOCOLAT S.A X2 150G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18306799",
+    "ean13": "3250393451324",
+    "libelle": "ECLAIRS CAFE S.A X2 150G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18306800",
+    "ean13": "3250393451331",
+    "libelle": "ECLAIRS VANILLE S.A X2 150G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18306797",
+    "ean13": "3250393450914",
+    "libelle": "CRAQUOTANT CHOCO S.A X2 200G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18306775",
+    "ean13": "3250393450938",
+    "libelle": "MILLEFEUILLE S.A X2 220G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18326506",
+    "ean13": "3250393451577",
+    "libelle": "FRAISIERS S.A X2 220G",
+    "modeles": {
+      "M1": 0,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M2",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18326507",
+    "ean13": "3250393451607",
+    "libelle": "FRAMBOISIERS S.A X2 230G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M4",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18313308",
+    "ean13": "3250393451522",
+    "libelle": "PARIS BREST S.A X2 160G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M4",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18313301",
+    "ean13": "3250393451492",
+    "libelle": "RELIGIEUSE CHOCOLAT S.A X2 220G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M4",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18313302",
+    "ean13": "3250393451485",
+    "libelle": "RELIGIEUSE CAFÉ S.A X2 220G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18313309",
+    "ean13": "3250393451614",
+    "libelle": "OPÉRA S.A X2 200G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18336537",
+    "ean13": "3250393467639",
+    "libelle": "ENTREM. TRIO CHOCO IND. X2 S.A 200G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18313303",
+    "ean13": "3250393451515",
+    "libelle": "SALAMBO ROSE S.A X2 190G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M6",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18313304",
+    "ean13": "3250393451508",
+    "libelle": "SALAMBO VERT S.A X2 190G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M8",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18333058",
+    "ean13": "3250393464188",
+    "libelle": "BABA AU RHUM INDIV. S.A X2 260G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M7",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18336535",
+    "ean13": "3250393467769",
+    "libelle": "TROPEZIENNE INDIV. S.A X2 150G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M7",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18330269",
+    "ean13": "3250393456954",
+    "libelle": "PARTS DE MOELLEUX S.A X2 145G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18336533",
+    "ean13": "3250393467998",
+    "libelle": "TIRAMISU INDIV. S.A X2 200G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18164104",
+    "ean13": "3187670616568",
+    "libelle": "PATISSERIES ASSORTIES X4 370G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE FRAICHE",
+    "itm8": "19839267",
+    "ean13": "3567741001903",
+    "libelle": "ASSORTIMENT PATISSIER 345G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18019002",
+    "ean13": "3760086154857",
+    "libelle": "MOKAS AU CAFE X2 190G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 13
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18110918",
+    "ean13": "3250393091407",
+    "libelle": "P&C ECLAIRS CHOCOLAT X2 180G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18110984",
+    "ean13": "3250393091384",
+    "libelle": "P&C ECLAIRS CAFE X2 180G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18111025",
+    "ean13": "3250393091421",
+    "libelle": "P&C ECLAIRS VANILLE X2 180G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18150617",
+    "ean13": "3250393091445",
+    "libelle": "P&C RELIGIEUSE CHOCOLAT X2 220G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18150618",
+    "ean13": "3250393091469",
+    "libelle": "P&C RELIGIEUSE AU CAFE X2 220G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18094498",
+    "ean13": "3498844410050",
+    "libelle": "MOELLEUX AU CHOCOLAT X2 212G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18150621",
+    "ean13": "3250393091186",
+    "libelle": "P&C TROPEZIENNE X2 180G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18118399",
+    "ean13": "3250393091360",
+    "libelle": "P&C PARIS BREST X2 180G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18306774",
+    "ean13": "3250393450945",
+    "libelle": "MILLEFEUILLE S.A 650G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18306776",
+    "ean13": "3250393450921",
+    "libelle": "CRAQUOTANT CHOCO S.A 550G",
+    "modeles": {
+      "M1": 0,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M2",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18322643",
+    "ean13": "3250393451539",
+    "libelle": "PARIS BREST S.A 400G",
+    "modeles": {
+      "M1": 0,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M2",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18336534",
+    "ean13": "3250393467752",
+    "libelle": "TROPEZIENNE FAM. S.A 600G",
+    "modeles": {
+      "M1": 0,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M2",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18326504",
+    "ean13": "3250393451584",
+    "libelle": "FRAISIER S.A 550G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M3",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18336536",
+    "ean13": "3250393467622",
+    "libelle": "ENTREMETS TRIO CHOCO FAM. S.A 520G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M3",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18306806",
+    "ean13": "3250393451461",
+    "libelle": "MOELLEUX CHOCOLAT S.A 450G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M4",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18336538",
+    "ean13": "3250393467653",
+    "libelle": "ENTREMETS EXOTIQUES S.A 520G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M4",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18326505",
+    "ean13": "3250393451591",
+    "libelle": "FRAMBOISIER S.A 590G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18336532",
+    "ean13": "3250393467646",
+    "libelle": "TIRAMISU FAM. S.A 520G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M6",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18313310",
+    "ean13": "3250393451621",
+    "libelle": "OPÉRA S.A 600G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M7",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18336558",
+    "ean13": "3250393468360",
+    "libelle": "ENTREMETS FRUITS ROUGES S.A 520G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M8",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE FRAICHE",
+    "itm8": "19772664",
+    "ean13": "3567747040531",
+    "libelle": "SAINT HONORE 6P 600G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M8",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18313307",
+    "ean13": "3250393451560",
+    "libelle": "ENTREMETS POIRE CHOCOLAT S.A 600G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18313306",
+    "ean13": "3250393451546",
+    "libelle": "ENTREMETS ABRICOT S.A 500G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18313305",
+    "ean13": "3250393451553",
+    "libelle": "ENTREMETS CITRON S.A 550G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18330244",
+    "ean13": "3250393456916",
+    "libelle": "MOELLEUX CHOCOLAT S.A 12P",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE FRAICHE",
+    "itm8": "24666098",
+    "ean13": "3456580061608",
+    "libelle": "MOELLEUX ABRICOTS 450G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE FRAICHE",
+    "itm8": "24666100",
+    "ean13": "3456580061684",
+    "libelle": "MOELLEUX CITRON 450G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18336603",
+    "ean13": "3498842609852",
+    "libelle": "MOELLEUX SWIRL PATE TART. 400G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18246444",
+    "ean13": "3428420060140",
+    "libelle": "MOKA CAFE 550G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE FRAICHE",
+    "itm8": "19208489",
+    "ean13": "5030765022066",
+    "libelle": "GATEAU HAPPY BIRTHDAY 820G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE FRAICHE",
+    "itm8": "19772913",
+    "ean13": "3567741001897",
+    "libelle": "HAPPY CLOWN 8P 515G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE FRAICHE",
+    "itm8": "24232566",
+    "ean13": "5030765039125",
+    "libelle": "GATEAU SURPRISE 890G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE FRAICHE",
+    "itm8": "19553609",
+    "ean13": "5030765033215",
+    "libelle": "GATEAU EMOJI 580G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE FRAICHE",
+    "itm8": "19950811",
+    "ean13": "5030765037312",
+    "libelle": "GATEAU REINE DES NEIGES 3D 915G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE FRAICHE",
+    "itm8": "24128318",
+    "ean13": "5030765038128",
+    "libelle": "GATEAU LICORNE 3D 810G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE FRAICHE",
+    "itm8": "19950804",
+    "ean13": "5030765036544",
+    "libelle": "GATEAU CARS 3D 930G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE FRAICHE",
+    "itm8": "24232581",
+    "ean13": "5030765035622",
+    "libelle": "GATEAU PAT PATROUILLE 3D 860G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE FRAICHE",
+    "itm8": "24232606",
+    "ean13": "5030765034953",
+    "libelle": "GATEAU POKEMON 850G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE FRAICHE",
+    "itm8": "24551199",
+    "ean13": "5030765040718",
+    "libelle": "GATEAU NARUTO",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE FRAICHE",
+    "itm8": "24551198",
+    "ean13": "5030765040695",
+    "libelle": "GATEAU ARC EN CIEL 1000G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE FRAICHE",
+    "itm8": "24551197",
+    "ean13": "5030765040657",
+    "libelle": "GATEAU STELLA PAT PATROUILLE 845G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE FRAICHE",
+    "itm8": "24275619",
+    "ean13": "3456580911965",
+    "libelle": "PLAQUE JOYEUX ANNIVERSAIRE 25G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18117780",
+    "ean13": "3250393091346",
+    "libelle": "P&C PARIS BREST 8P 550G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18154782",
+    "ean13": "3250393091322",
+    "libelle": "P&C TROPEZIENNE 8P 600G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 14
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18311721",
+    "ean13": "3250393451379",
+    "libelle": "TARTELET CIT. MERG S.A X2 130G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18306771",
+    "ean13": "3250393451157",
+    "libelle": "TARTELETTE CITRON S.A X2 160G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18306777",
+    "ean13": "3250393451348",
+    "libelle": "TARTELETTE POMME S.A X2 195G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18306778",
+    "ean13": "3250393451355",
+    "libelle": "TARTELETTE POIRE.AMAND X2 175G",
+    "modeles": {
+      "M1": 0,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M2",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18306773",
+    "ean13": "3250393451171",
+    "libelle": "TARTELET FRAMBOISE S.A X2 200G",
+    "modeles": {
+      "M1": 0,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M2",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18306801",
+    "ean13": "3250393451362",
+    "libelle": "TARTELE CHOCO.NOIS S.A X2 160G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M4",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18306772",
+    "ean13": "3250393451164",
+    "libelle": "TARTELETTE NOIX S.A X2 155G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M4",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18330255",
+    "ean13": "3250393457005",
+    "libelle": "ASSORT. TARTEL X4 S.A 380G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18125455",
+    "ean13": "3355710812946",
+    "libelle": "TARTELETTE FRAISES X2 260G (SAISONNIER)",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18300267",
+    "ean13": "3187670044071",
+    "libelle": "TARTELETTES X2 CREME BRULEE",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18113207",
+    "ean13": "3355710811871",
+    "libelle": "TARTELETTE AU CITRON X2 208G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18194739",
+    "ean13": "3250393091100",
+    "libelle": "P&C TARTELETTE POIRE AMANDINE X2 220G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18057195",
+    "ean13": "3187671044049",
+    "libelle": "TARTELETTE FRAMBOISES X2 220G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18134178",
+    "ean13": "3187671044018",
+    "libelle": "TARTELETTE AUX POMMES X2 240G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18082253",
+    "ean13": "3187670616292",
+    "libelle": "ASSORTIMENT TARTELETTE X4 390G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18306780",
+    "ean13": "3250393451430",
+    "libelle": "TARTE POMME S.A 590G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18306805",
+    "ean13": "3250393451447",
+    "libelle": "TARTE NORMANDE S.A 580G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18306802",
+    "ean13": "3250393451393",
+    "libelle": "TARTE FRAMBOISE S.A 605G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18306779",
+    "ean13": "3250393451423",
+    "libelle": "TARTE POIRE.AMAND S.A 530G",
+    "modeles": {
+      "M1": 0,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M2",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18306803",
+    "ean13": "3250393451409",
+    "libelle": "TARTE CITRON MERING. S.A 600G",
+    "modeles": {
+      "M1": 0,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M2",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18306781",
+    "ean13": "3250393451478",
+    "libelle": "TARTE ABRICOT S.A 580G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M3",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18279691",
+    "ean13": "3355710019277",
+    "libelle": "BANDE POMMES CRUES 455G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M3",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18279692",
+    "ean13": "3355710816852",
+    "libelle": "BANDE FRUITS CRUS 540G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M7",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18306804",
+    "ean13": "3250393451416",
+    "libelle": "TARTE CHOCO.NOIS S.A 540G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M4",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18336601",
+    "ean13": "3355710821122",
+    "libelle": "TARTE FINE CARRE POMME 490G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M6",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18336602",
+    "ean13": "3355710821139",
+    "libelle": "TARTE FINE CARRE POIRE 495G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M8",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18330242",
+    "ean13": "3250393456893",
+    "libelle": "TARTE AUX POMMES S.A 1050G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M8",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18330243",
+    "ean13": "3250393456909",
+    "libelle": "TARTE POIRE AMANDINE S.A 1020G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M8",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL SOUS-AT",
+    "itm8": "18322461",
+    "ean13": "3250393456930",
+    "libelle": "TARTE MYRTILLE S.A 565G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18228229",
+    "ean13": "3187670018935",
+    "libelle": "TARTE AUX POMMES 6P 600G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "47419404",
+    "ean13": "3250391321155",
+    "libelle": "TARTE POMME FEUILLETE CRU/650G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18150773",
+    "ean13": "3355710811758",
+    "libelle": "FOND DE TARTE MOUSSELINE 425G (SAISONNIER)",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18125454",
+    "ean13": "3355710812939",
+    "libelle": "TARTE AUX FRAISES 750G (SAISONNIER)",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18311260",
+    "ean13": "3511242312303",
+    "libelle": "TARTE PRALINE PAC 410G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18194731",
+    "ean13": "3250393091681",
+    "libelle": "P&C TARTE POIRE AMANDINE PRECUITE 650G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18287036",
+    "ean13": "3585290764421",
+    "libelle": "TARTE ABRICOTS AMANDES CR/580G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE FRAICHE",
+    "itm8": "24280055",
+    "ean13": "3456580060687",
+    "libelle": "TARTE NOIX COCO ET FRAMBOISE 550G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE GEL",
+    "itm8": "18297187",
+    "ean13": "3585290771436",
+    "libelle": "TARTE CLAFOUTIS GRIOTTES CUITE 670G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE ASSEMBLAGE",
+    "itm8": "10082102",
+    "ean13": "5410687130047",
+    "libelle": "NAPPAGE À FROID - HARMONY SUBLIMO 1,1KG",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE ASSEMBLAGE",
+    "itm8": "10082095",
+    "ean13": "3660407045904",
+    "libelle": "NAPPAGE À CHAUD - FACIL’ NAP BLOND 6,5KG",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 15
+  },
+  {
+    "segment": "PATISSERIE ASSEMBLAGE",
+    "itm8": "17725176",
+    "ean13": "3660407044853",
+    "libelle": "FOURRAGE - TOP DOWN CHOC-NOIS 1KG",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 15
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "43409324",
+    "ean13": "5030765017697",
+    "libelle": "ROSES SABLE CHOCOLAT LAIT 250G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "43409322",
+    "ean13": "5030765017970",
+    "libelle": "ROSES SABLE CHOCOLAT NOIR 250G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M4",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "24430015",
+    "ean13": "3700442605227",
+    "libelle": "MINI GAUFRE CHOCOLAT LAIT250G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "24430014",
+    "ean13": "3700442605210",
+    "libelle": "MINI GAUFRES SUCRE PERLE 200G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "43409323",
+    "ean13": "5030765018748",
+    "libelle": "DELICES AU CARAMEL X22 320G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "24430016",
+    "ean13": "5030765039415",
+    "libelle": "DELIC.CARAM/CHOC NOIRX18 290G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M5",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "43416041",
+    "ean13": "3286790100114",
+    "libelle": "TUILES AUX AMANDES 140G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "19426330",
+    "ean13": "3286790100671",
+    "libelle": "TUILES CHOCOLAT PUR BEURRE 140G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "43416037",
+    "ean13": "3286790020238",
+    "libelle": "ROCHER COCO 400G",
+    "modeles": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M1",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "19233830",
+    "ean13": "3250391968206",
+    "libelle": "IDS MINI CANELES BORDEAUX X12 180G",
+    "modeles": {
+      "M1": 0,
+      "M2": 1,
+      "M3": 1,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M2",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "19233829",
+    "ean13": "3250391968220",
+    "libelle": "IDS CANELES BORDEAUX X6 360G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "19426363",
+    "ean13": "3286790112230",
+    "libelle": "FINANCIERS NATURES X10 180G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M4",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "19426323",
+    "ean13": "3286790107656",
+    "libelle": "CAFE GOURMAND 130G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 1,
+      "M5": 1,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M4",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "19426362",
+    "ean13": "3286790105751",
+    "libelle": "MELANGE GOURMAND 370G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "24232809",
+    "ean13": "3456580061318",
+    "libelle": "BROOKIE 430G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M7",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "24430119",
+    "ean13": "3456580061370",
+    "libelle": "BROWNIE 8P 350G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "24430013",
+    "ean13": "3456580061578",
+    "libelle": "CRUMBLE FRAMBOISES 8P 400G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "24666099",
+    "ean13": "3456580061677",
+    "libelle": "MAXI COOKIE 400G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "24551195",
+    "ean13": "3700442607238",
+    "libelle": "MINI COQUILLES AU BEURRE 300G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 1,
+      "M7": 1,
+      "M8": 1,
+      "optionnel": 0
+    },
+    "modeleMin": "M6",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "24551196",
+    "ean13": "3700442607245",
+    "libelle": "MINI COQUILLES PEPIT. CHOCO 300G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "24754716",
+    "ean13": "3286790116405",
+    "libelle": "BOITE CHOUCHOU 200G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "24724886",
+    "ean13": "3760022090386",
+    "libelle": "MERVEILLES SUCREES 180G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "24724887",
+    "ean13": "3760022090393",
+    "libelle": "OREILLETTES SUCREES 180G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "24740030",
+    "ean13": "3582730000415",
+    "libelle": "AMARETTI NATURE 200G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "24740031",
+    "ean13": "3760026385068",
+    "libelle": "CESTINI CHOCO NOIS. PRAL. 187G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "24740032",
+    "ean13": "3760026385075",
+    "libelle": "CESTINI CHOCO NOIS. 187G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "24740033",
+    "ean13": "3760026385198",
+    "libelle": "CODINA CHOCO NOIS. 150G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "19553623",
+    "ean13": "5030765020369",
+    "libelle": "BOULES COCO CHOCOLAT X12 135G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "19426351",
+    "ean13": "3286790100350",
+    "libelle": "MADELEINES PUR BEURRE X8 170G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "19056933",
+    "ean13": "3286790107212",
+    "libelle": "MERINGUETTES A LA VANILLE 120G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "19322331",
+    "ean13": "3286790107229",
+    "libelle": "MERINGUETTES VANILL FRAISE 120G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "43416044",
+    "ean13": "3286790020252",
+    "libelle": "CIGARETTES 150G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "24551194",
+    "ean13": "3286790108745",
+    "libelle": "PALET CARAMEL 250G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "24551193",
+    "ean13": "3286790020016",
+    "libelle": "FONDANTS AMANDES 250G",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 16
+  },
+  {
+    "segment": "BISCUITERIE",
+    "itm8": "24578416",
+    "ean13": "3413900000266",
+    "libelle": "CREPE FRAICHE NATURE X4",
+    "modeles": {
+      "M1": 0,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0,
+      "M5": 0,
+      "M6": 0,
+      "M7": 0,
+      "M8": 0,
+      "optionnel": 1
+    },
+    "modeleMin": "OPT",
+    "page": 16
+  }
+]

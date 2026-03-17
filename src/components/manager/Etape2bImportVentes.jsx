@@ -24,6 +24,7 @@ import {
 } from '../../services/gammeExtractionService';
 import { loadHandle } from '../../services/handleStorage';
 import { checkHandlePermission } from '../../hooks/useFileAccess';
+import { chargerReferentielMagasin } from '../../services/referentielMagasin';
 
 const MIN_SEMAINES = 3;
 
@@ -37,6 +38,9 @@ const Etape2bImportVentes = () => {
     setProduitsGamme,
     frequentationData,
     semainePlanning,
+    refMagasin,
+    setRefMagasin,
+    setRapportIdentification,
   } = useMagasin();
 
   const [chargement, setChargement] = useState(false);
@@ -63,11 +67,37 @@ const Etape2bImportVentes = () => {
         poidsJoursFrequentation: frequentationData?.poidsJours || null,
       });
       setDonneesGamme(donneesVC);
+
+      // Charger le référentiel magasin si configuré et pas encore chargé
+      let refMagasinLocal = refMagasin;
+      if (!refMagasinLocal) {
+        try {
+          const refHandle = await loadHandle('fichierRefMagasin');
+          if (refHandle) {
+            const ok = await checkHandlePermission(refHandle, 'read');
+            if (ok) {
+              const refFile = await refHandle.getFile();
+              refMagasinLocal = await chargerReferentielMagasin(refFile);
+              if (refMagasinLocal) {
+                setRefMagasin(refMagasinLocal);
+              }
+            }
+          }
+        } catch {
+          // Non bloquant — on continue sans référentiel magasin
+        }
+      }
+
       const moisP = semainePlanning ? new Date(semainePlanning.annee, 0, 1 + (semainePlanning.semaine - 1) * 7).getMonth() + 1 : null;
       const produitsFormates = formaterPourPilotageCA(donneesVC, {
         semaineNumero: semainePlanning?.semaine,
         moisPlanning: moisP,
+        refMagasin: refMagasinLocal || null,
       });
+      // Extraire et stocker le rapport d'identification
+      if (produitsFormates._rapportIdentification) {
+        setRapportIdentification(produitsFormates._rapportIdentification);
+      }
       setProduitsGamme(produitsFormates);
       setFichierVentesSelectionne({ nom: file.name });
     } catch (error) {

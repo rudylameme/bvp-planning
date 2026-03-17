@@ -401,15 +401,18 @@ const Bloc2Benchmark = ({ donnees, indicateurs, magasin, magasinCible, dictionna
 // Question : "Je progresse ou je regresse ?"
 // 4 barres par indicateur : Moi (bordeaux), S-1 (gris), AS-1 (gris clair), Secteur (bleu)
 // ============================================================================
-const Bloc3Graphiques = ({ pdv, pdvS1, pdvAn1, moyenneSecteur }) => {
+const Bloc3Graphiques = ({ pdv, pdvS1, pdvAn1, moyenneSecteur, typePeriode = 'semaine' }) => {
   // Hauteur maximale des barres en pixels
   const HAUTEUR_MAX = 120;
+
+  // En mode mensuel, pas de données S-1
+  const hasS1 = typePeriode !== 'mois' && (pdvS1.caBVP > 0 || pdvS1.ticketsBVP > 0);
 
   const indicateurs = [
     {
       label: 'CA BVP',
       moi: pdv.caBVP || 0,
-      s1: pdvS1.caBVP || 0,
+      s1: hasS1 ? (pdvS1.caBVP || 0) : null,
       an1: pdvAn1.caBVP || 0,
       secteur: moyenneSecteur.caBVP || 0,
       format: 'euro',
@@ -417,7 +420,7 @@ const Bloc3Graphiques = ({ pdv, pdvS1, pdvAn1, moyenneSecteur }) => {
     {
       label: 'Articles vendus',
       moi: pdv.qteBVP || 0,
-      s1: pdvS1.qteBVP || 0,
+      s1: hasS1 ? (pdvS1.qteBVP || 0) : null,
       an1: pdvAn1.qteBVP || 0,
       secteur: moyenneSecteur.qteBVP || 0,
       format: 'nombre',
@@ -425,7 +428,7 @@ const Bloc3Graphiques = ({ pdv, pdvS1, pdvAn1, moyenneSecteur }) => {
     {
       label: 'Tickets BVP',
       moi: pdv.ticketsBVP || 0,
-      s1: pdvS1.ticketsBVP || 0,
+      s1: hasS1 ? (pdvS1.ticketsBVP || 0) : null,
       an1: pdvAn1.ticketsBVP || 0,
       secteur: moyenneSecteur.ticketsBVP || 0,
       format: 'nombre',
@@ -477,12 +480,12 @@ const Bloc3Graphiques = ({ pdv, pdvS1, pdvAn1, moyenneSecteur }) => {
         {/* Grille avec classe speciale pour impression cote a cote */}
         <div className="bloc3-graphiques-grid grid grid-cols-1 md:grid-cols-3 gap-8">
           {indicateurs.map((ind) => {
-            const maxVal = Math.max(ind.moi, ind.s1, ind.an1, ind.secteur) || 1;
-            const ecartS1 = calculerEcart(ind.moi, ind.s1);
+            const maxVal = Math.max(ind.moi, ind.s1 || 0, ind.an1, ind.secteur) || 1;
+            const ecartS1 = ind.s1 !== null ? calculerEcart(ind.moi, ind.s1) : null;
 
             const barres = [
               { label: 'Moi', valeur: ind.moi, couleur: '#8B1538' },
-              { label: 'S-1', valeur: ind.s1, couleur: '#9CA3AF' },
+              ...(ind.s1 !== null ? [{ label: 'S-1', valeur: ind.s1, couleur: '#9CA3AF' }] : []),
               { label: 'AS-1', valeur: ind.an1, couleur: '#D1D5DB' },
               { label: 'Sect.', valeur: ind.secteur, couleur: '#3B82F6' },
             ];
@@ -532,11 +535,11 @@ const Bloc3Graphiques = ({ pdv, pdvS1, pdvAn1, moyenneSecteur }) => {
         <div className="flex items-center justify-center gap-6 mt-6 pt-4 border-t border-gray-100">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded" style={{ backgroundColor: '#8B1538' }} />
-            <span className="text-xs text-gray-500">Moi (S actuelle)</span>
+            <span className="text-xs text-gray-500">{typePeriode === 'mois' ? 'Moi (mois actuel)' : 'Moi (S actuelle)'}</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: '#9CA3AF' }} />
-            <span className="text-xs text-gray-500">Historique (S-1, AS-1)</span>
+            <div className="w-4 h-4 rounded" style={{ backgroundColor: hasS1 ? '#9CA3AF' : '#D1D5DB' }} />
+            <span className="text-xs text-gray-500">{hasS1 ? 'Historique (S-1, AS-1)' : 'Historique (AS-1)'}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded" style={{ backgroundColor: '#3B82F6' }} />

@@ -12,6 +12,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   FolderOpen,
   Calendar,
+  CalendarDays,
   Search,
   Store,
   Check,
@@ -30,6 +31,8 @@ import {
   extraireDonneesMagasin,
   chargerInfoPDV,
   extraireListeMagasins,
+  extraireDonneesMagasinMensuel,
+  listerMoisDisponibles,
 } from '../../services/dataExtractionService';
 
 // Lien vers le dossier partagé OneDrive
@@ -40,6 +43,7 @@ import {
   extraireProduitsVentesCasse,
   formaterPourPilotageCA,
 } from '../../services/gammeExtractionService';
+import { chargerReferentielMagasin, genererRapportMatching } from '../../services/referentielMagasin';
 import { useFileAccess } from '../../hooks/useFileAccess';
 
 const Etape0Import = () => {
@@ -71,9 +75,22 @@ const Etape0Import = () => {
     setDonneesGamme,
     setProduitsGamme,
     semainePlanning,
+    refMagasin,
+    setRefMagasin,
+    setRapportIdentification,
   } = useMagasin();
 
   const { selectDirectory } = useFileAccess();
+
+  // État local pour le type de période (mois par défaut, semaine en option)
+  const [typePeriode, setTypePeriode] = useState('mois');
+  const [moisDisponibles, setMoisDisponibles] = useState([]);
+  const [moisSelectionnee, setMoisSelectionnee] = useState(null);
+
+  // État local pour le référentiel magasin (liaison EAN→ITM)
+  const [refMagasinRapport, setRefMagasinRapport] = useState(null);
+  const [refMagasinChargement, setRefMagasinChargement] = useState(false);
+  const [refMagasinErreur, setRefMagasinErreur] = useState(null);
 
   // État local pour la recherche magasin
   const [rechercheMagasin, setRechercheMagasin] = useState('');
@@ -90,6 +107,7 @@ const Etape0Import = () => {
         const isExcel = entry.name.endsWith('.xlsx') || entry.name.endsWith('.xls');
         const isJson = entry.name.endsWith('.json');
         const isVenteHebdo = entry.name.startsWith('Vente_Hebdo_BVP_S');
+        const isVenteMensuelle = entry.name.startsWith('Vente_Mensuelle_BVP_M');
         const isInfoPDV = entry.name === 'info_PDV.json';
         // Détecter les fichiers ventes/casse (format "1 AU 25 JANVIER 2026.xlsx")
         const isVentesCasse = /^\d+\s+AU\s+\d+\s+\w+\s+\d{4}\.xlsx$/i.test(entry.name);
@@ -97,9 +115,11 @@ const Etape0Import = () => {
         fichiers.push({
           nom: entry.name,
           type: isExcel ? 'excel' : isJson ? 'json' : 'autre',
-          statut: isVenteHebdo || isInfoPDV || isVentesCasse ? 'ok' : 'ignore',
+          statut: isVenteHebdo || isVenteMensuelle || isInfoPDV || isVentesCasse ? 'ok' : 'ignore',
           description: isVenteHebdo
             ? 'Fichier ventes hebdomadaires'
+            : isVenteMensuelle
+            ? 'Fichier ventes mensuelles'
             : isInfoPDV
             ? 'Fichier référence magasins'
             : isVentesCasse
@@ -119,6 +139,15 @@ const Etape0Import = () => {
     // Sélectionner la semaine la plus récente par défaut
     if (semaines.length > 0) {
       setSemaineSelectionnee(semaines[0]);
+    }
+
+    // Charger les mois disponibles
+    const mois = await listerMoisDisponibles(handle);
+    setMoisDisponibles(mois);
+
+    // Sélectionner le mois le plus récent par défaut
+    if (mois.length > 0) {
+      setMoisSelectionnee(mois[0]);
     }
 
     // Charger info_PDV.json si disponible, sinon extraire depuis Vente_Hebdo
@@ -215,27 +244,31 @@ const Etape0Import = () => {
     setAfficherResultats(false);
 
     // Charger les données du magasin
-    if (semaineSelectionnee && dirHandle) {
+    const periodeActive = typePeriode === 'mois' ? moisSelectionnee : semaineSelectionnee;
+    if (periodeActive && dirHandle) {
       try {
         setChargement(true);
         setErreur(null);
         setEtapeChargement('Ouverture du fichier…');
 
-        // Récupérer le fichier de la semaine
-        const fileHandle = await dirHandle.getFileHandle(semaineSelectionnee.fichier);
+        // Récupérer le fichier selon le type de période
+        const fileHandle = await dirHandle.getFileHandle(periodeActive.fichier);
         const file = await fileHandle.getFile();
 
         // Forcer React à peindre l'overlay avant le traitement CPU-intensif
-        // requestAnimationFrame garantit que le prochain frame est prêt,
-        // puis setTimeout laisse le temps au navigateur de réellement peindre
         const attendrePeinture = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 150)));
 
         await attendrePeinture();
         setEtapeChargement('Extraction des données du magasin…');
         await attendrePeinture();
 
-        // Extraire les données
-        const donnees = await extraireDonneesMagasin(file, magasin.code, dirHandle);
+        // Extraire les données selon le type de période
+        let donnees;
+        if (typePeriode === 'mois') {
+          donnees = await extraireDonneesMagasinMensuel(file, magasin.code, dirHandle);
+        } else {
+          donnees = await extraireDonneesMagasin(file, magasin.code, dirHandle);
+        }
         setDonneesMagasin(donnees);
 
         // Charger les données gamme/ventes si un fichier ventes/casse est disponible
@@ -256,7 +289,12 @@ const Etape0Import = () => {
             const produitsFormates = formaterPourPilotageCA(donneesVC, {
               semaineNumero: semainePlanning?.semaine,
               moisPlanning: moisP,
+              refMagasin: refMagasin || null,
             });
+            // Extraire et stocker le rapport d'identification
+            if (produitsFormates._rapportIdentification) {
+              setRapportIdentification(produitsFormates._rapportIdentification);
+            }
             setProduitsGamme(produitsFormates);
           } catch (vcError) {
             // Ce n'est pas bloquant, on continue sans données gamme
@@ -279,28 +317,43 @@ const Etape0Import = () => {
     const code = event.target.value;
     const semaine = semainesDisponibles.find((s) => s.code === code);
     setSemaineSelectionnee(semaine);
+    await rechargerDonnees(semaine, 'semaine');
+  };
 
-    // Recharger les données si un magasin est déjà sélectionné
-    if (magasinSelectionne && dirHandle && semaine) {
+  // Changement de mois
+  const handleChangeMois = async (event) => {
+    const code = event.target.value;
+    const mois = moisDisponibles.find((m) => m.code === code);
+    setMoisSelectionnee(mois);
+    await rechargerDonnees(mois, 'mois');
+  };
+
+  // Recharger les données quand la période change
+  const rechargerDonnees = async (periode, type) => {
+    if (magasinSelectionne && dirHandle && periode) {
       try {
         setChargement(true);
         setErreur(null);
-        setEtapeChargement('Changement de semaine…');
+        setEtapeChargement(type === 'mois' ? 'Changement de mois…' : 'Changement de semaine…');
         const attendrePeinture = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 150)));
         await attendrePeinture();
 
-        const fileHandle = await dirHandle.getFileHandle(semaine.fichier);
+        const fileHandle = await dirHandle.getFileHandle(periode.fichier);
         const file = await fileHandle.getFile();
 
         setEtapeChargement('Extraction des données du magasin…');
         await attendrePeinture();
 
-        const donnees = await extraireDonneesMagasin(file, magasinSelectionne.code, dirHandle);
+        let donnees;
+        if (type === 'mois') {
+          donnees = await extraireDonneesMagasinMensuel(file, magasinSelectionne.code, dirHandle);
+        } else {
+          donnees = await extraireDonneesMagasin(file, magasinSelectionne.code, dirHandle);
+        }
         setDonneesMagasin(donnees);
         setEtapeChargement('Terminé !');
       } catch (error) {
-        // TODO: logger professionnel
-        setErreur('Impossible de charger les données pour cette semaine.');
+        setErreur(`Impossible de charger les données pour ${type === 'mois' ? 'ce mois' : 'cette semaine'}.`);
       } finally {
         setChargement(false);
         setEtapeChargement('');
@@ -308,13 +361,12 @@ const Etape0Import = () => {
     }
   };
 
-  // Dernier fichier Vente_Hebdo détecté (le plus récent)
+  // Dernier fichier détecté (le plus récent, hebdo ou mensuel)
   const dernierFichier = useMemo(() => {
-    const ventesHebdo = fichiersDetectes.filter(f => f.statut === 'ok' && f.nom.startsWith('Vente_Hebdo_BVP_S'));
-    if (ventesHebdo.length === 0) return null;
-    // Trier par nom décroissant (S2026-06 > S2026-05)
-    ventesHebdo.sort((a, b) => b.nom.localeCompare(a.nom));
-    return ventesHebdo[0];
+    const ventes = fichiersDetectes.filter(f => f.statut === 'ok' && (f.nom.startsWith('Vente_Hebdo_BVP_S') || f.nom.startsWith('Vente_Mensuelle_BVP_M')));
+    if (ventes.length === 0) return null;
+    ventes.sort((a, b) => b.nom.localeCompare(a.nom));
+    return ventes[0];
   }, [fichiersDetectes]);
 
   // Nombre total de fichiers reconnus
@@ -427,29 +479,173 @@ const Etape0Import = () => {
             )}
           </div>
 
-          {/* Section 2 + 3 : Semaine & Magasin (compact, côte à côte sur large écran) */}
-          {dirHandle && semainesDisponibles.length > 0 && (
+          {/* Section référentiel magasin (optionnel) */}
+          {dirHandle && (
+            <div className="bg-white rounded-xl shadow-md p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <Database className="w-5 h-5 text-amber-600" />
+                <h3 className="font-bold text-gray-800">Référentiel magasin <span className="text-sm font-normal text-gray-400">(optionnel)</span></h3>
+              </div>
+              <p className="text-sm text-gray-500 mb-3">
+                Importez le fichier « Liste PLU PDV » de votre magasin pour améliorer l'identification des produits (liaison EAN → code ITM).
+              </p>
+
+              {!refMagasin ? (
+                <div className="space-y-2">
+                  <label className="flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed border-amber-300 rounded-xl cursor-pointer hover:bg-amber-50 transition-colors">
+                    <FileSpreadsheet className="w-5 h-5 text-amber-500" />
+                    <span className="text-sm font-medium text-amber-700">
+                      {refMagasinChargement ? 'Chargement…' : 'Sélectionner le fichier PLU magasin'}
+                    </span>
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls"
+                      className="hidden"
+                      disabled={refMagasinChargement}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        try {
+                          setRefMagasinChargement(true);
+                          setRefMagasinErreur(null);
+                          const result = await chargerReferentielMagasin(file);
+                          if (result) {
+                            setRefMagasin(result);
+                            const rapport = genererRapportMatching(result);
+                            setRefMagasinRapport(rapport);
+                          } else {
+                            setRefMagasinErreur('Format non reconnu. Attendu : fichier « Liste PLU PDV » (Mercalys).');
+                          }
+                        } catch (err) {
+                          setRefMagasinErreur('Erreur lors du chargement du fichier.');
+                        } finally {
+                          setRefMagasinChargement(false);
+                          e.target.value = ''; // Reset l'input file
+                        }
+                      }}
+                    />
+                  </label>
+                  {refMagasinErreur && (
+                    <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                      {refMagasinErreur}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                    <div className="flex items-center gap-3">
+                      <Check className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-amber-800 text-sm">
+                          {refMagasin.magasin.nom || 'Magasin'}
+                          {refMagasin.magasin.code && (
+                            <span className="text-amber-600 ml-1">({refMagasin.magasin.code})</span>
+                          )}
+                        </p>
+                        <p className="text-xs text-amber-600 mt-0.5">
+                          {refMagasin.stats.eanUniques} EAN • {refMagasin.stats.itmUniques} produits ITM
+                          {refMagasin.dateExtraction && ` • ${refMagasin.dateExtraction}`}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setRefMagasin(null);
+                          setRefMagasinRapport(null);
+                        }}
+                        className="text-amber-500 hover:text-amber-700 text-xs underline flex-shrink-0"
+                      >
+                        Retirer
+                      </button>
+                    </div>
+                  </div>
+                  {refMagasinRapport && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs">
+                      <p className="font-semibold text-gray-700 mb-1">Couverture référentiel :</p>
+                      <div className="grid grid-cols-2 gap-1 text-gray-600">
+                        <span>Trouvés dans ref V2 :</span>
+                        <span className="font-medium text-green-700">{refMagasinRapport.matchesRefV2} / {refMagasinRapport.totalITMUniques} ({refMagasinRapport.tauxMatchRefV2}%)</span>
+                        <span>Classifiables par libellé :</span>
+                        <span className="font-medium text-amber-700">{refMagasinRapport.matchesClassification}</span>
+                        {refMagasinRapport.nonTrouves > 0 && (
+                          <>
+                            <span>Sans information :</span>
+                            <span className="font-medium text-red-600">{refMagasinRapport.nonTrouves}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Section 2 + 3 : Période & Magasin (compact, côte à côte sur large écran) */}
+          {dirHandle && (semainesDisponibles.length > 0 || moisDisponibles.length > 0) && (
             <div className="grid md:grid-cols-2 gap-4">
-              {/* Semaine */}
+              {/* Période */}
               <div className="bg-white rounded-xl shadow-md p-5">
                 <div className="flex items-center gap-3 mb-3">
-                  <Calendar className="w-5 h-5 text-mousquetaires-bordeaux" />
-                  <h3 className="font-bold text-gray-800">2. Semaine</h3>
-                  <span className="text-xs text-gray-400">
-                    {semainesDisponibles.length} dispo.
-                  </span>
+                  <CalendarDays className="w-5 h-5 text-mousquetaires-bordeaux" />
+                  <h3 className="font-bold text-gray-800">2. Période</h3>
                 </div>
-                <select
-                  value={semaineSelectionnee?.code || ''}
-                  onChange={handleChangeSemaine}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mousquetaires-rouge focus:border-transparent text-sm"
-                >
-                  {semainesDisponibles.map((semaine) => (
-                    <option key={semaine.code} value={semaine.code}>
-                      Semaine {semaine.semaine} / {semaine.annee}
-                    </option>
-                  ))}
-                </select>
+
+                {/* Toggle Mensuel / Hebdomadaire */}
+                {moisDisponibles.length > 0 && semainesDisponibles.length > 0 && (
+                  <div className="flex bg-gray-100 rounded-lg p-1 mb-3">
+                    <button
+                      onClick={() => setTypePeriode('mois')}
+                      className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                        typePeriode === 'mois'
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      <CalendarDays className="w-4 h-4" />
+                      Mensuel ({moisDisponibles.length})
+                    </button>
+                    <button
+                      onClick={() => setTypePeriode('semaine')}
+                      className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                        typePeriode === 'semaine'
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      <Calendar className="w-4 h-4" />
+                      Hebdo ({semainesDisponibles.length})
+                    </button>
+                  </div>
+                )}
+
+                {/* Sélecteur de période */}
+                {typePeriode === 'mois' && moisDisponibles.length > 0 ? (
+                  <select
+                    value={moisSelectionnee?.code || ''}
+                    onChange={handleChangeMois}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mousquetaires-rouge focus:border-transparent text-sm"
+                  >
+                    {moisDisponibles.map((mois) => (
+                      <option key={mois.code} value={mois.code}>
+                        {mois.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <select
+                    value={semaineSelectionnee?.code || ''}
+                    onChange={handleChangeSemaine}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mousquetaires-rouge focus:border-transparent text-sm"
+                  >
+                    {semainesDisponibles.map((semaine) => (
+                      <option key={semaine.code} value={semaine.code}>
+                        Semaine {semaine.semaine} / {semaine.annee}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               {/* Magasin */}

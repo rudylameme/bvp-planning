@@ -102,7 +102,7 @@ const Bloc1Identification = ({ magasin, pdv, semaineSelectionnee, comparaison })
 // BLOC OPPORTUNITÉ : Message clé dès le haut de page
 // "Votre plus grande opportunité : l'après-midi"
 // ============================================================================
-const BlocOpportunite = ({ indicateurs, panierMoyen, meilleurePenetration }) => {
+const BlocOpportunite = ({ indicateurs, panierMoyen, meilleurePenetration, periodLabel = 'semaine' }) => {
   const parTranche = indicateurs.parTrancheHoraire || {};
 
   // Calculer les données après-midi (14h-19h)
@@ -143,10 +143,10 @@ const BlocOpportunite = ({ indicateurs, panierMoyen, meilleurePenetration }) => 
 
       <p className="text-white/90 text-base leading-relaxed mb-4">
         Entre 14h et 19h, <strong>{clientsApresMidi.toLocaleString('fr-FR')} clients</strong> passent
-        en caisse chaque semaine. Seulement <strong>{acheteursApresMidi.toLocaleString('fr-FR')}</strong> achètent
+        en caisse chaque {periodLabel}. Seulement <strong>{acheteursApresMidi.toLocaleString('fr-FR')}</strong> achètent
         en BVP ({(penetrationApresMidi * 100).toFixed(1)}%).
         Si vous atteignez votre propre niveau du matin ({(meilleurePenetration * 100).toFixed(1)}%),
-        c'est <strong>+{caPotentielSemaine.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €/semaine</strong> de CA supplémentaire.
+        c'est <strong>+{caPotentielSemaine.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €/{periodLabel}</strong> de CA supplémentaire.
       </p>
 
       <div className="grid grid-cols-3 gap-4">
@@ -160,7 +160,7 @@ const BlocOpportunite = ({ indicateurs, panierMoyen, meilleurePenetration }) => 
         </div>
         <div className="bg-white/25 rounded-xl p-3 text-center">
           <div className="text-2xl font-black">+{caPotentielSemaine.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €</div>
-          <div className="text-xs text-white/70">CA potentiel / semaine</div>
+          <div className="text-xs text-white/70">CA potentiel / {periodLabel}</div>
         </div>
       </div>
     </div>
@@ -177,13 +177,13 @@ const AlertePasDeDonnees = ({ magasin, onPrecedent }) => (
     </div>
     <h2 className="text-2xl font-bold text-gray-800 mb-3">Pas de données BVP pour ce magasin</h2>
     <p className="text-gray-600 mb-2 max-w-md mx-auto">
-      Le magasin <strong>{magasin?.nom}</strong> ({String(magasin?.code || '').padStart(5, '0')}) n'a pas de ventes BVP enregistrées pour cette semaine.
+      Le magasin <strong>{magasin?.nom}</strong> ({String(magasin?.code || '').padStart(5, '0')}) n'a pas de ventes BVP enregistrées pour cette période.
     </p>
     <button
       onClick={onPrecedent}
       className="mt-6 px-6 py-3 bg-[#8B1538] text-white rounded-xl font-semibold hover:bg-[#5B0D24] transition-colors"
     >
-      Choisir un autre magasin ou semaine
+      Choisir un autre magasin ou période
     </button>
   </div>
 );
@@ -262,7 +262,11 @@ const Etape1Diagnostic = ({ onPrecedent }) => {
     return <AlertePasDeDonnees magasin={donneesMagasin.magasin} onPrecedent={onPrecedent} />;
   }
 
-  const { magasin, comparaison, indicateurs } = donneesMagasin;
+  const { magasin, comparaison, indicateurs, metadata } = donneesMagasin;
+  const typePeriode = metadata?.typePeriode || 'semaine';
+  const multiplier = metadata?.multiplierAnnuel || 52;
+  const periodLabel = typePeriode === 'mois' ? 'mois' : 'semaine';
+
   const pdv = indicateurs.global.pdv;
   const pdvS1 = indicateurs.global.pdvS1 || {};
   const pdvAn1 = indicateurs.global.pdvAn1 || {};
@@ -283,6 +287,8 @@ const Etape1Diagnostic = ({ onPrecedent }) => {
         indicateurs={indicateurs}
         panierMoyen={pdv.ticketMoyen || 0}
         caBVPActuel={pdv.caBVP || 0}
+        multiplier={multiplier}
+        periodLabel={periodLabel}
       />
 
       {/* 3. Je me compare — tableau benchmark */}
@@ -302,6 +308,7 @@ const Etape1Diagnostic = ({ onPrecedent }) => {
         pdvS1={pdvS1}
         pdvAn1={pdvAn1}
         moyenneSecteur={moyenneSecteur}
+        typePeriode={typePeriode}
       />
 
       {/* 5. Taux de pénétration par tranche horaire */}
@@ -318,6 +325,8 @@ const Etape1Diagnostic = ({ onPrecedent }) => {
       <Bloc7Action
         indicateurs={indicateurs}
         panierMoyen={pdv.ticketMoyen || 0}
+        multiplier={multiplier}
+        periodLabel={periodLabel}
       />
 
     </div>

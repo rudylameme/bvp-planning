@@ -2,11 +2,12 @@
  * App V5 - BVP Planning
  *
  * Architecture V5.2 :
- * - Accueil global → choix Adhérent / Manager / Équipe
+ * - Accueil global → choix Adhérent / Manager / Équipe / Secteur
  * - Chaque univers passe par une page Paramètres (dossiers/fichiers)
  * - Adhérent → Benchmark (Import + Diagnostic)
  * - Manager → Wizard Planning (5 étapes)
  * - Équipe → 3 modules (Planning, Inventaire, Commande)
+ * - Secteur → Dashboard responsable secteur (classement PDV + drill-down)
  */
 
 import { useState } from 'react';
@@ -15,11 +16,13 @@ import PageParametres from './components/shared/PageParametres';
 import WizardBenchmark from './components/manager/WizardBenchmark';
 import WizardManager from './components/manager/WizardManager';
 import AccueilEquipe from './components/equipe/AccueilEquipe';
+import SectorManagerWizard from './components/secteur/SectorManagerWizard';
 
-// Profil : 'all' (dev local), 'manager' (univers 1+2+3), 'equipe' (univers 3 seul)
+// Profil : 'all' (dev local), 'manager' (univers 1+2+3), 'equipe' (univers 3 seul), 'secteur' (secteur seul)
 const PROFIL = import.meta.env.VITE_PROFIL || 'all';
 const isManager = PROFIL === 'manager' || PROFIL === 'all';
 const isEquipe = PROFIL === 'equipe' || PROFIL === 'all' || PROFIL === 'manager';
+const isSecteur = PROFIL === 'secteur' || PROFIL === 'manager' || PROFIL === 'all';
 
 // Définition des items par univers
 const ITEMS_BENCHMARK = [
@@ -54,6 +57,17 @@ const ITEMS_MANAGER = [
     helpTitle: 'Comment configurer l\'export Mercalys',
   },
   {
+    id: 'referentielMagasin',
+    label: 'Référentiel magasin (Liste PLU)',
+    description: "Export Excel « Liste PLU PDV » depuis Mercalys (Section Balance 51). Permet la liaison EAN → code ITM pour une meilleure identification des produits.",
+    type: 'file',
+    accept: '.xlsx,.xls',
+    idbKey: 'fichierRefMagasin',
+    required: false,
+    helpImage: '/images/aide/config-mercalys-plu.png',
+    helpTitle: 'Comment exporter la Liste PLU depuis Mercalys',
+  },
+  {
     id: 'archives',
     label: 'Dossier archives Manager',
     description: 'Dossier pour sauvegarder et relire les fichiers .bvp.json',
@@ -71,13 +85,24 @@ const ITEMS_MANAGER = [
   },
 ];
 
+const ITEMS_SECTEUR = [
+  {
+    id: 'data',
+    label: 'Dossier DATA_perso',
+    description: 'Dossier contenant les fichiers Excel de ventes et info_PDV.json',
+    type: 'directory',
+    idbKey: 'dirHandle-data',
+    required: true,
+  },
+];
+
 const ITEMS_EQUIPE = [
   {
-    id: 'bvpjson',
-    label: 'Fichier planning (.bvp.json)',
-    description: 'Fichier généré par le Manager pour la semaine en cours',
-    type: 'file',
-    accept: '.json,.bvp.json',
+    id: 'dossierEquipe',
+    label: 'Dossier partagé équipe',
+    description: 'Dossier partagé où le Manager dépose les fichiers .bvp.json et où l\'équipe enregistre ses modifications',
+    type: 'directory',
+    idbKey: 'dossierEquipe',
     required: true,
   },
 ];
@@ -88,6 +113,9 @@ function AppV5() {
     return 'accueil';
   });
 
+  // Handle du dossier partagé équipe (FileSystemDirectoryHandle)
+  const [dossierEquipeHandle, setDossierEquipeHandle] = useState(null);
+
   // Navigation
   const allerAccueil = () => setEcran('accueil');
   const allerParamsBenchmark = () => setEcran('params-benchmark');
@@ -95,7 +123,14 @@ function AppV5() {
   const allerParamsEquipe = () => setEcran('params-equipe');
   const allerBenchmark = () => setEcran('benchmark');
   const allerManager = () => setEcran('manager');
-  const allerEquipe = () => setEcran('equipe');
+  const allerEquipeAvecDossier = ({ etats }) => {
+    // Récupérer le handle du dossier partagé depuis PageParametres
+    const handle = etats?.dossierEquipe?.handle;
+    if (handle) setDossierEquipeHandle(handle);
+    setEcran('equipe');
+  };
+  const allerParamsSecteur = () => setEcran('params-secteur');
+  const allerSecteur = () => setEcran('secteur');
 
   // Rendu selon l'écran actif
   switch (ecran) {
@@ -133,10 +168,27 @@ function AppV5() {
           sousTitre="Mise en œuvre terrain"
           couleur="emerald"
           items={ITEMS_EQUIPE}
-          onValider={allerEquipe}
+          onValider={allerEquipeAvecDossier}
           onRetour={allerAccueil}
         />
       );
+
+    case 'params-secteur':
+      if (!isSecteur) { setEcran('accueil'); return null; }
+      return (
+        <PageParametres
+          titre="Piloter le secteur"
+          sousTitre="Vue responsable secteur"
+          couleur="indigo"
+          items={ITEMS_SECTEUR}
+          onValider={allerSecteur}
+          onRetour={allerAccueil}
+        />
+      );
+
+    case 'secteur':
+      if (!isSecteur) { setEcran('accueil'); return null; }
+      return <SectorManagerWizard onRetourAccueil={allerAccueil} />;
 
     case 'benchmark':
       if (!isManager) { setEcran('accueil'); return null; }
@@ -148,7 +200,7 @@ function AppV5() {
 
     case 'equipe':
       if (!isEquipe) { setEcran('accueil'); return null; }
-      return <AccueilEquipe onRetourAccueil={allerAccueil} />;
+      return <AccueilEquipe onRetourAccueil={allerAccueil} dossierEquipeHandle={dossierEquipeHandle} />;
 
     case 'accueil':
     default:
@@ -157,6 +209,7 @@ function AppV5() {
           onChoixAdherent={isManager ? allerParamsBenchmark : null}
           onChoixManager={isManager ? allerParamsManager : null}
           onChoixEquipe={isEquipe ? allerParamsEquipe : null}
+          onChoixSecteur={isSecteur ? allerParamsSecteur : null}
         />
       );
   }

@@ -17,6 +17,7 @@
  */
 
 import { getReferentielCache, mapFamilleV2VersRayon } from './referentielITM8';
+import { resoudreParLiaisonEAN } from './referentielMagasin';
 
 // ── Produits saisonniers ──
 
@@ -61,10 +62,14 @@ export const normaliserLibelle = (lib) => {
     .replace(/\bDECONGELEE?S?\b/g, '')    // DECONGELE, DECONGELEE, DECONGELES, DECONGELEES
     .replace(/\bOFF\b/g, '')              // "OFF" (offre) n'est pas distinctif
     .replace(/\bAOP\b/g, '')              // AOP (Appellation d'Origine Protégée) — classification, pas produit distinct
+    .replace(/\bSTICK\w*\b/g, '')         // STICK, STICKER — sticker prix collé sur le produit (pas un produit différent)
+    .replace(/\bSTI\b/g, '')              // STI — version tronquée de STICK dans certains libellés
     .replace(/\d+\s*[GK]G?\b/gi, '')      // poids avec unité : 300G, 250KG, 1K, etc.
     .replace(/\d+\s*GR\b/gi, '')           // poids en GR : 235GR, 290GR, etc.
+    .replace(/\b(\d+)\+(\d+)\b/g, 'PACK$1PLUS$2')  // Protéger "3+1" → "PACK3PLUS1" AVANT suppression des nombres
     .replace(/\b\d{1,4}\b/g, '')          // nombres seuls de 1-4 chiffres (poids, codes, numéros résiduels)
-    .replace(/\bX1\b/gi, '')               // X1 (vendu à l'unité) — non distinctif. X2+ = conditionnements différents → garder
+    .replace(/PACK(\d+)PLUS(\d+)/g, '$1+$2')        // Restaurer "3+1" après suppression des nombres
+    .replace(/\bX\d+\b/gi, '')            // X1, X5, X10, X20 — conditionnement lot, même produit vendu en boîte ou à l'unité
     .replace(/\bD\d+\b/g, '')             // D22, D28 — diamètres galettes
     .replace(/\bS\.?A\.?\b/g, '')         // S.A, SA (service arrière)
     .replace(/\s+/g, ' ')
@@ -110,6 +115,195 @@ const desactiverCodesNonIdentifiables = (produits) => {
 
 // ── Passe 3 : Fusion des doublons ──
 
+/**
+ * Recalcule tous les indicateurs d'un produit à partir de ses ventes quotidiennes brutes.
+ * C'est la fonction clé : quand on fusionne deux EAN, on merge leurs ventesQuotidiennes
+ * puis on recalcule TOUT depuis zéro (moyHebdo, potentiel, tendance, fiabilité, CA, casse).
+ *
+ * @param {Object} produit - Produit avec ventesQuotidiennes[] fusionnées
+ * @returns {Object} Produit avec tous les indicateurs recalculés
+ */
+export const recalculerDepuisVentesQuotidiennes = (produit) => {
+  const vq = produit.ventesQuotidiennes || [];
+  if (vq.length === 0) return produit;
+
+  // ── Agréger par date (en cas de doublons de date après fusion) ──
+  const parDate = new Map();
+  for (const jour of vq) {
+    const key = jour.date;
+    if (!parDate.has(key)) {
+      parDate.set(key, { ...jour });
+    } else {
+      const existing = parDate.get(key);
+      existing.ventesQte += jour.ventesQte;
+      existing.ventesPVTTC += jour.ventesPVTTC;
+      existing.casseQte += jour.casseQte;
+      existing.cassePAHT += jour.cassePAHT;
+    }
+  }
+  const joursUniques = Array.from(parDate.values());
+  const nombreJours = joursUniques.length;
+
+  // ── Totaux bruts ──
+  let totalVentesQte = 0, totalVentesPVTTC = 0, totalCasseQte = 0, totalCassePAHT = 0;
+  for (const j of joursUniques) {
+    totalVentesQte += j.ventesQte;
+    totalVentesPVTTC += j.ventesPVTTC;
+    totalCasseQte += j.casseQte;
+    totalCassePAHT += j.cassePAHT;
+  }
+
+  // ── Agréger par jour de semaine (pour moyHebdo) ──
+  const ventesParJour = {}; // { jourSemaine: { total, count } }
+  const caParJour = {};
+  const casseParJour = {};
+  for (const j of joursUniques) {
+    const js = j.jourSemaine;
+    if (!ventesParJour[js]) ventesParJour[js] = { total: 0, count: 0 };
+    ventesParJour[js].total += j.ventesQte;
+    ventesParJour[js].count += 1;
+    if (!caParJour[js]) caParJour[js] = { total: 0, count: 0 };
+    caParJour[js].total += j.ventesPVTTC;
+    caParJour[js].count += 1;
+    if (!casseParJour[js]) casseParJour[js] = { total: 0, count: 0 };
+    casseParJour[js].total += j.cassePAHT;
+    casseParJour[js].count += 1;
+  }
+
+  // ── Moyenne hebdo (somme des moyennes par jour de semaine) ──
+  const moyHebdo = Math.round(
+    Object.values(ventesParJour).reduce((sum, { total, count }) =>
+      sum + (count > 0 ? total / count : 0), 0)
+  );
+
+  // ── CA hebdo moyen ──
+  const caSemaine = Math.round(
+    Object.values(caParJour).reduce((sum, { total, count }) =>
+      sum + (count > 0 ? total / count : 0), 0) * 100
+  ) / 100;
+
+  // ── Casse PA HT hebdo moyen ──
+  const cassePAHTSemaine = Math.round(
+    Object.values(casseParJour).reduce((sum, { total, count }) =>
+      sum + (count > 0 ? total / count : 0), 0) * 100
+  ) / 100;
+
+  // ── Agréger par semaine ISO (pour potentiel, tendance, fiabilité, historiqueParSemaine) ──
+  const getISOWeek = (dateStr) => {
+    const d = new Date(dateStr + 'T00:00:00Z');
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return `${d.getUTCFullYear()}${String(weekNo).padStart(2, '0')}`;
+  };
+
+  const ventesParSemaine = new Map();
+  for (const j of joursUniques) {
+    const sKey = getISOWeek(j.date);
+    if (!ventesParSemaine.has(sKey)) {
+      ventesParSemaine.set(sKey, { ventesQte: 0, ventesPVTTC: 0, cassePAHT: 0, casseQte: 0 });
+    }
+    const s = ventesParSemaine.get(sKey);
+    s.ventesQte += j.ventesQte;
+    s.ventesPVTTC += j.ventesPVTTC;
+    s.cassePAHT += j.cassePAHT;
+    s.casseQte += j.casseQte;
+  }
+
+  const semaines = Array.from(ventesParSemaine.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  const nombreSemaines = semaines.length;
+
+  // ── Potentiel (règle des 5B : max des moyennes journalières / poids jour) ──
+  const POIDS_JOURS = { 0: 0.09, 1: 0.12, 2: 0.14, 3: 0.14, 4: 0.14, 5: 0.17, 6: 0.20 };
+  const potentielsJournaliers = Object.entries(ventesParJour).map(([jourIdx, { total, count }]) => {
+    const moyJour = count > 0 ? total / count : 0;
+    const poids = POIDS_JOURS[parseInt(jourIdx)] || 0.14;
+    return poids > 0 ? moyJour / poids : 0;
+  });
+  let potentiel = potentielsJournaliers.length > 0
+    ? Math.round(Math.max(...potentielsJournaliers))
+    : moyHebdo;
+  const plancher = moyHebdo > 0 ? Math.ceil(moyHebdo * 0.95) : 0;
+  potentiel = Math.max(potentiel, plancher);
+
+  // ── Tendance (première moitié vs deuxième moitié des semaines) ──
+  let tendance = 'stable';
+  let tendancePourcent = 0;
+  if (nombreSemaines >= 2) {
+    const mid = Math.ceil(nombreSemaines / 2);
+    const moyPremiere = semaines.slice(0, mid).reduce((sum, [, s]) => sum + s.ventesQte, 0) / mid;
+    const moyDerniere = semaines.slice(mid).reduce((sum, [, s]) => sum + s.ventesQte, 0) / (nombreSemaines - mid);
+    if (moyPremiere > 0) {
+      tendancePourcent = Math.round(((moyDerniere - moyPremiere) / moyPremiere) * 100);
+      tendance = tendancePourcent > 5 ? 'croissance' : tendancePourcent < -5 ? 'declin' : 'stable';
+    }
+  }
+
+  // ── Fiabilité (coefficient de variation des ventes par semaine) ──
+  let fiabilite = 50;
+  if (nombreSemaines >= 2) {
+    const vals = semaines.map(([, s]) => s.ventesQte);
+    const moy = vals.reduce((a, b) => a + b, 0) / vals.length;
+    const variance = vals.reduce((sum, v) => sum + Math.pow(v - moy, 2), 0) / vals.length;
+    const cv = moy > 0 ? Math.sqrt(variance) / moy : 1;
+    fiabilite = Math.max(0, Math.min(100, Math.round((1 - cv) * 100)));
+  } else if (nombreJours >= 5) {
+    fiabilite = 60;
+  } else if (nombreJours >= 3) {
+    fiabilite = 40;
+  } else {
+    fiabilite = 20;
+  }
+
+  // ── Taux de casse ──
+  const tauxCasse = totalVentesPVTTC > 0
+    ? Math.round((totalCassePAHT / totalVentesPVTTC) * 1000) / 10
+    : 0;
+
+  // ── Prix moyen ──
+  const prixMoyen = totalVentesQte > 0
+    ? Math.round((totalVentesPVTTC / totalVentesQte) * 100) / 100
+    : produit.prixMoyen || 0;
+
+  // ── Casse Qté hebdo ──
+  const casseQteSemaine = nombreSemaines > 0
+    ? Math.round(totalCasseQte / nombreSemaines * 10) / 10
+    : 0;
+
+  // ── Historique par semaine ──
+  const historiqueParSemaine = semaines.map(([sKey, data]) => ({
+    semaine: sKey,
+    semaineLabel: `S${sKey.substring(4)}`,
+    ventesQte: data.ventesQte,
+    ventesPVTTC: Math.round(data.ventesPVTTC * 100) / 100,
+    cassePAHT: Math.round((data.cassePAHT || 0) * 100) / 100,
+    casseQte: data.casseQte || 0,
+    tauxCasse: data.ventesPVTTC > 0 ? Math.round(((data.cassePAHT || 0) / data.ventesPVTTC) * 1000) / 10 : 0,
+  }));
+
+  // ── Poids CA (sera recalculé au niveau global, mais on met à jour le brut) ──
+  return {
+    ...produit,
+    ventesQuotidiennes: joursUniques, // version dédoublonnée
+    moyHebdo,
+    potentiel,
+    caSemaine,
+    cassePAHTSemaine,
+    casseQteSemaine,
+    tauxCasse,
+    tendance,
+    tendancePourcent,
+    fiabilite,
+    prixMoyen,
+    prixMoyenUnitaire: prixMoyen,
+    moyenneHebdo: moyHebdo,
+    nombreJours,
+    nombreSemaines,
+    historiqueParSemaine,
+  };
+};
+
 const fusionnerDoublons = (produits) => {
   // Grouper par libellé normalisé
   const groupes = new Map();
@@ -136,32 +330,35 @@ const fusionnerDoublons = (produits) => {
 
     const gagnant = actifs[0];
 
-    // Fusionner les quantités dans le gagnant
-    // On ADDITIONNE les moyHebdo et caSemaine (c'est la vraie demande totale)
-    // Le potentiel est ajusté : au minimum = moyHebdoTotal (on ne peut pas prévoir
-    // moins que ce qu'on vend déjà en moyenne)
-    let moyHebdoTotal = gagnant.produit.moyHebdo || 0;
-    let caSemaineTotal = gagnant.produit.caSemaine || 0;
+    // Fusionner les ventes quotidiennes brutes de TOUS les doublons dans le gagnant
+    // C'est la seule bonne méthode : on merge jour par jour, puis on recalcule tout
+    let ventesQuotidiennesFusionnees = [...(gagnant.produit.ventesQuotidiennes || [])];
 
     for (let i = 1; i < actifs.length; i++) {
-      moyHebdoTotal += actifs[i].produit.moyHebdo || 0;
-      caSemaineTotal += actifs[i].produit.caSemaine || 0;
+      // Ajouter les ventes quotidiennes du doublon
+      ventesQuotidiennesFusionnees = ventesQuotidiennesFusionnees.concat(
+        actifs[i].produit.ventesQuotidiennes || []
+      );
+
+      // Marquer le doublon comme inactif
       resultats[actifs[i].index] = {
         ...actifs[i].produit,
         actif: false,
         raisonDesactivation: 'doublon-fusion',
+        // Conserver ses ventes quotidiennes originales (pour dissociation future)
+        _ventesQuotidiennesOriginales: actifs[i].produit.ventesQuotidiennes || [],
       };
     }
 
-    // Mettre à jour le gagnant avec les quantités fusionnées
-    // potentiel = max(potentiel actuel, moyHebdoTotal) pour ne pas sous-estimer
-    const potentielGagnant = gagnant.produit.potentiel || 0;
-    resultats[gagnant.index] = {
+    // Recalculer TOUS les indicateurs du gagnant depuis les ventes fusionnées
+    resultats[gagnant.index] = recalculerDepuisVentesQuotidiennes({
       ...gagnant.produit,
-      moyHebdo: moyHebdoTotal,
-      caSemaine: caSemaineTotal,
-      potentiel: Math.max(potentielGagnant, moyHebdoTotal),
-    };
+      ventesQuotidiennes: ventesQuotidiennesFusionnees,
+      // Sauvegarder les ventes originales du gagnant (pour dissociation)
+      _ventesQuotidiennesOriginales: gagnant.produit.ventesQuotidiennes || [],
+      // Tracer les EAN source de la fusion
+      _eansFusionnes: actifs.map(a => a.produit.codeEAN),
+    });
   });
 
   return resultats;
@@ -277,17 +474,27 @@ const calculerScore = (tokensVente, tokensRef) => {
 
   if (matchCount === 0) return 0;
 
+  // Tokens du ref NON matchés = tokens distinctifs absents du produit
+  // Ex : si ref = "CONSTANCE CEREALES" et vente = "CONSTANCE 3+1",
+  // "CEREALES" est non matché → pénalité car c'est un mot discriminant.
+  const refNonMatches = tokensRef.length - refUtilises.size;
+
   // Jaccard-like : score total / nombre total de tokens uniques
   const unionSize = tokensVente.length + tokensRef.length - matchCount;
   const jaccard = totalScore / unionSize;
 
-  // Couverture : proportion des tokens vente qui ont trouvé un match
-  const couverture = matchCount / tokensVente.length;
+  // Couverture vente : proportion des tokens vente qui ont trouvé un match
+  const couvertureVente = matchCount / tokensVente.length;
 
-  return (jaccard * 0.5) + (couverture * 0.5);
+  // Couverture ref : proportion des tokens ref qui ont été matchés
+  // Pénalise les refs qui ont des mots distinctifs absents du produit
+  const couvertureRef = refUtilises.size / tokensRef.length;
+
+  // Score final : pondéré Jaccard + couverture vente + couverture ref
+  return (jaccard * 0.35) + (couvertureVente * 0.35) + (couvertureRef * 0.30);
 };
 
-const enrichirAvecRefV2 = (produits) => {
+const enrichirAvecRefV2 = (produits, refMagasin = null) => {
   const refCache = getReferentielCache();
   if (!refCache || !refCache.itm8Map) return produits;
 
@@ -309,6 +516,11 @@ const enrichirAvecRefV2 = (produits) => {
       matchRefV2: matchInfo,
       libelleRefV2: matchInfo.libelle,
       marqueRefV2: matchInfo.marque || null,
+      // Propager les infos techniques du référentiel V2
+      programme: matchInfo.programme || p.programme,
+      unitesParPlaque: matchInfo.unitesParPlaque || p.unitesParPlaque,
+      unitesParVente: matchInfo.unitesParVente || p.unitesParVente,
+      itm8: matchInfo.itm8 || p.itm8,
     };
     // Mettre à jour le rayon depuis le référentiel si pertinent
     if (matchInfo.rayon && matchInfo.rayon !== 'AUTRE') {
@@ -355,11 +567,54 @@ const enrichirAvecRefV2 = (produits) => {
       if (!xMatch) return false;
     }
 
+    // ── Vérification lots N+N (ex: 3+1, 2+1) ──
+    // Un lot "CONSTANCE 3+1" est un produit COMPLÈTEMENT différent de "CONSTANCE CEREALES"
+    // Si le produit a un pattern N+N, la ref DOIT aussi l'avoir (et inversement)
+    const packPatternP = tokP.filter(t => /^\d+\+\d+$/.test(t));
+    const packPatternR = tokR.filter(t => /^\d+\+\d+$/.test(t));
+    if (packPatternP.length > 0 && packPatternR.length === 0) return false;
+    if (packPatternP.length === 0 && packPatternR.length > 0) return false;
+    if (packPatternP.length > 0 && packPatternR.length > 0) {
+      // Les deux ont des packs → vérifier qu'ils sont identiques
+      const packMatch = packPatternP.every(pp => packPatternR.includes(pp));
+      if (!packMatch) return false;
+    }
+
     return true;
   };
 
   const enrichis = produits.map(p => {
-    // Si déjà reconnu par EAN/ITM8, enrichir — mais VALIDER la cohérence du nom
+    // ── NIVEAU 0 : Liaison EAN → ITM via référentiel magasin (priorité maximale) ──
+    if (refMagasin && p.codeEAN) {
+      const eanStr = String(p.codeEAN).trim();
+      const resultat = resoudreParLiaisonEAN(eanStr, refMagasin);
+      if (resultat) {
+        // Valider la cohérence du match (lot 3+1 ≠ produit simple, etc.)
+        if (validerMatchParCode(p, resultat)) {
+          refMatchedItm8.add(resultat.itm8);
+          return {
+            ...p,
+            matchRefV2: resultat,
+            libelleRefV2: resultat.libelle,
+            marqueRefV2: resultat.marque || null,
+            rayon: resultat.rayon && resultat.rayon !== 'AUTRE' ? resultat.rayon : p.rayon,
+            famille: resultat.rayon && resultat.rayon !== 'AUTRE' ? resultat.rayon : p.famille,
+            itm8: resultat.itm8,
+            reconnu: true,
+            sourceIdentification: resultat.sourceIdentification,
+            libelleMagasin: resultat.libelleMagasin,
+            prixVenteMagasin: resultat.prixVenteMagasin,
+            programme: resultat.programme || p.programme,
+            unitesParPlaque: resultat.unitesParPlaque || p.unitesParPlaque,
+            unitesParVente: resultat.unitesParVente || p.unitesParVente,
+          };
+        }
+        // Match Niveau 0 rejeté par validation → continuer vers les niveaux suivants
+      }
+    }
+
+    // ── NIVEAU 1 : Si déjà reconnu par ITM8 direct ──
+    // Enrichir — mais VALIDER la cohérence du nom
     if (p.reconnu && p.itm8) {
       const refInfo = refCache.itm8Map.get(p.itm8);
       if (refInfo && validerMatchParCode(p, refInfo)) {
@@ -384,6 +639,18 @@ const enrichirAvecRefV2 = (produits) => {
       }
     }
 
+    // ── Helper : vérifier compatibilité des lots N+N entre deux libellés normalisés ──
+    const packCompatible = (normA, normB) => {
+      const tokA = normA.split(/\s+/).filter(t => /^\d+\+\d+$/.test(t));
+      const tokB = normB.split(/\s+/).filter(t => /^\d+\+\d+$/.test(t));
+      if (tokA.length > 0 && tokB.length === 0) return false;
+      if (tokA.length === 0 && tokB.length > 0) return false;
+      if (tokA.length > 0 && tokB.length > 0) {
+        return tokA.every(pa => tokB.includes(pa));
+      }
+      return true;
+    };
+
     // Matching par sous-chaîne (inclusion) avant le fuzzy par tokens
     // IMPORTANT : le plus court des deux doit faire au moins 10 caractères
     // ET représenter au moins 50% du plus long, sinon "PAIN" matcherait tout.
@@ -391,6 +658,8 @@ const enrichirAvecRefV2 = (produits) => {
     if (normVente.length >= 10) {
       for (const entry of refEntries) {
         if (entry.norm.length < 10) continue; // ref trop courte → skip
+        // Vérifier compatibilité lots N+N AVANT le match par inclusion
+        if (!packCompatible(normVente, entry.norm)) continue;
         const shorter = normVente.length <= entry.norm.length ? normVente : entry.norm;
         const longer = normVente.length > entry.norm.length ? normVente : entry.norm;
         if (shorter.length / longer.length >= 0.5 && longer.includes(shorter)) {
@@ -409,6 +678,8 @@ const enrichirAvecRefV2 = (produits) => {
     let bestScore = 0;
 
     for (const entry of refEntries) {
+      // Vérifier compatibilité lots N+N AVANT le calcul de score
+      if (!packCompatible(normVente, entry.norm)) continue;
       const score = calculerScore(tokensVente, entry.tokens);
       if (score > bestScore) {
         bestScore = score;
@@ -511,6 +782,139 @@ const enrichirAvecRefV2 = (produits) => {
 
 // ── Passe 6 : Corrections manuelles (localStorage) ──
 
+// ── Passe 5b : Propager les matchs Niveau 0 des doublons ──
+
+/**
+ * Quand un même produit existe avec deux EAN différents (un standard type 325…
+ * et un code balance type 28…), la fusion de doublons garde le premier vu comme
+ * « actif » et désactive l'autre. Or le code balance, lui, bénéficie du Niveau 0
+ * (liaison EAN → ITM via le fichier magasin) et obtient un match plus fiable.
+ *
+ * Cette passe copie le match Niveau 0 des doublons désactivés vers la version
+ * active du même produit, si celle-ci a un match de moindre qualité (fuzzy) ou
+ * pas de match du tout.
+ */
+const propagerMatchsDoublons = (produits) => {
+  // Index : libellé normalisé → meilleur match Niveau 0 trouvé parmi les inactifs
+  const niv0ParLibelle = new Map();
+
+  for (const p of produits) {
+    if (p.sourceIdentification && p.sourceIdentification.startsWith('niveau0')) {
+      const norm = normaliserLibelle(p.libelle);
+      const existing = niv0ParLibelle.get(norm);
+      // Garder le match Niveau 0 le plus fiable (refV2 > classification)
+      if (!existing || (p.sourceIdentification === 'niveau0-refV2' && existing.sourceIdentification !== 'niveau0-refV2')) {
+        niv0ParLibelle.set(norm, p);
+      }
+    }
+  }
+
+  if (niv0ParLibelle.size === 0) return produits;
+
+  return produits.map(p => {
+    // Ne propager que vers les produits actifs sans source Niveau 0
+    if (!p.actif) return p;
+    if (p.sourceIdentification && p.sourceIdentification.startsWith('niveau0')) return p;
+
+    const norm = normaliserLibelle(p.libelle);
+    const donneur = niv0ParLibelle.get(norm);
+    if (!donneur || !donneur.matchRefV2) return p;
+
+    // Propager le match : copier les infos du donneur Niveau 0
+    return {
+      ...p,
+      matchRefV2: donneur.matchRefV2,
+      libelleRefV2: donneur.libelleRefV2,
+      marqueRefV2: donneur.marqueRefV2,
+      itm8: donneur.itm8 || p.itm8,
+      rayon: donneur.rayon && donneur.rayon !== 'AUTRE' ? donneur.rayon : p.rayon,
+      famille: donneur.famille && donneur.famille !== 'AUTRE' ? donneur.famille : p.famille,
+      reconnu: true,
+      sourceIdentification: donneur.sourceIdentification,
+      libelleMagasin: donneur.libelleMagasin || p.libelleMagasin,
+      prixVenteMagasin: donneur.prixVenteMagasin || p.prixVenteMagasin,
+    };
+  });
+};
+
+// ── Passe 5c : Désactiver les produits à faible contribution CA ──
+
+/**
+ * Désactive les produits actifs dont la contribution au CA est marginale.
+ *
+ * Logique :
+ * 1. Trie les produits actifs par CA hebdo décroissant
+ * 2. Cumule le CA → garde les produits qui couvrent les premiers 90% du CA
+ * 3. Désactive le reste avec raison « faible-ca »
+ *
+ * Seuil plancher : on garde au minimum 80 produits actifs et au maximum ~120,
+ * pour éviter un planning trop vide ou trop chargé.
+ *
+ * Les produits désactivés restent dans la liste (l'utilisateur peut les
+ * réactiver manuellement dans le Pilotage CA).
+ */
+const desactiverFaibleCA = (produits) => {
+  const COUVERTURE_CA_CIBLE = 0.90; // garder les produits qui couvrent 90% du CA
+  const MIN_ACTIFS = 80;             // au minimum 80 références actives
+  const MAX_ACTIFS = 120;            // au maximum ~120 références actives
+
+  // Séparer actifs et inactifs
+  const actifs = [];
+  const inactifs = [];
+  produits.forEach((p, i) => {
+    if (p.actif && !p.aCreer) {
+      actifs.push({ produit: p, indexOriginal: i });
+    } else {
+      inactifs.push(i);
+    }
+  });
+
+  // Si déjà sous le minimum, rien à faire
+  if (actifs.length <= MIN_ACTIFS) return produits;
+
+  // Trier les actifs par CA hebdo décroissant
+  actifs.sort((a, b) => (b.produit.caSemaine || 0) - (a.produit.caSemaine || 0));
+
+  // Calculer le CA total des actifs
+  const totalCA = actifs.reduce((sum, a) => sum + (a.produit.caSemaine || 0), 0);
+  if (totalCA <= 0) return produits;
+
+  // Trouver le seuil : rang du produit où on atteint la couverture cible
+  let cumulCA = 0;
+  let seuilRang = actifs.length; // par défaut, on garde tout
+
+  for (let i = 0; i < actifs.length; i++) {
+    cumulCA += (actifs[i].produit.caSemaine || 0);
+    if (cumulCA / totalCA >= COUVERTURE_CA_CIBLE && i + 1 >= MIN_ACTIFS) {
+      seuilRang = i + 1;
+      break;
+    }
+  }
+
+  // Appliquer la borne max
+  seuilRang = Math.min(seuilRang, MAX_ACTIFS);
+
+  // Garantir le minimum
+  seuilRang = Math.max(seuilRang, MIN_ACTIFS);
+
+  // Si le seuil calculé ne change rien, sortir
+  if (seuilRang >= actifs.length) return produits;
+
+  // Construire le Set des index à désactiver
+  const indexADesactiver = new Set();
+  for (let i = seuilRang; i < actifs.length; i++) {
+    indexADesactiver.add(actifs[i].indexOriginal);
+  }
+
+  // Appliquer la désactivation
+  return produits.map((p, i) => {
+    if (indexADesactiver.has(i)) {
+      return { ...p, actif: false, raisonDesactivation: 'faible-ca' };
+    }
+    return p;
+  });
+};
+
 const STORAGE_KEY_CORRECTIONS = 'bvp_corrections_doublons';
 
 /**
@@ -518,7 +922,17 @@ const STORAGE_KEY_CORRECTIONS = 'bvp_corrections_doublons';
  */
 export const chargerCorrectionsDoublons = () => {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY_CORRECTIONS) || '{}');
+    const data = JSON.parse(localStorage.getItem(STORAGE_KEY_CORRECTIONS) || '{}');
+    // Nettoyage : retirer les fusions invalides (source === cible)
+    if (data.fusions && data.fusions.length > 0) {
+      const before = data.fusions.length;
+      data.fusions = data.fusions.filter(f => f.source !== f.cible);
+      if (data.fusions.length < before) {
+        // Sauvegarder le nettoyage
+        localStorage.setItem(STORAGE_KEY_CORRECTIONS, JSON.stringify(data));
+      }
+    }
+    return data;
   } catch {
     return {};
   }
@@ -555,6 +969,8 @@ export const separerDoublon = (libelleNormalise) => {
  * Fusionner manuellement un produit avec un autre
  */
 export const fusionnerManuellement = (sourceLibelle, cibleLibelle) => {
+  // Si source === cible (même libellé normalisé), ne pas stocker : fusionnerDoublons le gère déjà
+  if (sourceLibelle === cibleLibelle) return;
   const corrections = chargerCorrectionsDoublons();
   if (!corrections.fusions) corrections.fusions = [];
   // Retirer fusion existante pour cette source
@@ -597,7 +1013,10 @@ export const associerRefV2 = (libelleNormalise, itm8Cible) => {
 };
 
 /**
- * Appliquer les corrections manuelles après les passes automatiques
+ * Appliquer les corrections manuelles après les passes automatiques.
+ *
+ * Les fusions manuelles recalculent les indicateurs depuis les ventes quotidiennes
+ * brutes (jour par jour), exactement comme la fusion automatique de doublons.
  */
 export const appliquerCorrectionsManuelles = (produits) => {
   const corrections = chargerCorrectionsDoublons();
@@ -605,27 +1024,83 @@ export const appliquerCorrectionsManuelles = (produits) => {
     || corrections.dissociations?.length || corrections.associations?.length;
   if (!hasCorrections) return produits;
 
-  return produits.map(p => {
+  // Construire un index par libellé normalisé pour lookup rapide
+  const indexParNorm = new Map();
+  produits.forEach((p, i) => {
     const norm = normaliserLibelle(p.libelle);
-
-    // Si ce libellé normalisé est dans les séparations → forcer actif
-    if (corrections.separations?.includes(norm) &&
-        (p.raisonDesactivation === 'doublon-fusion' || p.raisonDesactivation === 'doublon-pre')) {
-      return { ...p, actif: true, raisonDesactivation: null };
-    }
-
-    // Si ce libellé est dans les fusions (comme source) → forcer doublon-fusion
-    if (corrections.fusions?.some(f => f.source === norm)) {
-      return { ...p, actif: false, raisonDesactivation: 'doublon-fusion' };
-    }
-
-    // Si ce libellé est dissocié de sa ref V2 → retirer le match ref
-    if (corrections.dissociations?.includes(norm) && p.matchRefV2) {
-      return { ...p, matchRefV2: null, libelleRefV2: null, marqueRefV2: null };
-    }
-
-    return p;
+    if (!indexParNorm.has(norm)) indexParNorm.set(norm, []);
+    indexParNorm.get(norm).push({ produit: p, index: i });
   });
+
+  let result = [...produits];
+
+  // ── Séparations : réactiver les doublons séparés ──
+  if (corrections.separations?.length) {
+    result = result.map(p => {
+      const norm = normaliserLibelle(p.libelle);
+      if (corrections.separations.includes(norm) &&
+          (p.raisonDesactivation === 'doublon-fusion' || p.raisonDesactivation === 'doublon-pre')) {
+        return { ...p, actif: true, raisonDesactivation: null };
+      }
+      return p;
+    });
+  }
+
+  // ── Fusions manuelles : fusionner jour par jour puis recalculer ──
+  if (corrections.fusions?.length) {
+    // Traiter chaque fusion
+    for (const fusion of corrections.fusions) {
+      // Si source === cible (même libellé normalisé = doublons d'EAN), SKIP.
+      // La fusion de doublons automatique (Passe 3) a déjà traité ce cas.
+      if (fusion.source === fusion.cible) continue;
+
+      // Trouver la source et la cible dans le tableau résultat actuel
+      const sourceIdx = result.findIndex(p => normaliserLibelle(p.libelle) === fusion.source);
+      const cibleIdx = result.findIndex(p => normaliserLibelle(p.libelle) === fusion.cible);
+
+      if (sourceIdx === -1 || cibleIdx === -1) continue;
+      // Protection supplémentaire : même index = même produit
+      if (sourceIdx === cibleIdx) continue;
+
+      const source = result[sourceIdx];
+      const cible = result[cibleIdx];
+
+      // Fusionner les ventes quotidiennes
+      const ventesQuotidiennesFusionnees = [
+        ...(cible.ventesQuotidiennes || []),
+        ...(source.ventesQuotidiennes || []),
+      ];
+
+      // Recalculer la cible avec toutes les données
+      result[cibleIdx] = recalculerDepuisVentesQuotidiennes({
+        ...cible,
+        ventesQuotidiennes: ventesQuotidiennesFusionnees,
+        _ventesQuotidiennesOriginales: cible._ventesQuotidiennesOriginales || cible.ventesQuotidiennes || [],
+        _eansFusionnes: [...(cible._eansFusionnes || [cible.codeEAN]), source.codeEAN],
+      });
+
+      // Marquer la source comme fusionnée
+      result[sourceIdx] = {
+        ...source,
+        actif: false,
+        raisonDesactivation: 'doublon-fusion',
+        _ventesQuotidiennesOriginales: source._ventesQuotidiennesOriginales || source.ventesQuotidiennes || [],
+      };
+    }
+  }
+
+  // ── Dissociations de ref V2 ──
+  if (corrections.dissociations?.length) {
+    result = result.map(p => {
+      const norm = normaliserLibelle(p.libelle);
+      if (corrections.dissociations.includes(norm) && p.matchRefV2) {
+        return { ...p, matchRefV2: null, libelleRefV2: null, marqueRefV2: null };
+      }
+      return p;
+    });
+  }
+
+  return result;
 };
 
 // ── Algorithme principal ──
@@ -635,9 +1110,10 @@ export const appliquerCorrectionsManuelles = (produits) => {
  * @param {Array} produits — sortie de formaterPourPilotageCA()
  * @param {number} semaineNumero — numéro de semaine ISO du planning
  * @param {number} moisPlanning — mois du planning (1-12)
- * @returns {Array} produits enrichis avec champs de nettoyage
+ * @param {Object|null} refMagasin — référentiel magasin (liaison EAN→ITM), optionnel
+ * @returns {Object} { produits: Array, rapportIdentification: Object }
  */
-export function nettoyerGamme(produits, semaineNumero, moisPlanning) {
+export function nettoyerGamme(produits, semaineNumero, moisPlanning, refMagasin = null) {
   // Initialiser les champs sur tous les produits
   let result = produits.map(p => ({
     ...p,
@@ -646,6 +1122,7 @@ export function nettoyerGamme(produits, semaineNumero, moisPlanning) {
     aCreer: false,
     libelleRefV2: null,
     marqueRefV2: null,
+    sourceIdentification: null,
   }));
 
   // Passe 1 : Désactiver les promos (*)
@@ -663,11 +1140,69 @@ export function nettoyerGamme(produits, semaineNumero, moisPlanning) {
   // Passe 4 : Désactiver les produits hors saison (même sur les inactifs)
   result = desactiverHorsSaison(result, moisPlanning);
 
-  // Passe 5 : Matching fuzzy avec le référentiel V2 (enrichissement + rayon)
-  result = enrichirAvecRefV2(result);
+  // Passe 5 : Matching avec le référentiel V2 (+ Niveau 0 si refMagasin disponible)
+  result = enrichirAvecRefV2(result, refMagasin);
+
+  // Passe 5b : Propager les matchs Niveau 0 des doublons désactivés vers les actifs
+  // Quand un produit existe en double (EAN standard + code balance), la version
+  // balance est souvent désactivée comme doublon mais a un meilleur match via Niveau 0.
+  // On propage ce match vers la version active (EAN standard).
+  result = propagerMatchsDoublons(result);
+
+  // Passe 5c : Désactiver les produits à faible contribution CA
+  result = desactiverFaibleCA(result);
 
   // Passe 6 : Appliquer les corrections manuelles (localStorage)
   result = appliquerCorrectionsManuelles(result);
 
-  return result;
+  // Générer le rapport d'identification par niveau
+  const rapportIdentification = genererRapportIdentification(result);
+
+  return { produits: result, rapportIdentification };
+}
+
+/**
+ * Génère un rapport d'identification par niveau.
+ * Compte combien de produits actifs ont été identifiés par chaque méthode.
+ *
+ * @param {Array} produits - Produits après nettoyage complet
+ * @returns {Object} Rapport { niveau0RefV2, niveau0Classification, niveau1, niveau2, nonIdentifies, total }
+ */
+function genererRapportIdentification(produits) {
+  const rapport = {
+    niveau0RefV2: 0,         // Liaison EAN→ITM → ref V2
+    niveau0Classification: 0, // Liaison EAN→ITM → classification mots-clés
+    niveau1: 0,              // ITM8 direct ou EAN direct
+    niveau2: 0,              // Fuzzy / sous-chaîne / mots-clés
+    nonIdentifies: 0,        // Aucun match
+    total: 0,
+    articlesACreer: 0,
+  };
+
+  produits.forEach(p => {
+    if (p.aCreer) {
+      rapport.articlesACreer++;
+      return;
+    }
+    if (!p.actif) return; // Ne compter que les produits actifs
+
+    rapport.total++;
+
+    if (p.sourceIdentification === 'niveau0-refV2') {
+      rapport.niveau0RefV2++;
+    } else if (p.sourceIdentification === 'niveau0-classification') {
+      rapport.niveau0Classification++;
+    } else if (p.matchRefV2) {
+      // Produit enrichi par ref V2 (niveau 1 ou 2)
+      if (p.reconnu && p.itm8) {
+        rapport.niveau1++;
+      } else {
+        rapport.niveau2++;
+      }
+    } else {
+      rapport.nonIdentifies++;
+    }
+  });
+
+  return rapport;
 }

@@ -19,9 +19,12 @@ import {
   Calendar,
   Package,
   Scissors,
+  Users,
+  Award,
+  PieChart,
 } from 'lucide-react';
 
-const AccueilGlobal = ({ onChoixAdherent, onChoixManager, onChoixEquipe }) => {
+const AccueilGlobal = ({ onChoixAdherent, onChoixManager, onChoixEquipe, onChoixSecteur }) => {
   // Construire la liste des cartes visibles (onClick non null)
   const cartes = [
     onChoixAdherent && {
@@ -81,6 +84,25 @@ const AccueilGlobal = ({ onChoixAdherent, onChoixManager, onChoixEquipe }) => {
       ],
       flux: { bg: 'bg-emerald-50', text: 'text-emerald-600', label: '3. Exécuter' },
     },
+    onChoixSecteur && {
+      key: 'secteur',
+      onClick: onChoixSecteur,
+      hoverBorder: 'hover:border-indigo-500',
+      iconBg: 'bg-indigo-50',
+      iconBgHover: 'group-hover:bg-indigo-500',
+      titre: 'Piloter le secteur',
+      sousTitre: 'Vue responsable secteur',
+      Icon: Users,
+      accentColor: 'text-indigo-500',
+      accentColorAction: 'text-indigo-600',
+      etape: 'Secteur',
+      items: [
+        { Icon: Award, label: 'Classement des PDV' },
+        { Icon: Target, label: 'Identifier les potentiels' },
+        { Icon: PieChart, label: 'Synthèse secteur' },
+      ],
+      flux: { bg: 'bg-indigo-50', text: 'text-indigo-600', label: '4. Piloter' },
+    },
   ].filter(Boolean);
 
   // Adapter la grille au nombre de cartes
@@ -88,6 +110,8 @@ const AccueilGlobal = ({ onChoixAdherent, onChoixManager, onChoixEquipe }) => {
     ? 'md:grid-cols-1 max-w-md mx-auto'
     : cartes.length === 2
     ? 'md:grid-cols-2 max-w-3xl mx-auto'
+    : cartes.length === 4
+    ? 'md:grid-cols-2 lg:grid-cols-4'
     : 'md:grid-cols-3';
 
   return (

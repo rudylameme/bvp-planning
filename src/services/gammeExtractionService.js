@@ -435,6 +435,9 @@ export async function extraireProduitsVentesCasse(file, options = {}) {
           cassePAHT: 0,
           nombreJours: 0,
           dates: [],
+          // Ventes quotidiennes brutes — INDISPENSABLE pour la fusion/association
+          // Chaque entrée : { date, jourSemaine, ventesQte, ventesPVTTC, casseQte, cassePAHT }
+          ventesQuotidiennes: [],
           // Pour calcul potentiel et tendance par semaine
           ventesParSemaine: new Map(),
           // Pour calcul moyenne hebdo par jour de semaine
@@ -452,6 +455,16 @@ export async function extraireProduitsVentesCasse(file, options = {}) {
       agg.cassePAHT += cassePAHT;
       agg.nombreJours += 1;
       agg.dates.push(date);
+
+      // Stocker la ligne brute quotidienne (pour fusion/association ultérieure)
+      agg.ventesQuotidiennes.push({
+        date: date.toISOString().slice(0, 10), // "YYYY-MM-DD" pour sérialisation
+        jourSemaine: date.getDay(), // 0=dim..6=sam
+        ventesQte,
+        ventesPVTTC,
+        casseQte,
+        cassePAHT,
+      });
 
       // Agréger par jour de la semaine (0=dim..6=sam) pour moyenne hebdo
       const jourSemaine = date.getDay();
@@ -756,7 +769,7 @@ export async function extraireProduitsParRayon(file, catalogueRayons = null) {
  * @returns {Array} Tableau de produits formatés pour le pilotage CA
  */
 export function formaterPourPilotageCA(data, options = {}) {
-  const { semaineNumero, moisPlanning } = options;
+  const { semaineNumero, moisPlanning, refMagasin } = options;
   const { produits, statistiques } = data;
 
   const produitsFormates = produits.map((p, index) => {
@@ -853,12 +866,19 @@ export function formaterPourPilotageCA(data, options = {}) {
             }))
         : [],
       cdt: p.cdtAchat || 0, // CDT achat depuis le fichier ventes
+      // Ventes quotidiennes brutes par EAN — nécessaire pour fusion/association correcte
+      ventesQuotidiennes: p.ventesQuotidiennes || [],
       actif: true, // Tous les produits actifs par défaut
     };
   });
 
-  // Nettoyage intelligent de la gamme
-  const produitsNettoyes = nettoyerGamme(produitsFormates, semaineNumero, moisPlanning);
+  // Nettoyage intelligent de la gamme (avec référentiel magasin si disponible)
+  const { produits: produitsNettoyes, rapportIdentification } = nettoyerGamme(
+    produitsFormates, semaineNumero, moisPlanning, refMagasin || null
+  );
+
+  // Attacher le rapport d'identification aux résultats (accessible via le dernier élément)
+  produitsNettoyes._rapportIdentification = rapportIdentification;
 
   return produitsNettoyes;
 }

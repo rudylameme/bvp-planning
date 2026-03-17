@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 
 // Composant Graphique Flux vs Pénétration - Version avec 6 tranches horaires
-const GraphiqueFluxPenetration = ({ indicateurs }) => {
+const GraphiqueFluxPenetration = ({ indicateurs, multiplier = 52, periodLabel = 'semaine' }) => {
   // Configuration des 6 tranches horaires dans le bon ordre
   const tranches = [
     { key: '00_Autre', label: 'Autres horaires', heure: '00h-09h' },
@@ -121,17 +121,17 @@ const GraphiqueFluxPenetration = ({ indicateurs }) => {
                 <div>
                   <div className="text-xs text-[#58595B] uppercase">Clients en caisse</div>
                   <div className="text-xl font-bold text-gray-800">{tranche.ticketsPDV.toLocaleString('fr-FR')}</div>
-                  <div className="text-xs text-[#58595B]">/semaine</div>
+                  <div className="text-xs text-[#58595B]">/{periodLabel}</div>
                 </div>
                 <div>
                   <div className="text-xs text-[#58595B] uppercase">Achètent BVP</div>
                   <div className="text-xl font-bold text-[#8B1538]">{tranche.ticketsBVP.toLocaleString('fr-FR')}</div>
-                  <div className="text-xs text-[#58595B]">/semaine</div>
+                  <div className="text-xs text-[#58595B]">/{periodLabel}</div>
                 </div>
                 <div>
                   <div className="text-xs text-[#58595B] uppercase">N'achètent pas</div>
                   <div className="text-xl font-bold text-gray-400">{tranche.clientsPerdus.toLocaleString('fr-FR')}</div>
-                  <div className="text-xs text-[#58595B]">/semaine</div>
+                  <div className="text-xs text-[#58595B]">/{periodLabel}</div>
                 </div>
               </div>
 
@@ -179,9 +179,9 @@ const GraphiqueFluxPenetration = ({ indicateurs }) => {
       {/* Résumé total */}
       {totalTicketsManques > 0 && (() => {
         // Calculer le % de progression (basé sur les données de la semaine)
-        const caActuelSemaine = indicateurs.global.pdv.caBVP || 0;
-        const progressionPourcent = caActuelSemaine > 0 ? (totalCaPerdu / caActuelSemaine) * 100 : 0;
-        const caAnnuelPotentiel = totalCaPerdu * 52;
+        const caActuelPeriode = indicateurs.global.pdv.caBVP || 0;
+        const progressionPourcent = caActuelPeriode > 0 ? (totalCaPerdu / caActuelPeriode) * 100 : 0;
+        const caAnnuelPotentiel = totalCaPerdu * multiplier;
 
         return (
           <div className="mt-6 bg-gradient-to-r from-[#ED1C24] to-[#8B1538] rounded-xl p-5 text-white">
@@ -191,12 +191,12 @@ const GraphiqueFluxPenetration = ({ indicateurs }) => {
             <div className="flex items-center justify-around flex-wrap gap-4">
               <div className="text-center">
                 <div className="text-3xl font-bold">+{totalTicketsManques}</div>
-                <div className="text-sm text-white/70">tickets / semaine</div>
+                <div className="text-sm text-white/70">tickets / {periodLabel}</div>
               </div>
               <div className="text-4xl font-light text-white/50">=</div>
               <div className="text-center">
                 <div className="text-3xl font-bold">+{totalCaPerdu.toLocaleString('fr-FR')} €</div>
-                <div className="text-sm text-white/70">CA / semaine</div>
+                <div className="text-sm text-white/70">CA / {periodLabel}</div>
               </div>
               <div className="text-4xl font-light text-white/50">=</div>
               <div className="text-center">
@@ -208,7 +208,7 @@ const GraphiqueFluxPenetration = ({ indicateurs }) => {
             <div className="mt-4 pt-4 border-t border-white/20 text-center">
               <div className="text-xs text-white/60 uppercase mb-1">Projection annuelle</div>
               <div className="text-2xl font-bold text-yellow-300">+{caAnnuelPotentiel.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} € / an</div>
-              <div className="text-xs text-white/50 mt-1">basé sur cette semaine × 52</div>
+              <div className="text-xs text-white/50 mt-1">basé sur {periodLabel === 'mois' ? 'ce mois' : 'cette semaine'} × {multiplier}</div>
             </div>
           </div>
         );
@@ -219,7 +219,7 @@ const GraphiqueFluxPenetration = ({ indicateurs }) => {
 
 
 // MODIFICATION 3 : Barres horizontales pénétration par tranche horaire (6 tranches) avec comparaison secteur
-const BarresPenetration = ({ indicateurs }) => {
+const BarresPenetration = ({ indicateurs, periodLabel = 'semaine' }) => {
   // Configuration des 6 tranches horaires dans le bon ordre
   const tranches = [
     { key: '00_Autre', label: 'Autres horaires', heure: '00h-09h' },

@@ -22,7 +22,7 @@ import SectionRepliable from './SectionRepliable';
 // BLOC 6 : POTENTIEL CHIFFRE GLOBAL (EFFET WOW)
 // Question : "Combien je pourrais gagner ?"
 // ============================================================================
-const Bloc6Potentiel = ({ indicateurs, panierMoyen, caBVPActuel }) => {
+const Bloc6Potentiel = ({ indicateurs, panierMoyen, caBVPActuel, multiplier = 52, periodLabel = 'semaine' }) => {
   const parTrancheHoraire = indicateurs.parTrancheHoraire;
   if (!parTrancheHoraire) return null;
 
@@ -50,7 +50,7 @@ const Bloc6Potentiel = ({ indicateurs, panierMoyen, caBVPActuel }) => {
   const gainTickets = ticketsPotentiels - ticketsActuels;
   const gainCA = gainTickets * panierMoyen;
   const gainPourcent = caBVPActuel > 0 ? (gainCA / caBVPActuel) * 100 : 0;
-  const projectionAnnuelle = gainCA * 52;
+  const projectionAnnuelle = gainCA * multiplier;
 
   if (gainTickets <= 0) return null;
 
@@ -64,12 +64,12 @@ const Bloc6Potentiel = ({ indicateurs, panierMoyen, caBVPActuel }) => {
         <div className="flex items-center justify-center gap-6 flex-wrap">
           <div className="bg-white/10 rounded-xl px-6 py-4">
             <div className="text-3xl font-black text-[#22C55E]">+{gainTickets}</div>
-            <div className="text-xs text-white/70">tickets / semaine</div>
+            <div className="text-xs text-white/70">tickets / {periodLabel}</div>
           </div>
           <div className="text-2xl text-white/50">=</div>
           <div className="bg-white/10 rounded-xl px-6 py-4">
             <div className="text-3xl font-black text-[#22C55E]">+{gainCA.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €</div>
-            <div className="text-xs text-white/70">CA / semaine</div>
+            <div className="text-xs text-white/70">CA / {periodLabel}</div>
           </div>
           <div className="text-2xl text-white/50">=</div>
           <div className="bg-white/10 rounded-xl px-6 py-4">
@@ -85,7 +85,7 @@ const Bloc6Potentiel = ({ indicateurs, panierMoyen, caBVPActuel }) => {
         <div className="text-5xl font-black text-yellow-300 mb-1">
           +{projectionAnnuelle.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €/an
         </div>
-        <div className="text-xs text-white/60">basé sur cette semaine × 52</div>
+        <div className="text-xs text-white/60">basé sur {periodLabel === 'mois' ? 'ce mois' : 'cette semaine'} × {multiplier}</div>
       </div>
     </div>
   );
@@ -97,7 +97,7 @@ const Bloc6Potentiel = ({ indicateurs, panierMoyen, caBVPActuel }) => {
 // ============================================================================
 const TAUX_CASSE_HYPOTHESE = 0.05; // 5% de casse hypothétique
 
-const Bloc7Action = ({ indicateurs, panierMoyen }) => {
+const Bloc7Action = ({ indicateurs, panierMoyen, multiplier = 52, periodLabel = 'semaine' }) => {
   const parTrancheHoraire = indicateurs.parTrancheHoraire;
   if (!parTrancheHoraire) return null;
 
@@ -125,7 +125,7 @@ const Bloc7Action = ({ indicateurs, panierMoyen }) => {
 
   const tauxConversion = 0.10;
   const clientsRecuperables = Math.round(tranchePrioritaire.clientsPerdus * tauxConversion);
-  const caRecuperableAnnuel = clientsRecuperables * panierMoyen * 52;
+  const caRecuperableAnnuel = clientsRecuperables * panierMoyen * multiplier;
 
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
@@ -162,13 +162,13 @@ const Bloc7Action = ({ indicateurs, panierMoyen }) => {
               </div>
 
               <p className="text-gray-600 mb-4">
-                <strong className="text-[#EF4444]">{tranchePrioritaire.clientsPerdus.toLocaleString('fr-FR')} clients</strong> passent sans acheter BVP chaque semaine
+                <strong className="text-[#EF4444]">{tranchePrioritaire.clientsPerdus.toLocaleString('fr-FR')} clients</strong> passent sans acheter BVP chaque {periodLabel}
               </p>
 
               <div className="bg-[#22C55E]/10 border border-[#22C55E]/30 rounded-xl p-4">
                 <div className="text-sm text-gray-600 mb-2">Objectif réaliste : convertir 10%</div>
                 <div className="flex items-center gap-6">
-                  <div className="text-[#22C55E] font-bold text-lg">+{clientsRecuperables} clients/semaine</div>
+                  <div className="text-[#22C55E] font-bold text-lg">+{clientsRecuperables} clients/{periodLabel}</div>
                   <div className="text-2xl text-gray-300">=</div>
                   <div className="text-[#22C55E] font-bold text-xl">+{caRecuperableAnnuel.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €/an</div>
                 </div>
@@ -213,7 +213,7 @@ const Bloc7Action = ({ indicateurs, panierMoyen }) => {
                       </p>
                       <div className="flex items-center gap-4 flex-wrap">
                         <div className="bg-white rounded-lg px-3 py-2 border border-emerald-200 text-center">
-                          <div className="text-xs text-gray-500">CA brut / semaine</div>
+                          <div className="text-xs text-gray-500">CA brut / {periodLabel}</div>
                           <div className="font-bold text-gray-800">
                             +{(clientsRecuperables * panierMoyen).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €
                           </div>
@@ -227,14 +227,14 @@ const Bloc7Action = ({ indicateurs, panierMoyen }) => {
                         </div>
                         <div className="text-gray-400">=</div>
                         <div className="bg-emerald-100 rounded-lg px-3 py-2 border border-emerald-300 text-center">
-                          <div className="text-xs text-emerald-700">Gain net / semaine</div>
+                          <div className="text-xs text-emerald-700">Gain net / {periodLabel}</div>
                           <div className="font-bold text-[#22C55E] text-lg">
                             +{(clientsRecuperables * panierMoyen * (1 - TAUX_CASSE_HYPOTHESE)).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €
                           </div>
                         </div>
                       </div>
                       <p className="text-xs text-gray-500 mt-2 italic">
-                        Soit +{(clientsRecuperables * panierMoyen * (1 - TAUX_CASSE_HYPOTHESE) * 52).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €/an
+                        Soit +{(clientsRecuperables * panierMoyen * (1 - TAUX_CASSE_HYPOTHESE) * multiplier).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €/an
                         de CA net même en intégrant la casse.
                       </p>
                     </div>

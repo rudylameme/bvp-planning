@@ -27,7 +27,7 @@ import {
 // Utilise les 6 tranches horaires pour une analyse précise
 // ============================================================================
 
-const DiagnosticPersonnalise = ({ indicateurs, panierMoyen, onNaviguerPlanning }) => {
+const DiagnosticPersonnalise = ({ indicateurs, panierMoyen, onNaviguerPlanning, multiplier = 52, periodLabel = 'semaine' }) => {
   // Récupérer les données par tranche horaire (6 tranches)
   const parTrancheHoraire = indicateurs.parTrancheHoraire;
 
@@ -107,13 +107,13 @@ const DiagnosticPersonnalise = ({ indicateurs, panierMoyen, onNaviguerPlanning }
   // Taux de conversion cible réaliste : 10% des clients perdus
   const tauxConversionCible = 0.10;
   const clientsRecuperables = Math.round(tranchePrioritaire.clientsPerdus * tauxConversionCible);
-  const caRecuperableSemaine = clientsRecuperables * panierMoyen;
-  const caRecuperableAnnuel = caRecuperableSemaine * 52;
+  const caRecuperablePeriode = clientsRecuperables * panierMoyen;
+  const caRecuperableAnnuel = caRecuperablePeriode * multiplier;
 
   // Total toutes tranches pour contexte
   const totalClientsPerdus = tranchesAvecDonnees.reduce((acc, t) => acc + t.clientsPerdus, 0);
   const totalClientsRecuperables = Math.round(totalClientsPerdus * tauxConversionCible);
-  const totalCaAnnuel = totalClientsRecuperables * panierMoyen * 52;
+  const totalCaAnnuel = totalClientsRecuperables * panierMoyen * multiplier;
 
   return (
     <div className="space-y-4">
@@ -135,7 +135,7 @@ const DiagnosticPersonnalise = ({ indicateurs, panierMoyen, onNaviguerPlanning }
             <span className="text-white/60 ml-1">({tranchePrioritaire.horaire})</span>
           </div>
           <div className="text-lg text-white/70 mt-1">
-            sans acheter en BVP chaque semaine
+            sans acheter en BVP {periodLabel === 'mois' ? 'chaque mois' : 'chaque semaine'}
           </div>
         </div>
 
@@ -145,7 +145,7 @@ const DiagnosticPersonnalise = ({ indicateurs, panierMoyen, onNaviguerPlanning }
             <div className="text-center">
               <div className="text-sm text-white/60 mb-1">Si conversion de 10%</div>
               <div className="text-2xl font-bold text-yellow-300">+{clientsRecuperables}</div>
-              <div className="text-xs text-white/50">clients/semaine</div>
+              <div className="text-xs text-white/50">clients/{periodLabel}</div>
             </div>
             <div className="text-3xl text-white/30">=</div>
             <div className="text-center">
@@ -236,7 +236,7 @@ const DiagnosticPersonnalise = ({ indicateurs, panierMoyen, onNaviguerPlanning }
                 +{totalCaAnnuel.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €/an
               </div>
               <div className="text-xs text-amber-600">
-                ({totalClientsRecuperables} clients/semaine × {panierMoyen.toFixed(2)}€ × 52)
+                ({totalClientsRecuperables} clients/{periodLabel} × {panierMoyen.toFixed(2)}€ × {multiplier})
               </div>
             </div>
           </div>

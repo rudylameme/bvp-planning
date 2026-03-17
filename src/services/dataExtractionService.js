@@ -464,6 +464,8 @@ export async function extraireDonneesMagasin(file, codePdv, dirHandle = null) {
       fichierSource: file.name,
       dateExtraction: new Date().toISOString(),
       tempsExtraction: 0, // Sera mis à jour
+      typePeriode: 'semaine',
+      multiplierAnnuel: 52,
     },
   };
 
@@ -509,6 +511,10 @@ export function getStatistiquesCache() {
     infoPDV: cache.infoPDV ? Object.keys(cache.infoPDV).length : 0,
   };
 }
+
+// Re-export des fonctions mensuelles pour accès centralisé
+export { extraireDonneesMagasinMensuel } from './dataExtractionMensuel.js';
+export { listerMoisDisponibles } from './extraction/extractionMensuelle.js';
 
 export default {
   getNomFichier,

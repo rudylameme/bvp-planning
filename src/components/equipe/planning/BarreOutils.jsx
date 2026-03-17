@@ -62,6 +62,8 @@ export function EnTetePlanning({
   reinitialiserPrefs,
   modeImpression,
   setModeImpression,
+  orientationImpression,
+  setOrientationImpression,
   famillesImpression,
   setFamillesImpression,
   famillesDisponibles,
@@ -253,6 +255,36 @@ export function EnTetePlanning({
                         <span className="text-sm font-medium text-gray-700">Séparé par famille</span>
                         <p className="text-[11px] text-gray-400">Une feuille A4 par famille</p>
                       </div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Séparateur */}
+                <div className="border-t border-gray-100 mb-3"></div>
+
+                {/* Orientation */}
+                <div className="mb-3">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Orientation</span>
+                  <div className="flex gap-2 mt-1.5">
+                    <label className="flex items-center gap-2 cursor-pointer px-2 py-1.5 rounded hover:bg-gray-50 flex-1">
+                      <input
+                        type="radio"
+                        name="orientationImpression"
+                        checked={orientationImpression === 'portrait'}
+                        onChange={() => setOrientationImpression('portrait')}
+                        className="w-3.5 h-3.5"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Portrait</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer px-2 py-1.5 rounded hover:bg-gray-50 flex-1">
+                      <input
+                        type="radio"
+                        name="orientationImpression"
+                        checked={orientationImpression === 'paysage'}
+                        onChange={() => setOrientationImpression('paysage')}
+                        className="w-3.5 h-3.5"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Paysage</span>
                     </label>
                   </div>
                 </div>

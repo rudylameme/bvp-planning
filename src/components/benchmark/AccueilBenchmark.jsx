@@ -3,13 +3,14 @@
  *
  * Permet à l'utilisateur de :
  * - Sélectionner un dossier de données (DATA_perso)
+ * - Choisir entre vue Mensuelle (défaut) ou Hebdomadaire
  * - Choisir son magasin
- * - Choisir la semaine à analyser
+ * - Choisir la période à analyser (mois ou semaine)
  * - Charger les données automatiquement
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Store, Calendar, FolderOpen, Loader2, AlertCircle, CheckCircle2, ArrowRight, Home } from 'lucide-react';
+import { Store, Calendar, FolderOpen, Loader2, AlertCircle, CheckCircle2, ArrowRight, Home, CalendarDays } from 'lucide-react';
 import { useFileAccess } from '../../hooks/useFileAccess';
 
 const AccueilBenchmark = ({ onDonneesChargees, onNaviguerPlanning, onRetourAccueil }) => {
@@ -17,17 +18,22 @@ const AccueilBenchmark = ({ onDonneesChargees, onNaviguerPlanning, onRetourAccue
 
   // États
   const [dossierHandle, setDossierHandle] = useState(null);
+  const [typePeriode, setTypePeriode] = useState('mois'); // 'mois' (défaut) ou 'semaine'
   const [semainesDisponibles, setSemainesDisponibles] = useState([]);
+  const [moisDisponibles, setMoisDisponibles] = useState([]);
   const [magasinsDisponibles, setMagasinsDisponibles] = useState([]);
 
   const [codeMagasin, setCodeMagasin] = useState('');
-  const [semaineSelectionnee, setSemaineSelectionnee] = useState('');
+  const [periodeSelectionnee, setPeriodeSelectionnee] = useState('');
   const [rechercheMagasin, setRechercheMagasin] = useState('');
 
   const [chargement, setChargement] = useState(false);
   const [chargementDossier, setChargementDossier] = useState(false);
   const [erreur, setErreur] = useState(null);
   const [etapeChargement, setEtapeChargement] = useState('');
+
+  // Périodes disponibles selon le type sélectionné
+  const periodesDisponibles = typePeriode === 'mois' ? moisDisponibles : semainesDisponibles;
 
   // Sélectionner le dossier DATA_perso
   const selectionnerDossier = async () => {
@@ -41,26 +47,35 @@ const AccueilBenchmark = ({ onDonneesChargees, onNaviguerPlanning, onRetourAccue
       setErreur(null);
       setChargementDossier(true);
 
-      // Lister les fichiers disponibles
+      // Lister les fichiers disponibles (hebdo ET mensuel)
       await listerFichiersDisponibles(dirHandle);
 
     } catch (error) {
       if (error.name !== 'AbortError') {
         setErreur('Erreur lors de la sélection du dossier');
-        // TODO: logger professionnel
       }
     } finally {
       setChargementDossier(false);
     }
   };
 
-  // Lister les semaines disponibles dans le dossier
+  // Noms des mois en français
+  const NOMS_MOIS = [
+    '', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
+  ];
+
+  // Lister les fichiers disponibles dans le dossier (hebdo + mensuel)
   const listerFichiersDisponibles = async (dirHandle) => {
     const semaines = [];
+    const mois = [];
 
     try {
       for await (const entry of dirHandle.values()) {
-        if (entry.kind === 'file' && entry.name.startsWith('Vente_Hebdo_BVP_S')) {
+        if (entry.kind !== 'file') continue;
+
+        // Fichiers hebdomadaires
+        if (entry.name.startsWith('Vente_Hebdo_BVP_S')) {
           const match = entry.name.match(/Vente_Hebdo_BVP_S(\d{4})-(\d{2})\.xlsx/);
           if (match) {
             semaines.push({
@@ -72,6 +87,22 @@ const AccueilBenchmark = ({ onDonneesChargees, onNaviguerPlanning, onRetourAccue
             });
           }
         }
+
+        // Fichiers mensuels
+        if (entry.name.startsWith('Vente_Mensuelle_BVP_M')) {
+          const match = entry.name.match(/Vente_Mensuelle_BVP_M(\d{2})-(\d{4})\.xlsx/);
+          if (match) {
+            const moisNum = match[1];
+            const annee = match[2];
+            mois.push({
+              annee: annee,
+              mois: moisNum,
+              code: `${annee}-M${moisNum}`,
+              fichier: entry.name,
+              label: `${NOMS_MOIS[parseInt(moisNum, 10)]} ${annee}`,
+            });
+          }
+        }
       }
 
       // Trier par date décroissante
@@ -80,15 +111,24 @@ const AccueilBenchmark = ({ onDonneesChargees, onNaviguerPlanning, onRetourAccue
         return parseInt(b.semaine) - parseInt(a.semaine);
       });
 
-      setSemainesDisponibles(semaines);
+      mois.sort((a, b) => {
+        if (a.annee !== b.annee) return parseInt(b.annee) - parseInt(a.annee);
+        return parseInt(b.mois) - parseInt(a.mois);
+      });
 
-      // Sélectionner la dernière semaine par défaut
-      if (semaines.length > 0) {
-        setSemaineSelectionnee(semaines[0].code);
+      setSemainesDisponibles(semaines);
+      setMoisDisponibles(mois);
+
+      // Sélectionner la période par défaut : dernier mois si dispo, sinon dernière semaine
+      if (mois.length > 0) {
+        setTypePeriode('mois');
+        setPeriodeSelectionnee(mois[0].code);
+      } else if (semaines.length > 0) {
+        setTypePeriode('semaine');
+        setPeriodeSelectionnee(semaines[0].code);
       }
 
     } catch (error) {
-      // TODO: logger professionnel
       setErreur('Impossible de lire le contenu du dossier');
     }
   };
@@ -171,29 +211,44 @@ const AccueilBenchmark = ({ onDonneesChargees, onNaviguerPlanning, onRetourAccue
       return magasins.sort((a, b) => a.nom.localeCompare(b.nom));
 
     } catch (error) {
-      // TODO: logger professionnel
       return [];
     }
   };
 
-  // Charger les données quand une semaine est sélectionnée
+  // Charger les magasins quand une période est sélectionnée
   useEffect(() => {
-    if (dossierHandle && semaineSelectionnee && magasinsDisponibles.length === 0) {
+    if (dossierHandle && periodeSelectionnee && magasinsDisponibles.length === 0) {
       (async () => {
-        const semaine = semainesDisponibles.find(s => s.code === semaineSelectionnee);
-        if (semaine) {
+        const periode = periodesDisponibles.find(p => p.code === periodeSelectionnee);
+        if (periode) {
           try {
-            const fileHandle = await dossierHandle.getFileHandle(semaine.fichier);
+            const fileHandle = await dossierHandle.getFileHandle(periode.fichier);
             const file = await fileHandle.getFile();
             const magasins = await chargerListeMagasins(file);
             setMagasinsDisponibles(magasins);
           } catch (error) {
-            // TODO: logger professionnel
+            // Silently handle
           }
         }
       })();
     }
-  }, [dossierHandle, semaineSelectionnee, semainesDisponibles]);
+  }, [dossierHandle, periodeSelectionnee, periodesDisponibles]);
+
+  // Quand on change le type de période, réinitialiser la sélection
+  const changerTypePeriode = (nouveauType) => {
+    setTypePeriode(nouveauType);
+    setPeriodeSelectionnee('');
+    setCodeMagasin('');
+    setRechercheMagasin('');
+    setMagasinsDisponibles([]);
+    setErreur(null);
+
+    // Sélectionner la première période disponible du nouveau type
+    const periodes = nouveauType === 'mois' ? moisDisponibles : semainesDisponibles;
+    if (periodes.length > 0) {
+      setPeriodeSelectionnee(periodes[0].code);
+    }
+  };
 
   // Filtrer les magasins selon la recherche
   const magasinsFiltres = magasinsDisponibles.filter(m =>
@@ -203,7 +258,7 @@ const AccueilBenchmark = ({ onDonneesChargees, onNaviguerPlanning, onRetourAccue
 
   // Charger les données du magasin sélectionné
   const chargerDonnees = async () => {
-    if (!codeMagasin || !semaineSelectionnee || !dossierHandle) return;
+    if (!codeMagasin || !periodeSelectionnee || !dossierHandle) return;
 
     setChargement(true);
     setErreur(null);
@@ -211,14 +266,21 @@ const AccueilBenchmark = ({ onDonneesChargees, onNaviguerPlanning, onRetourAccue
     try {
       // 1. Trouver le fichier
       setEtapeChargement('Ouverture du fichier...');
-      const semaine = semainesDisponibles.find(s => s.code === semaineSelectionnee);
-      const fileHandle = await dossierHandle.getFileHandle(semaine.fichier);
+      const periode = periodesDisponibles.find(p => p.code === periodeSelectionnee);
+      const fileHandle = await dossierHandle.getFileHandle(periode.fichier);
       const file = await fileHandle.getFile();
 
-      // 2. Extraire les données (passer dossierHandle pour charger info_PDV.json)
+      // 2. Extraire les données selon le type de période
       setEtapeChargement('Extraction des données...');
-      const { extraireDonneesMagasin } = await import('../../services/dataExtractionService.js');
-      const donnees = await extraireDonneesMagasin(file, codeMagasin, dossierHandle);
+
+      let donnees;
+      if (typePeriode === 'mois') {
+        const { extraireDonneesMagasinMensuel } = await import('../../services/dataExtractionMensuel.js');
+        donnees = await extraireDonneesMagasinMensuel(file, codeMagasin, dossierHandle);
+      } else {
+        const { extraireDonneesMagasin } = await import('../../services/dataExtractionService.js');
+        donnees = await extraireDonneesMagasin(file, codeMagasin, dossierHandle);
+      }
 
       // 3. Vérifier que le magasin existe
       if (!donnees.magasin.nom || donnees.magasin.nom === 'Inconnu') {
@@ -231,13 +293,14 @@ const AccueilBenchmark = ({ onDonneesChargees, onNaviguerPlanning, onRetourAccue
       if (onDonneesChargees) {
         onDonneesChargees({
           ...donnees,
-          semaine: semaineSelectionnee,
+          semaine: typePeriode === 'semaine' ? periodeSelectionnee : null,
+          moisSelectionnee: typePeriode === 'mois' ? periodeSelectionnee : null,
+          periodeLabel: periode.label,
           dossierHandle,
         });
       }
 
     } catch (error) {
-      // TODO: logger professionnel
       setErreur(error.message || 'Erreur lors du chargement des données');
     } finally {
       setChargement(false);
@@ -246,7 +309,15 @@ const AccueilBenchmark = ({ onDonneesChargees, onNaviguerPlanning, onRetourAccue
   };
 
   // Vérifier si on peut charger
-  const peutCharger = codeMagasin && semaineSelectionnee && dossierHandle && !chargement;
+  const peutCharger = codeMagasin && periodeSelectionnee && dossierHandle && !chargement;
+
+  // Titre dynamique
+  const titre = typePeriode === 'mois' ? 'Benchmark Mensuel BVP' : 'Benchmark Hebdo BVP';
+
+  // Compteur de fichiers disponibles
+  const nbFichiers = typePeriode === 'mois'
+    ? `${moisDisponibles.length} mois`
+    : `${semainesDisponibles.length} semaines`;
 
   return (
     <div className="min-h-screen bg-[#F5F2ED] p-6">
@@ -267,7 +338,7 @@ const AccueilBenchmark = ({ onDonneesChargees, onNaviguerPlanning, onRetourAccue
           )}
           <div className="text-center">
             <h1 className="text-3xl font-bold text-[#8B1538] mb-2">
-              Benchmark Hebdo BVP
+              {titre}
             </h1>
             <p className="text-[#58595B]">
               Comparez la performance de votre magasin avec votre secteur
@@ -302,7 +373,7 @@ const AccueilBenchmark = ({ onDonneesChargees, onNaviguerPlanning, onRetourAccue
               <div className="flex items-center gap-3 px-4 py-3 bg-green-50 border border-green-200 rounded-xl">
                 <CheckCircle2 className="w-5 h-5 text-green-500" />
                 <span className="text-green-700 font-medium flex-1">Dossier connecté</span>
-                <span className="text-green-600 text-sm">{semainesDisponibles.length} semaines</span>
+                <span className="text-green-600 text-sm">{moisDisponibles.length} mois, {semainesDisponibles.length} semaines</span>
                 <button
                   onClick={selectionnerDossier}
                   className="text-green-600 hover:text-green-800 text-sm underline"
@@ -313,25 +384,54 @@ const AccueilBenchmark = ({ onDonneesChargees, onNaviguerPlanning, onRetourAccue
             )}
           </div>
 
-          {/* Étape 2 : Sélection de la semaine */}
+          {/* Étape 2 : Toggle Mensuel / Hebdomadaire + sélection période */}
           {dossierHandle && (
             <div className="space-y-3">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#E8E1D5] text-[#8B1538] text-xs font-bold">2</span>
-                Semaine à analyser
+                Période à analyser
               </label>
 
+              {/* Toggle Mois / Semaine */}
+              <div className="flex bg-gray-100 rounded-xl p-1">
+                <button
+                  onClick={() => changerTypePeriode('mois')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                    typePeriode === 'mois'
+                      ? 'bg-[#8B1538] text-white shadow-sm'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  <CalendarDays className="w-4 h-4" />
+                  Mensuel ({moisDisponibles.length})
+                </button>
+                <button
+                  onClick={() => changerTypePeriode('semaine')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                    typePeriode === 'semaine'
+                      ? 'bg-[#8B1538] text-white shadow-sm'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  <Calendar className="w-4 h-4" />
+                  Hebdomadaire ({semainesDisponibles.length})
+                </button>
+              </div>
+
+              {/* Sélecteur de période */}
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#58595B]" />
                 <select
-                  value={semaineSelectionnee}
-                  onChange={(e) => setSemaineSelectionnee(e.target.value)}
+                  value={periodeSelectionnee}
+                  onChange={(e) => setPeriodeSelectionnee(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#ED1C24]"
                 >
-                  <option value="">Sélectionner une semaine</option>
-                  {semainesDisponibles.map(sem => (
-                    <option key={sem.code} value={sem.code}>
-                      {sem.label}
+                  <option value="">
+                    {typePeriode === 'mois' ? 'Sélectionner un mois' : 'Sélectionner une semaine'}
+                  </option>
+                  {periodesDisponibles.map(p => (
+                    <option key={p.code} value={p.code}>
+                      {p.label}
                     </option>
                   ))}
                 </select>
@@ -340,7 +440,7 @@ const AccueilBenchmark = ({ onDonneesChargees, onNaviguerPlanning, onRetourAccue
           )}
 
           {/* Étape 3 : Sélection du magasin */}
-          {dossierHandle && semaineSelectionnee && (
+          {dossierHandle && periodeSelectionnee && (
             <div className="space-y-3">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#E8E1D5] text-[#8B1538] text-xs font-bold">3</span>
@@ -443,7 +543,7 @@ const AccueilBenchmark = ({ onDonneesChargees, onNaviguerPlanning, onRetourAccue
 
         {/* Info */}
         <p className="text-center text-[#58595B] text-sm mt-6">
-          💡 Les données restent sur votre ordinateur, rien n'est envoyé sur internet.
+          Les données restent sur votre ordinateur, rien n'est envoyé sur internet.
         </p>
 
       </div>

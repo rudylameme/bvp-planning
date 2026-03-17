@@ -57,6 +57,10 @@ export function MagasinProvider({ children }) {
   // PLU/ITM8 des produits qui étaient en promo la semaine précédente (S-1)
   const [promosPrecedentes, setPromosPrecedentes] = useState([]); // [{ plu, itm8, libelle, quantitePrevue }]
 
+  // Référentiel magasin (liaison EAN→ITM, optionnel)
+  const [refMagasin, setRefMagasin] = useState(null);
+  const [rapportIdentification, setRapportIdentification] = useState(null);
+
   // Produits archive en attente d'application sur produitsGamme
   const [archiveProduitsEnAttente, setArchiveProduitsEnAttente] = useState(null);
 
@@ -213,6 +217,8 @@ export function MagasinProvider({ children }) {
     setPromosPrecedentes([]);
     setArchiveProduitsEnAttente(null);
     setPersonnalisationsEquipe(null);
+    setRefMagasin(null);
+    setRapportIdentification(null);
   }, []);
 
   // Vérifie si l'import est complet (prêt à passer à l'étape suivante)
@@ -287,6 +293,12 @@ export function MagasinProvider({ children }) {
     setPromosActives,
     promosPrecedentes,
     setPromosPrecedentes,
+
+    // Référentiel magasin (liaison EAN→ITM)
+    refMagasin,
+    setRefMagasin,
+    rapportIdentification,
+    setRapportIdentification,
 
     // Archive produits en attente
     archiveProduitsEnAttente,

@@ -46,6 +46,14 @@ const THEMES = {
     bgLight: 'bg-emerald-50',
     btnBg: 'bg-emerald-600 hover:bg-emerald-700',
   },
+  indigo: {
+    bg: 'bg-indigo-700',
+    hover: 'hover:bg-indigo-800',
+    text: 'text-indigo-600',
+    border: 'border-indigo-500',
+    bgLight: 'bg-indigo-50',
+    btnBg: 'bg-indigo-600 hover:bg-indigo-700',
+  },
 };
 
 const PageParametres = ({

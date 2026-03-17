@@ -126,22 +126,32 @@ export default function ModalEditionProduit({ produit, programmes, onSave, onClo
             </p>
           </div>
 
-          {/* Unités par lot (conditionnement de vente) */}
-          <div>
+          {/* Unités par lot (conditionnement physique) */}
+          <div className={`rounded-lg p-3 ${formData.unitesParLot > 1 ? 'bg-amber-50 border border-amber-200' : 'bg-gray-50 border border-gray-200'}`}>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Unités par lot <span className="text-gray-400">(conditionnement)</span>
+              Conditionnement physique <span className="text-amber-600 font-semibold">(unités par lot)</span>
             </label>
-            <input
-              type="number"
-              min="0"
-              value={formData.unitesParLot}
-              onChange={(e) => setFormData({ ...formData, unitesParLot: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 focus:border-transparent"
-              placeholder="0"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Ex : 12 pour un lot de 12 chouquettes. La fiche de production affichera les quantités en boîtes (arrondi supérieur).
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-500 whitespace-nowrap">x</span>
+              <input
+                type="number"
+                min="0"
+                value={formData.unitesParLot}
+                onChange={(e) => setFormData({ ...formData, unitesParLot: e.target.value })}
+                className="w-24 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent text-center text-lg font-bold"
+                placeholder="0"
+              />
+              <span className="text-sm text-gray-500">unités / lot</span>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Renseignez le nombre d'unités physiques par lot. Ex : <strong>x10</strong> pour un sachet de 10 croissants, <strong>x4</strong> pour un pack 3+1.
+              Les quantités s'afficheront en <strong>Bte</strong> (boîtes) sur la fiche.
             </p>
+            {formData.unitesParLot > 1 && (
+              <p className="text-xs text-amber-700 font-medium mt-1">
+                Affichage : les quantités seront converties en lots de {formData.unitesParLot}
+              </p>
+            )}
           </div>
 
           {/* Boutons */}

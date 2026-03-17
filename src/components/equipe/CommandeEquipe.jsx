@@ -11,6 +11,7 @@ import {
   telechargerJSON,
   enregistrerEchange
 } from '../../services/fichierEchangeService';
+import { sauvegarderFichierEquipe, trouverDernierFichierEquipe } from '../../services/dossierEquipeService';
 import FicheInventaire from './FicheInventaire';
 
 /**
@@ -108,11 +109,12 @@ function calculerVentesPrevues(produit, dateLivraison, joursActifs) {
   return total;
 }
 
-export default function CommandeEquipe({ fichierManager = null }) {
+export default function CommandeEquipe({ fichierManager = null, dossierEquipeHandle = null, donneesEquipe = null }) {
   const [managerData, setManagerData] = useState(fichierManager);
-  const [nomOperateur, setNomOperateur] = useState('');
+  const [nomOperateur, setNomOperateur] = useState(() => donneesEquipe?.operateur || '');
   const [message, setMessage] = useState(null);
-  const [inventaires, setInventaires] = useState({});
+  // Initialiser les inventaires depuis le fichier EQUIPE existant
+  const [inventaires, setInventaires] = useState(() => donneesEquipe?.inventaires || {});
   const [recherche, setRecherche] = useState('');
   const [sectionsOuvertes, setSectionsOuvertes] = useState({});
   const [dateLivraisonIdx, setDateLivraisonIdx] = useState(0);
@@ -120,6 +122,54 @@ export default function CommandeEquipe({ fichierManager = null }) {
 
   const inputFileRef = useRef(null);
   const stockInputRefs = useRef({});
+
+  // ═══════════════════════════════════════════
+  // SAUVEGARDE FICHIER EQUIPE (debounced)
+  // ═══════════════════════════════════════════
+  const saveTimerRef = useRef(null);
+
+  const executerSauvegardeInventaire = useCallback(async (invData) => {
+    if (!dossierEquipeHandle || !managerData) return;
+
+    const semaine = managerData.semaine?.numero || managerData.planning?.semaine || managerData.configuration?.semaine;
+    const annee = managerData.semaine?.annee || managerData.planning?.annee || managerData.configuration?.annee;
+    if (!semaine || !annee) return;
+
+    // Charger les données EQUIPE existantes pour ne pas écraser les personnalisations PlanningJour
+    let equipeExistant = null;
+    try {
+      const result = await trouverDernierFichierEquipe(dossierEquipeHandle, semaine, annee);
+      if (result) equipeExistant = result.data;
+    } catch { /* pas de fichier existant */ }
+
+    await sauvegarderFichierEquipe(dossierEquipeHandle, {
+      magasin: managerData.magasin || {},
+      semaine,
+      annee,
+      // Préserver les données PlanningJour si elles existent
+      personnalisations: equipeExistant?.personnalisations || donneesEquipe?.personnalisations || {},
+      programmesPersonnalises: equipeExistant?.programmesPersonnalises || donneesEquipe?.programmesPersonnalises || [],
+      preferencesAffichage: equipeExistant?.preferencesAffichage || donneesEquipe?.preferencesAffichage || {},
+      // Données de CommandeEquipe
+      inventaires: invData,
+      plaquageJ1: equipeExistant?.plaquageJ1 || donneesEquipe?.plaquageJ1 || {},
+      operateur: nomOperateur || equipeExistant?.operateur || '',
+    });
+  }, [dossierEquipeHandle, managerData, donneesEquipe, nomOperateur]);
+
+  const planifierSauvegardeInventaire = useCallback((invData) => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      executerSauvegardeInventaire(invData);
+    }, 2000);
+  }, [executerSauvegardeInventaire]);
+
+  // Nettoyer le timer au démontage
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, []);
 
   // Mettre à jour managerData si le fichier est passé en prop
   useEffect(() => {
@@ -200,23 +250,36 @@ export default function CommandeEquipe({ fichierManager = null }) {
   // Saisie stock
   const handleStockChange = useCallback((itm8, value) => {
     const numValue = value === '' ? null : Math.max(0, parseInt(value) || 0);
+    let newInventaires;
     if (numValue === null) {
       setInventaires(prev => {
         const next = { ...prev };
         delete next[itm8];
+        newInventaires = next;
         return next;
       });
     } else {
-      setInventaires(prev => ({
-        ...prev,
-        [itm8]: {
-          stockReel: numValue,
-          dateSaisie: new Date().toISOString(),
-          operateur: nomOperateur || 'Équipe'
-        }
-      }));
+      setInventaires(prev => {
+        newInventaires = {
+          ...prev,
+          [itm8]: {
+            stockReel: numValue,
+            dateSaisie: new Date().toISOString(),
+            operateur: nomOperateur || 'Équipe'
+          }
+        };
+        return newInventaires;
+      });
     }
-  }, [nomOperateur]);
+    // Sauvegarde automatique dans le fichier EQUIPE (debounced)
+    // Note: on planifie avec un léger délai pour laisser le setState se propager
+    setTimeout(() => {
+      setInventaires(current => {
+        planifierSauvegardeInventaire(current);
+        return current;
+      });
+    }, 0);
+  }, [nomOperateur, planifierSauvegardeInventaire]);
 
   // Entrée = ligne suivante
   const handleKeyDown = useCallback((e, itm8, produitsOrdre) => {
@@ -230,8 +293,8 @@ export default function CommandeEquipe({ fichierManager = null }) {
     }
   }, []);
 
-  // Export
-  const handleExporter = () => {
+  // Export — sauvegarde dans le dossier partagé ET téléchargement
+  const handleExporter = async () => {
     if (!managerData) return;
     if (!nomOperateur.trim()) {
       setMessage({ type: 'error', text: 'Veuillez saisir votre nom avant d\'exporter' });
@@ -239,53 +302,87 @@ export default function CommandeEquipe({ fichierManager = null }) {
       return;
     }
 
-    const semaine = managerData.semaine?.numero || managerData.configuration?.semaine;
-    const annee = managerData.semaine?.annee || managerData.configuration?.annee;
+    const semaine = managerData.semaine?.numero || managerData.planning?.semaine || managerData.configuration?.semaine;
+    const annee = managerData.semaine?.annee || managerData.planning?.annee || managerData.configuration?.annee;
 
-    // Récupérer les personnalisations du planning (localStorage)
+    // Récupérer les personnalisations depuis le fichier EQUIPE existant ou fallback localStorage
     let personnalisations = {};
-    try {
-      const modifsSaved = localStorage.getItem('bvp_produits_modifies');
-      if (modifsSaved) {
-        const modifs = JSON.parse(modifsSaved);
-        // Convertir format PlanningJour → format equipe.json
-        // PlanningJour: { [produit.id]: { libelle, famille, programme, plu, unitesParPlaque, unitesParLot } }
-        // equipe.json: { [itm8]: { nomPersonnalise, programmeFour, unitesParPlaque, unitesParLot, plu, famille } }
-        const produitsIndex = {};
-        (managerData.produits || []).forEach(p => {
-          produitsIndex[p.id] = p;
-        });
-        Object.entries(modifs).forEach(([prodId, modif]) => {
-          const prod = produitsIndex[prodId];
-          const itm8 = prod?.itm8 || prodId;
-          personnalisations[itm8] = {
-            nomPersonnalise: modif.libelle || null,
-            programmeFour: modif.programme || null,
-            unitesParPlaque: modif.unitesParPlaque || 0,
-            unitesParLot: modif.unitesParLot || 0,
-            plu: modif.plu || null,
-            famille: modif.famille || null,
-          };
-        });
+
+    // D'abord essayer le fichier EQUIPE (architecture zéro-localStorage)
+    if (dossierEquipeHandle) {
+      try {
+        const result = await trouverDernierFichierEquipe(dossierEquipeHandle, semaine, annee);
+        if (result?.data?.personnalisations) {
+          personnalisations = result.data.personnalisations;
+        }
+      } catch { /* pas de fichier */ }
+    }
+
+    // Fallback localStorage si pas de personnalisations dans le fichier
+    if (Object.keys(personnalisations).length === 0) {
+      try {
+        const modifsSaved = localStorage.getItem('bvp_produits_modifies');
+        if (modifsSaved) {
+          const modifs = JSON.parse(modifsSaved);
+          const produitsIndex = {};
+          (managerData.produits || []).forEach(p => {
+            produitsIndex[p.id] = p;
+          });
+          Object.entries(modifs).forEach(([prodId, modif]) => {
+            const prod = produitsIndex[prodId];
+            const itm8 = prod?.itm8 || prodId;
+            personnalisations[itm8] = {
+              nomPersonnalise: modif.libelle || null,
+              programmeFour: modif.programme || null,
+              unitesParPlaque: modif.unitesParPlaque || 0,
+              unitesParLot: modif.unitesParLot || 0,
+              plu: modif.plu || null,
+              famille: modif.famille || null,
+            };
+          });
+        }
+      } catch { /* ignorer erreurs localStorage */ }
+    }
+
+    // Sauvegarde dans le dossier partagé (prioritaire)
+    if (dossierEquipeHandle) {
+      const result = await sauvegarderFichierEquipe(dossierEquipeHandle, {
+        magasin: managerData.magasin,
+        semaine,
+        annee,
+        personnalisations,
+        inventaires,
+        plaquageJ1: donneesEquipe?.plaquageJ1 || { produits: [], familles: [] },
+        programmesPersonnalises: donneesEquipe?.programmesPersonnalises || [],
+        preferencesAffichage: donneesEquipe?.preferencesAffichage || {},
+        operateur: nomOperateur.trim(),
+      });
+
+      if (result.success) {
+        setMessage({ type: 'success', text: `Fichier "${result.filename}" sauvegardé dans le dossier partagé !` });
+      } else {
+        setMessage({ type: 'error', text: `Erreur sauvegarde: ${result.error}` });
       }
-    } catch { /* ignorer erreurs localStorage */ }
+    } else {
+      // Fallback : téléchargement classique si pas de dossier partagé
+      const fichier = creerFichierEquipe({
+        magasin: managerData.magasin,
+        semaine,
+        annee,
+        personnalisations,
+        inventaires,
+        plaquageJ1: { produits: [], familles: [] },
+        operateur: nomOperateur.trim()
+      });
 
-    const fichier = creerFichierEquipe({
-      magasin: managerData.magasin,
-      semaine,
-      annee,
-      personnalisations,
-      inventaires,
-      plaquageJ1: { produits: [], familles: [] },
-      operateur: nomOperateur.trim()
-    });
-
-    const nomFichier = genererNomFichierEquipe(
-      managerData.magasin?.codePDV || managerData.magasin?.code,
-      semaine,
-      annee
-    );
-    telechargerJSON(fichier, nomFichier);
+      const nomFichier = genererNomFichierEquipe(
+        managerData.magasin?.codePDV || managerData.magasin?.code,
+        semaine,
+        annee
+      );
+      telechargerJSON(fichier, nomFichier);
+      setMessage({ type: 'success', text: `Fichier "${nomFichier}" exporté !` });
+    }
 
     enregistrerEchange({
       type: 'export_equipe',
@@ -296,8 +393,6 @@ export default function CommandeEquipe({ fichierManager = null }) {
       operateur: nomOperateur.trim(),
       nbInventaires: Object.keys(inventaires).length
     });
-
-    setMessage({ type: 'success', text: `Fichier "${nomFichier}" exporté !` });
   };
 
   // Produits groupés par famille

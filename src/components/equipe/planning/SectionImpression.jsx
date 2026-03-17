@@ -293,11 +293,13 @@ export function genererFicheJourHTML(jour, {
 /**
  * CSS commun pour les fiches d'impression (format V2 — noir et blanc, professionnel)
  */
-export function getFicheCSS() {
+export function getFicheCSS(orientation = 'portrait') {
+  const pageOrientation = orientation === 'paysage' ? 'landscape' : 'portrait';
+  const fontSize = orientation === 'paysage' ? '9px' : '8px';
   return `
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    @page { size: A4 portrait; margin: 5mm; }
-    body { font-family: Arial, sans-serif; font-size: 8px; line-height: 1.2; }
+    @page { size: A4 ${pageOrientation}; margin: 5mm; }
+    body { font-family: Arial, sans-serif; font-size: ${fontSize}; line-height: 1.2; }
 
     .page { page-break-after: always; }
     .page:last-child { page-break-after: avoid; }
@@ -361,7 +363,7 @@ export function getFicheCSS() {
  * Imprimer le planning au format professionnel (jour actuel)
  */
 export function handlePrintPlanningPro(jourSelectionne, params, options = {}) {
-  const { modeImpression = 'continu', famillesImpression = null } = options;
+  const { modeImpression = 'continu', orientationImpression = 'portrait', famillesImpression = null } = options;
   const { configuration } = params;
   const jourComplet = JOURS_COMPLETS[JOURS.indexOf(jourSelectionne)];
   const magasinDisplay = configuration?.codePDV
@@ -373,7 +375,7 @@ export function handlePrintPlanningPro(jourSelectionne, params, options = {}) {
 <head>
   <meta charset="UTF-8">
   <title>Fiche ${jourComplet} - ${magasinDisplay}</title>
-  <style>${getFicheCSS()}</style>
+  <style>${getFicheCSS(orientationImpression)}</style>
 </head>
 <body>
   ${genererFicheJourHTML(jourSelectionne, { ...params, modeImpression, famillesImpression })}
@@ -390,7 +392,7 @@ export function handlePrintPlanningPro(jourSelectionne, params, options = {}) {
  * Imprimer la semaine complète (7 fiches, une par jour)
  */
 export function handlePrintSemaine(params, options = {}) {
-  const { modeImpression = 'continu', famillesImpression = null } = options;
+  const { modeImpression = 'continu', orientationImpression = 'portrait', famillesImpression = null } = options;
   const { configuration } = params;
   const magasinDisplay = configuration?.codePDV
     ? `PDV ${configuration.codePDV} - ${configuration.nomPDV}`
@@ -404,7 +406,7 @@ export function handlePrintSemaine(params, options = {}) {
 <head>
   <meta charset="UTF-8">
   <title>Planning Semaine ${configuration?.semaine || ''} - ${magasinDisplay}</title>
-  <style>${getFicheCSS()}</style>
+  <style>${getFicheCSS(orientationImpression)}</style>
 </head>
 <body>
   ${pagesHTML}

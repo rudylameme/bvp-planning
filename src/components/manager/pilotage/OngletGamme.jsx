@@ -1,7 +1,7 @@
 /**
  * Onglet Gamme - Sélection des produits avec tableau flat
  */
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -13,11 +13,14 @@ import {
   ArrowDown,
   Unlink,
   Link,
+  Package,
 } from 'lucide-react';
 import { formatEuro } from '../../../utils/formatUtils';
 import PopupCasse from './PopupCasse';
 import PopupVentes from './PopupVentes';
-import { normaliserLibelle, separerDoublon, fusionnerManuellement, dissocierRefV2 } from '../../../services/nettoyageGamme';
+import { normaliserLibelle, separerDoublon, fusionnerManuellement, dissocierRefV2, recalculerDepuisVentesQuotidiennes } from '../../../services/nettoyageGamme';
+import { chargerCatalogueModeles, rechercherModele, rechercherModeleParEAN, isCatalogueCharge } from '../../../services/catalogueModelesService';
+import { useMagasin } from '../../../contexts/MagasinContext';
 
 // Ordre d'affichage des rayons
 const ORDRE_RAYONS = {
@@ -37,6 +40,39 @@ const COULEURS_RAYON = {
   AUTRE: { bg: 'bg-slate-100', border: 'border-slate-300', text: 'text-slate-800', header: 'bg-slate-200' },
 };
 
+// Labels abrégés pour les rayons
+const LABELS_RAYON = {
+  BOULANGERIE: 'Boul',
+  VIENNOISERIE: 'Vien',
+  PATISSERIE: 'Pât',
+  SNACKING: 'Snack',
+  AUTRE: 'Autre',
+};
+
+// Ordre des modèles pour comparaison numérique
+const ORDRE_MODELE = { M1: 1, M2: 2, M3: 3, M4: 4, M5: 5, M6: 6, M7: 7, M8: 8, OPT: 9 };
+
+/**
+ * Feu tricolore pour le modèle :
+ * - Vert : produit préconisé pour le modèle du magasin (modeleMin ≤ modeleMagasin)
+ * - Rouge : produit hors modèle (modeleMin > modeleMagasin)
+ * - Orange : non trouvé dans le catalogue ou modèle magasin inconnu
+ */
+const getFeuModele = (modeleMin, modeleMagasin) => {
+  if (!modeleMin || !modeleMagasin) return 'orange';
+  const ordreMin = ORDRE_MODELE[modeleMin];
+  const ordreMag = ORDRE_MODELE[modeleMagasin];
+  if (!ordreMin || !ordreMag) return 'orange';
+  if (modeleMin === 'OPT') return 'orange'; // optionnel = ni dans ni hors modèle
+  return ordreMin <= ordreMag ? 'vert' : 'rouge';
+};
+
+const COULEURS_FEU = {
+  vert:   { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-400', dot: 'bg-green-500' },
+  orange: { bg: 'bg-amber-50',  text: 'text-amber-600', border: 'border-amber-300', dot: 'bg-amber-400' },
+  rouge:  { bg: 'bg-red-100',   text: 'text-red-700',   border: 'border-red-400',   dot: 'bg-red-500' },
+};
+
 // Couleur du taux de casse produit : < 5% vert, 5-20% orange, > 20% rouge
 const getCouleurTauxCasse = (taux) => {
   if (taux < 5) return { text: 'text-green-600', bg: 'bg-green-100' };
@@ -51,47 +87,10 @@ const TAGS_CONFIG = {
   'doublon-pre':    { bg: 'bg-slate-200',  text: 'text-slate-700',  label: '\u2192 version PAC' },
   'doublon-fusion': { bg: 'bg-slate-200',  text: 'text-slate-700',  label: 'Doublon fusionn\u00e9' },
   'article-a-creer':{ bg: 'bg-blue-200',   text: 'text-blue-800',   label: '\u00c0 cr\u00e9er' },
+  'faible-ca':      { bg: 'bg-amber-100',  text: 'text-amber-700',  label: 'Faible CA' },
 };
 
-/**
- * Mini-modal pour choisir un produit cible de fusion
- */
-const ModalFusionner = ({ produit, produitsActifs, onFusionner, onClose }) => {
-  const [rechercheFusion, setRechercheFusion] = useState('');
-  const candidats = useMemo(() => {
-    return produitsActifs
-      .filter(p => p.id !== produit.id && p.rayon === produit.rayon)
-      .filter(p => !rechercheFusion || p.libelle.toLowerCase().includes(rechercheFusion.toLowerCase()))
-      .slice(0, 10);
-  }, [produitsActifs, produit, rechercheFusion]);
-
-  return (
-    <div className="absolute z-50 top-full left-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-xl p-3 w-80">
-      <div className="text-xs font-semibold text-gray-600 mb-2">Fusionner avec :</div>
-      <input
-        type="text"
-        placeholder="Rechercher..."
-        value={rechercheFusion}
-        onChange={(e) => setRechercheFusion(e.target.value)}
-        className="w-full px-2 py-1 border border-gray-300 rounded text-sm mb-2 focus:ring-1 focus:ring-[#8B1538] outline-none"
-        autoFocus
-      />
-      <div className="max-h-40 overflow-y-auto space-y-1">
-        {candidats.map(c => (
-          <button
-            key={c.id}
-            onClick={() => { onFusionner(produit, c); onClose(); }}
-            className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-blue-50 transition-colors truncate"
-          >
-            {c.libelle}
-          </button>
-        ))}
-        {candidats.length === 0 && <div className="text-xs text-gray-400 py-2 text-center">Aucun candidat</div>}
-      </div>
-      <button onClick={onClose} className="mt-2 w-full text-xs text-gray-500 hover:text-gray-700">Annuler</button>
-    </div>
-  );
-};
+/* ModalFusionner supprimée — remplacée par sélection multi + bouton "Associer" */
 
 const BadgeNettoyage = ({ raison, marque }) => {
   const tags = [];
@@ -118,21 +117,22 @@ const BadgeNettoyage = ({ raison, marque }) => {
  */
 const BadgeRayon = ({ rayon, onClick }) => {
   const couleurs = COULEURS_RAYON[rayon] || COULEURS_RAYON.AUTRE;
+  const label = LABELS_RAYON[rayon] || rayon;
   if (onClick) {
     return (
       <button
         type="button"
         onClick={onClick}
-        title="Cliquer pour changer la famille"
-        className={`px-2 py-1 rounded text-xs font-semibold ${couleurs.bg} ${couleurs.text} ${couleurs.border} border cursor-pointer hover:opacity-80 transition-opacity`}
+        title={`${rayon} — Cliquer pour changer`}
+        className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${couleurs.bg} ${couleurs.text} ${couleurs.border} border cursor-pointer hover:opacity-80 transition-opacity`}
       >
-        {rayon}
+        {label}
       </button>
     );
   }
   return (
-    <span className={`px-2 py-1 rounded text-xs font-semibold ${couleurs.bg} ${couleurs.text} ${couleurs.border} border`}>
-      {rayon}
+    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${couleurs.bg} ${couleurs.text} ${couleurs.border} border`} title={rayon}>
+      {label}
     </span>
   );
 };
@@ -141,16 +141,14 @@ const BadgeRayon = ({ rayon, onClick }) => {
  * Tableau des produits (flat, avec rayon en colonne)
  * Colonnes : Actif | Produit | Rayon | Casse % | Moy. Hebdo | Potentiel | CA Hebdo | Tendance | Fiabilité
  */
-const TableauProduits = ({ produits, onToggle, onChangeRayon, recherche, filtreRayon, filtreStatut, planifieManager, onChangePlanifie, promoItm8Set, promoPrecedenteMap, onSeparer, onFusionner, onDissocier }) => {
+const TableauProduits = ({ produits, onToggle, onChangeRayon, recherche, filtreRayon, filtreStatut, planifieManager, onChangePlanifie, promoItm8Set, promoPrecedenteMap, onSeparer, onDissocier, selectionAssociation, onToggleSelection, modeleMagasin, onChangeLot }) => {
   const [tri, setTri] = useState({ colonne: 'caSemaine', ordre: 'desc' });
   const [popupCasseId, setPopupCasseId] = useState(null);
   const [popupVentesId, setPopupVentesId] = useState(null);
   const [editingPlanifieId, setEditingPlanifieId] = useState(null);
   const [editingPlanifieValue, setEditingPlanifieValue] = useState('');
-  const [fusionModalId, setFusionModalId] = useState(null);
-
-  // Produits actifs pour la modal de fusion
-  const produitsActifs = useMemo(() => produits.filter(p => p.actif), [produits]);
+  const [editingLotId, setEditingLotId] = useState(null);
+  const [editingLotValue, setEditingLotValue] = useState('');
 
   // Filtrer les produits
   const produitsFiltres = useMemo(() => {
@@ -186,6 +184,14 @@ const TableauProduits = ({ produits, onToggle, onChangeRayon, recherche, filtreR
           valA = ORDRE_RAYONS[a.rayon] || 99;
           valB = ORDRE_RAYONS[b.rayon] || 99;
           break;
+        case 'modeleMin': {
+          const ORDRE_MODELE = { M1: 1, M2: 2, M3: 3, M4: 4, M5: 5, M6: 6, M7: 7, M8: 8, OPT: 9 };
+          const infoA = rechercherModele(a.itm8) || rechercherModeleParEAN(a.codeEAN);
+          const infoB = rechercherModele(b.itm8) || rechercherModeleParEAN(b.codeEAN);
+          valA = infoA?.modeleMin ? (ORDRE_MODELE[infoA.modeleMin] || 99) : 99;
+          valB = infoB?.modeleMin ? (ORDRE_MODELE[infoB.modeleMin] || 99) : 99;
+          break;
+        }
         case 'moyHebdo':
           valA = a.moyHebdo || a.ventesQteSemaine || 0;
           valB = b.moyHebdo || b.ventesQteSemaine || 0;
@@ -210,6 +216,24 @@ const TableauProduits = ({ produits, onToggle, onChangeRayon, recherche, filtreR
           valA = a.fiabilite || 0;
           valB = b.fiabilite || 0;
           break;
+        case 'prixMoyen': {
+          const moyA = a.moyHebdo || a.ventesQteSemaine || 0;
+          const moyB = b.moyHebdo || b.ventesQteSemaine || 0;
+          valA = moyA > 0 ? (a.caSemaine || 0) / moyA : 0;
+          valB = moyB > 0 ? (b.caSemaine || 0) / moyB : 0;
+          break;
+        }
+        case 'unitLot':
+          valA = a.unitesParVente || 1;
+          valB = b.unitesParVente || 1;
+          break;
+        case 'unites': {
+          const planA = planifieManager?.[a.id] ?? a.potentiel ?? 0;
+          const planB = planifieManager?.[b.id] ?? b.potentiel ?? 0;
+          valA = planA * (a.unitesParVente || 1);
+          valB = planB * (b.unitesParVente || 1);
+          break;
+        }
         default:
           return 0;
       }
@@ -218,21 +242,22 @@ const TableauProduits = ({ produits, onToggle, onChangeRayon, recherche, filtreR
       }
       return 0;
     });
-  }, [produitsFiltres, tri]);
+  }, [produitsFiltres, tri, planifieManager]);
 
-  // En-tête triable
-  const SortableHeader = ({ colonne, label, align = 'left' }) => {
+  // En-tête triable — compact
+  const SortableHeader = ({ colonne, label, align = 'left', width }) => {
     const isActive = tri.colonne === colonne;
     const alignClass = align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : '';
     return (
       <th
-        className={`px-3 py-2 text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-100 select-none`}
+        className="px-1.5 py-1.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wide cursor-pointer hover:bg-gray-100 select-none whitespace-nowrap"
+        style={width ? { width } : undefined}
         onClick={() => handleTri(colonne)}
       >
-        <div className={`flex items-center gap-1 ${alignClass}`}>
+        <div className={`flex items-center gap-0.5 ${alignClass}`}>
           <span>{label}</span>
-          <span className={`transition-opacity ${isActive ? 'opacity-100 text-[#8B1538]' : 'opacity-30'}`}>
-            {isActive && tri.ordre === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+          <span className={`transition-opacity ${isActive ? 'opacity-100 text-[#8B1538]' : 'opacity-0'}`}>
+            {isActive && tri.ordre === 'asc' ? <ArrowUp size={10} /> : <ArrowDown size={10} />}
           </span>
         </div>
       </th>
@@ -241,18 +266,23 @@ const TableauProduits = ({ produits, onToggle, onChangeRayon, recherche, filtreR
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      <table className="w-full">
+      <table className="w-full table-fixed">
         <thead className="bg-gray-50 border-b border-gray-200">
           <tr>
-            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 w-12">Actif</th>
+            <th className="px-1 py-1.5 text-center text-[10px] font-semibold text-gray-500 uppercase" style={{ width: '40px' }}>Actif</th>
             <SortableHeader colonne="libelle" label="Produit" />
-            <SortableHeader colonne="rayon" label="Rayon" align="center" />
-            <SortableHeader colonne="tauxCasse" label="Casse" align="center" />
-            <SortableHeader colonne="moyHebdo" label="Moy. Hebdo" align="right" />
-            <SortableHeader colonne="planifie" label="Planifié" align="right" />
-            <SortableHeader colonne="caSemaine" label="CA Hebdo" align="right" />
-            <SortableHeader colonne="tendancePourcent" label="Tendance" align="center" />
-            <SortableHeader colonne="fiabilite" label="Fiabilité" align="center" />
+            <SortableHeader colonne="rayon" label="Rayon" align="center" width="52px" />
+            <SortableHeader colonne="modeleMin" label="Modèle" align="center" width="52px" />
+            <SortableHeader colonne="tauxCasse" label="Casse" align="center" width="50px" />
+            <SortableHeader colonne="moyHebdo" label="Moy." align="right" width="48px" />
+            <SortableHeader colonne="prixMoyen" label="P.U." align="right" width="52px" />
+            <SortableHeader colonne="planifie" label="Planif." align="right" width="62px" />
+            <SortableHeader colonne="caSemaine" label="CA" align="right" width="58px" />
+            <SortableHeader colonne="unitLot" label="Lot" align="center" width="38px" />
+            <SortableHeader colonne="unites" label="Unit." align="center" width="42px" />
+            <SortableHeader colonne="tendancePourcent" label="Tend." align="center" width="52px" />
+            <SortableHeader colonne="fiabilite" label="Fiab." align="center" width="60px" />
+            <th className="px-1 py-1.5 text-center text-[10px] font-semibold text-violet-500 uppercase" style={{ width: '36px' }} title="Sélectionner pour associer">Ass.</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
@@ -261,83 +291,115 @@ const TableauProduits = ({ produits, onToggle, onChangeRayon, recherche, filtreR
               key={produit.id}
               className={`hover:bg-gray-50 transition-colors ${!produit.actif ? 'opacity-50 bg-gray-50' : ''}`}
             >
-              <td className="px-3 py-2">
+              {/* Actif */}
+              <td className="px-1 py-1 text-center">
                 <button
                   onClick={() => onToggle(produit.id)}
-                  className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
+                  className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
                     produit.actif ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-400'
                   }`}
                 >
-                  {produit.actif ? <Check size={14} /> : <X size={14} />}
+                  {produit.actif ? <Check size={12} /> : <X size={12} />}
                 </button>
               </td>
-              <td className="px-3 py-2 relative">
-                <span className="font-medium text-gray-800">
-                  {produit.libelle}
-                  {promoItm8Set?.has(produit.itm8) && (
-                    <span className="ml-1.5 text-blue-500" title="Produit en promo">🏷️</span>
-                  )}
-                  <BadgeNettoyage raison={produit.raisonDesactivation} marque={produit.marqueRefV2} />
-                </span>
+              {/* Produit */}
+              <td className="px-1.5 py-1 relative">
+                <div className="truncate">
+                  <span className="font-medium text-xs text-gray-800">
+                    {produit.libelle}
+                    {promoItm8Set?.has(produit.itm8) && (
+                      <span className="ml-1 text-blue-500" title="Produit en promo">🏷️</span>
+                    )}
+                    <BadgeNettoyage raison={produit.raisonDesactivation} marque={produit.marqueRefV2} />
+                  </span>
+                </div>
                 {produit.libelleRefV2 && produit.libelleRefV2 !== produit.libelle && (
-                  <div className="text-[10px] text-blue-500 italic inline-flex items-center gap-1">
+                  <div className="text-[9px] text-blue-500 italic inline-flex items-center gap-0.5 truncate">
                     Ref: {produit.libelleRefV2}
                     {onDissocier && (
                       <button
                         type="button"
                         onClick={() => onDissocier(produit)}
-                        className="inline-flex items-center justify-center w-3.5 h-3.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
-                        title="Dissocier de cette référence (mauvais match)"
+                        className="inline-flex items-center justify-center w-3 h-3 text-red-400 hover:text-red-600 rounded-full"
+                        title="Dissocier"
                       >
-                        <X size={8} />
+                        <X size={7} />
                       </button>
                     )}
                   </div>
                 )}
+                {produit._eansFusionnes && produit._eansFusionnes.length > 1 && (() => {
+                  const eansAutres = produit._eansFusionnes.filter(ean => ean !== produit.codeEAN);
+                  const libelles = eansAutres.map(ean => {
+                    const p2 = produits.find(pp => pp.codeEAN === ean && pp.id !== produit.id);
+                    return p2 ? p2.libelle : ean;
+                  });
+                  return (
+                    <div className="text-[9px] text-violet-500 italic truncate">
+                      + {libelles.join(', ')}
+                    </div>
+                  );
+                })()}
                 {(produit.ean13 || produit.ean || produit.codeEAN) && (
-                  <div className="text-xs text-gray-400">EAN: {produit.ean13 || produit.ean || produit.codeEAN}</div>
+                  <div className="text-[9px] text-gray-400">EAN: {produit.ean13 || produit.ean || produit.codeEAN}</div>
                 )}
-                {/* Boutons actions doublons */}
-                <div className="flex gap-1 mt-0.5">
-                  {!produit.actif && (produit.raisonDesactivation === 'doublon-fusion' || produit.raisonDesactivation === 'doublon-pre') && onSeparer && (
+                {!produit.actif && (produit.raisonDesactivation === 'doublon-fusion' || produit.raisonDesactivation === 'doublon-pre') && onSeparer && (
+                  <div className="mt-0.5">
                     <button
                       type="button"
                       onClick={() => onSeparer(produit)}
-                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium text-violet-700 bg-violet-50 border border-violet-200 rounded hover:bg-violet-100 transition-colors"
-                      title="Réactiver ce produit (le séparer du doublon)"
+                      className="inline-flex items-center gap-0.5 px-1 py-0.5 text-[9px] font-medium text-violet-700 bg-violet-50 border border-violet-200 rounded hover:bg-violet-100 transition-colors"
+                      title="Séparer du doublon"
                     >
-                      <Unlink size={10} /> Séparer
+                      <Unlink size={9} /> Séparer
                     </button>
-                  )}
-                  {produit.actif && !produit.aCreer && onFusionner && (
-                    <button
-                      type="button"
-                      onClick={() => setFusionModalId(fusionModalId === produit.id ? null : produit.id)}
-                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 bg-slate-50 border border-slate-200 rounded hover:bg-slate-100 transition-colors"
-                      title="Fusionner avec un autre produit"
-                    >
-                      <Link size={10} /> Fusionner...
-                    </button>
-                  )}
-                </div>
-                {fusionModalId === produit.id && (
-                  <ModalFusionner
-                    produit={produit}
-                    produitsActifs={produitsActifs}
-                    onFusionner={onFusionner}
-                    onClose={() => setFusionModalId(null)}
-                  />
+                  </div>
                 )}
               </td>
-              <td className="px-3 py-2 text-center">
+              {/* Rayon */}
+              <td className="px-1 py-1 text-center">
                 <BadgeRayon rayon={produit.rayon} onClick={() => onChangeRayon && onChangeRayon(produit.id)} />
               </td>
-              <td className="px-3 py-2 text-center relative">
+              {/* Modèle — feu tricolore */}
+              <td className="px-1 py-1 text-center">
+                {(() => {
+                  const info = rechercherModele(produit.itm8) || rechercherModeleParEAN(produit.codeEAN);
+                  if (!info || !info.modeleMin) {
+                    // Pas dans le catalogue → orange (inconnu)
+                    const c = COULEURS_FEU.orange;
+                    return (
+                      <span className={`inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[10px] font-bold border ${c.bg} ${c.text} ${c.border}`} title="Non trouvé dans le catalogue de commande">
+                        <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
+                        —
+                      </span>
+                    );
+                  }
+                  const m = info.modeleMin;
+                  const feu = getFeuModele(m, modeleMagasin);
+                  const c = COULEURS_FEU[feu];
+                  const feuLabel = feu === 'vert' ? 'Dans le modèle' : feu === 'rouge' ? 'Hors modèle' : 'Optionnel';
+                  const segments = Object.entries(info.modeles)
+                    .filter(([k, v]) => v === 1 && k.startsWith('M'))
+                    .map(([k]) => k)
+                    .join(', ');
+                  return (
+                    <span
+                      className={`inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[10px] font-bold border ${c.bg} ${c.text} ${c.border}`}
+                      title={`${feuLabel} — préconisé à partir de ${m}${modeleMagasin ? ` (magasin: ${modeleMagasin})` : ''}${segments ? ` → ${segments}` : ''}${info.segment ? ` — ${info.segment}` : ''}`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
+                      {m}
+                    </span>
+                  );
+                })()}
+              </td>
+              {/* Casse */}
+              <td className="px-1 py-1 text-center relative">
                 <button
                   type="button"
                   onClick={() => setPopupCasseId(popupCasseId === produit.id ? null : produit.id)}
-                  title="Voir l'évolution de la casse"
-                  className={`px-2 py-1 rounded text-sm font-semibold cursor-pointer hover:ring-2 hover:ring-offset-1 transition-all ${getCouleurTauxCasse(produit.tauxCasse || 0).text} ${getCouleurTauxCasse(produit.tauxCasse || 0).bg} ${getCouleurTauxCasse(produit.tauxCasse || 0).text.replace('text-', 'hover:ring-')}`}
+                  title="Voir la casse"
+                  className={`px-1 py-0.5 rounded text-[11px] font-semibold cursor-pointer hover:ring-1 hover:ring-offset-1 transition-all ${getCouleurTauxCasse(produit.tauxCasse || 0).text} ${getCouleurTauxCasse(produit.tauxCasse || 0).bg}`}
                 >
                   {(produit.tauxCasse || 0).toFixed(0)}%
                 </button>
@@ -345,12 +407,13 @@ const TableauProduits = ({ produits, onToggle, onChangeRayon, recherche, filtreR
                   <PopupCasse produit={produit} onClose={() => setPopupCasseId(null)} />
                 )}
               </td>
-              <td className="px-3 py-2 text-right font-mono relative">
+              {/* Moy. Hebdo */}
+              <td className="px-1 py-1 text-right relative">
                 <button
                   type="button"
                   onClick={() => setPopupVentesId(popupVentesId === produit.id ? null : produit.id)}
-                  title="Voir l'historique des ventes"
-                  className="px-2 py-1 rounded text-sm font-semibold cursor-pointer hover:ring-2 hover:ring-blue-300 hover:ring-offset-1 transition-all text-blue-700 bg-blue-50 hover:bg-blue-100"
+                  title="Voir l'historique"
+                  className="px-1 py-0.5 rounded text-[11px] font-semibold cursor-pointer hover:ring-1 hover:ring-blue-300 transition-all text-blue-700 bg-blue-50"
                 >
                   {produit.moyHebdo || produit.ventesQteSemaine || 0}
                 </button>
@@ -358,7 +421,21 @@ const TableauProduits = ({ produits, onToggle, onChangeRayon, recherche, filtreR
                   <PopupVentes produit={produit} onClose={() => setPopupVentesId(null)} />
                 )}
               </td>
-              <td className="px-3 py-2 text-right">
+              {/* Prix Moyen (P.U.) */}
+              <td className="px-1 py-1 text-right">
+                {(() => {
+                  const moyQte = produit.moyHebdo || produit.ventesQteSemaine || 0;
+                  const prixMoy = moyQte > 0 ? (produit.caSemaine || 0) / moyQte : 0;
+                  if (prixMoy <= 0) return <span className="text-[10px] text-gray-300">—</span>;
+                  return (
+                    <span className="text-[11px] font-mono text-gray-600" title={`${formatEuro(produit.caSemaine || 0)} ÷ ${moyQte}`}>
+                      {prixMoy.toFixed(2)}€
+                    </span>
+                  );
+                })()}
+              </td>
+              {/* Planifié */}
+              <td className="px-1 py-1 text-right">
                 {editingPlanifieId === produit.id ? (
                   <input
                     type="number"
@@ -379,29 +456,28 @@ const TableauProduits = ({ produits, onToggle, onChangeRayon, recherche, filtreR
                       if (e.key === 'Escape') setEditingPlanifieId(null);
                     }}
                     autoFocus
-                    className="w-20 px-2 py-1 text-right font-mono text-sm border border-[#8B1538] rounded-lg focus:ring-2 focus:ring-[#8B1538] outline-none bg-red-50"
+                    className="w-14 px-1 py-0.5 text-right font-mono text-[11px] border border-[#8B1538] rounded focus:ring-1 focus:ring-[#8B1538] outline-none bg-red-50"
                   />
                 ) : planifieManager?.[produit.id] != null ? (
-                  <div className="inline-flex items-center gap-1">
+                  <div className="inline-flex items-center gap-0.5">
                     <button
                       type="button"
                       onClick={() => {
                         setEditingPlanifieId(produit.id);
                         setEditingPlanifieValue(String(planifieManager[produit.id]));
                       }}
-                      className="font-mono text-sm font-bold text-[#8B1538] bg-red-50 border border-[#8B1538]/30 px-2 py-1 rounded-lg hover:bg-red-100 transition-colors"
-                      title="Cliquer pour modifier"
+                      className="font-mono text-[11px] font-bold text-[#8B1538] bg-red-50 border border-[#8B1538]/30 px-1.5 py-0.5 rounded hover:bg-red-100 transition-colors"
+                      title="Modifier"
                     >
-                      {planifieManager[produit.id]}
-                      <span className="ml-1 text-[10px]">✏️</span>
+                      {planifieManager[produit.id]} ✏️
                     </button>
                     <button
                       type="button"
                       onClick={() => onChangePlanifie(produit.id, null)}
-                      className="text-gray-400 hover:text-red-500 transition-colors p-0.5"
-                      title="Revenir au potentiel algo"
+                      className="text-gray-400 hover:text-red-500 transition-colors"
+                      title="Revenir au potentiel"
                     >
-                      <X size={14} />
+                      <X size={10} />
                     </button>
                   </div>
                 ) : (
@@ -411,25 +487,25 @@ const TableauProduits = ({ produits, onToggle, onChangeRayon, recherche, filtreR
                       setEditingPlanifieId(produit.id);
                       setEditingPlanifieValue(String(produit.potentiel || ''));
                     }}
-                    className="font-mono text-sm font-semibold text-gray-800 px-2 py-1 rounded-lg hover:bg-gray-100 border border-transparent hover:border-gray-300 transition-colors"
-                    title="Cliquer pour modifier la préconisation"
+                    className="font-mono text-[11px] font-semibold text-gray-800 px-1.5 py-0.5 rounded hover:bg-gray-100 border border-transparent hover:border-gray-300 transition-colors"
+                    title="Modifier la préconisation"
                   >
                     {produit.potentiel || '-'}
                   </button>
                 )}
-                {/* Indicateur "Était en promo S-1" */}
                 {(() => {
                   const promPrec = promoPrecedenteMap?.get(produit.itm8) || promoPrecedenteMap?.get(produit.plu);
                   if (!promPrec) return null;
                   const moyNormale = produit.moyHebdo || produit.ventesQteSemaine || 0;
                   return (
-                    <div className="text-[10px] text-amber-600 mt-0.5" title={`Était en promo S-1 (qté: ${promPrec.qteValidee}), moy. normale: ${moyNormale}`}>
-                      ⚠️ promo S-1, moy: {moyNormale}
+                    <div className="text-[9px] text-amber-600 mt-0.5" title={`Promo S-1 (qté: ${promPrec.qteValidee})`}>
+                      ⚠️ S-1: {moyNormale}
                     </div>
                   );
                 })()}
               </td>
-              <td className="px-3 py-2 text-right font-mono text-gray-700">
+              {/* CA Hebdo */}
+              <td className="px-1 py-1 text-right font-mono text-[11px] text-gray-700">
                 {(() => {
                   const moyQte = produit.moyHebdo || 0;
                   const prixMoyen = moyQte > 0 ? (produit.caSemaine || 0) / moyQte : 0;
@@ -437,37 +513,110 @@ const TableauProduits = ({ produits, onToggle, onChangeRayon, recherche, filtreR
                   return formatEuro(qte * prixMoyen);
                 })()}
               </td>
-              <td className="px-3 py-2 text-center">
-                <div className="inline-flex items-center gap-1">
-                  {produit.tendance === 'croissance' && <TrendingUp className="text-green-500" size={14} />}
-                  {produit.tendance === 'declin' && <TrendingDown className="text-red-500" size={14} />}
-                  {produit.tendance === 'stable' && <Minus className="text-gray-400" size={14} />}
-                  <span
-                    className={`text-xs font-medium ${
-                      (produit.tendancePourcent || 0) > 0
-                        ? 'text-green-600'
-                        : (produit.tendancePourcent || 0) < 0
-                        ? 'text-red-600'
-                        : 'text-gray-500'
+              {/* Lot — éditable au clic */}
+              <td className="px-1 py-1 text-center">
+                {editingLotId === produit.id ? (
+                  <input
+                    type="number"
+                    min="1"
+                    value={editingLotValue}
+                    onChange={(e) => setEditingLotValue(e.target.value)}
+                    onBlur={() => {
+                      const val = parseInt(editingLotValue, 10);
+                      if (!isNaN(val) && val >= 1) onChangeLot(produit.id, val);
+                      setEditingLotId(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const val = parseInt(editingLotValue, 10);
+                        if (!isNaN(val) && val >= 1) onChangeLot(produit.id, val);
+                        setEditingLotId(null);
+                      }
+                      if (e.key === 'Escape') setEditingLotId(null);
+                    }}
+                    autoFocus
+                    className="w-10 px-0.5 py-0.5 text-center font-mono text-[11px] border border-teal-500 rounded focus:ring-1 focus:ring-teal-500 outline-none bg-teal-50"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingLotId(produit.id);
+                      setEditingLotValue(String(produit.unitesParVente || 1));
+                    }}
+                    className={`px-1 py-0.5 rounded text-[10px] font-bold cursor-pointer hover:ring-1 hover:ring-teal-400 transition-all ${
+                      (produit.unitesParVente || 1) > 1
+                        ? 'text-teal-700 bg-teal-50'
+                        : 'text-gray-400 hover:bg-gray-100'
                     }`}
+                    title={`${produit.unitesParVente || 1} unités/lot — cliquer pour modifier`}
                   >
-                    {(produit.tendancePourcent || 0) > 0 ? '+' : ''}
-                    {produit.tendancePourcent || 0}%
-                  </span>
-                </div>
+                    {produit.unitesParVente || 1}
+                  </button>
+                )}
               </td>
-              <td className="px-3 py-2">
-                <div className="flex items-center justify-center gap-1">
-                  <div className="w-12 bg-gray-200 rounded-full h-1.5">
+              {/* Unités */}
+              <td className="px-1 py-1 text-center">
+                {(() => {
+                  const unitLot = produit.unitesParVente || 1;
+                  const planifie = planifieManager?.[produit.id] ?? produit.potentiel ?? 0;
+                  if (planifie <= 0) return <span className="text-[10px] text-gray-300">—</span>;
+                  const totalUnites = planifie * unitLot;
+                  return (
+                    <span
+                      className={`text-[11px] font-bold ${unitLot > 1 ? 'text-teal-800' : 'text-gray-700'}`}
+                      title={`${planifie} × ${unitLot} = ${totalUnites}`}
+                    >
+                      {totalUnites}
+                    </span>
+                  );
+                })()}
+              </td>
+              {/* Tendance */}
+              <td className="px-1 py-1 text-center">
+                <span
+                  className={`text-[11px] font-medium ${
+                    (produit.tendancePourcent || 0) > 0
+                      ? 'text-green-600'
+                      : (produit.tendancePourcent || 0) < 0
+                      ? 'text-red-600'
+                      : 'text-gray-400'
+                  }`}
+                >
+                  {(produit.tendancePourcent || 0) > 0 ? '+' : ''}
+                  {produit.tendancePourcent || 0}%
+                </span>
+              </td>
+              {/* Fiabilité */}
+              <td className="px-1 py-1">
+                <div className="flex items-center justify-center gap-0.5">
+                  <div className="w-8 bg-gray-200 rounded-full h-1">
                     <div
-                      className={`h-1.5 rounded-full ${
+                      className={`h-1 rounded-full ${
                         (produit.fiabilite || 0) >= 70 ? 'bg-green-500' : (produit.fiabilite || 0) >= 40 ? 'bg-amber-500' : 'bg-red-500'
                       }`}
                       style={{ width: `${produit.fiabilite || 0}%` }}
                     />
                   </div>
-                  <span className="text-xs text-gray-500 w-8">{produit.fiabilite || 0}%</span>
+                  <span className="text-[9px] text-gray-400">{produit.fiabilite || 0}%</span>
                 </div>
+              </td>
+              {/* Association */}
+              <td className="px-1 py-1 text-center">
+                {!produit.aCreer && (
+                  <button
+                    type="button"
+                    onClick={() => onToggleSelection && onToggleSelection(produit.id)}
+                    className={`w-5 h-5 rounded flex items-center justify-center transition-all border ${
+                      selectionAssociation?.has(produit.id)
+                        ? 'bg-violet-500 border-violet-600 text-white shadow-sm'
+                        : 'bg-white border-gray-300 text-transparent hover:border-violet-400 hover:bg-violet-50'
+                    }`}
+                    title="Associer"
+                  >
+                    <Check size={10} />
+                  </button>
+                )}
               </td>
             </tr>
           ))}
@@ -484,23 +633,112 @@ const TableauProduits = ({ produits, onToggle, onChangeRayon, recherche, filtreR
 /**
  * Onglet Gamme - Sélection des produits
  */
-const OngletGamme = ({ produits, onToggle, onToggleFiltres, onChangeRayon, planifieManager, onChangePlanifie, promoItm8Set, promoPrecedenteMap, onReloadGamme }) => {
+const OngletGamme = ({ produits, onToggle, onToggleFiltres, onChangeRayon, planifieManager, onChangePlanifie, promoItm8Set, promoPrecedenteMap, onReloadGamme, onUpdateProduits }) => {
   const [recherche, setRecherche] = useState('');
   const [filtreRayon, setFiltreRayon] = useState('tous');
   const [filtreStatut, setFiltreStatut] = useState('tous');
+  const [selectionAssociation, setSelectionAssociation] = useState(new Set());
+
+  // Récupérer le modèle du magasin depuis le contexte
+  const { donneesMagasin } = useMagasin();
+  const modeleMagasin = donneesMagasin?.magasin?.modele || null;
+
+  // Charger le catalogue des modèles au montage
+  useEffect(() => {
+    if (!isCatalogueCharge()) {
+      chargerCatalogueModeles();
+    }
+  }, []);
+
+  // Toggle sélection pour association
+  const handleToggleSelection = useCallback((id) => {
+    setSelectionAssociation(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  // Modifier le nombre d'unités par lot (unitesParVente) d'un produit
+  const handleChangeLot = useCallback((id, newLot) => {
+    if (!onUpdateProduits) return;
+    const updatedProduits = produits.map(p => {
+      if (p.id === id) {
+        return { ...p, unitesParVente: newLot };
+      }
+      return p;
+    });
+    onUpdateProduits(updatedProduits);
+  }, [produits, onUpdateProduits]);
+
+  // Associer les produits sélectionnés (fusion manuelle avec recalcul jour par jour)
+  const handleAssocier = useCallback(() => {
+    if (selectionAssociation.size < 2) return;
+
+    const selectedIds = Array.from(selectionAssociation);
+    const selectedProduits = selectedIds.map(id => produits.find(p => p.id === id)).filter(Boolean);
+
+    if (selectedProduits.length < 2) return;
+
+    // Le gagnant = celui avec le plus gros CA
+    const triParCA = [...selectedProduits].sort((a, b) => (b.caSemaine || 0) - (a.caSemaine || 0));
+    const gagnant = triParCA[0];
+    const sources = triParCA.slice(1);
+
+    // Stocker les corrections en localStorage (pour persistance au reload)
+    for (const source of sources) {
+      const normSource = normaliserLibelle(source.libelle);
+      const normCible = normaliserLibelle(gagnant.libelle);
+      fusionnerManuellement(normSource, normCible);
+    }
+
+    // Appliquer immédiatement en mémoire (sans attendre reload)
+    // Fusionner les ventesQuotidiennes de tous les sources dans le gagnant
+    let ventesQuotidiennesFusionnees = [...(gagnant.ventesQuotidiennes || [])];
+    for (const source of sources) {
+      ventesQuotidiennesFusionnees = ventesQuotidiennesFusionnees.concat(
+        source.ventesQuotidiennes || []
+      );
+    }
+
+    // Recalculer le gagnant depuis les ventes fusionnées
+    const gagnantRecalcule = recalculerDepuisVentesQuotidiennes({
+      ...gagnant,
+      ventesQuotidiennes: ventesQuotidiennesFusionnees,
+      _ventesQuotidiennesOriginales: gagnant.ventesQuotidiennes || [],
+      _eansFusionnes: selectedProduits.map(p => p.codeEAN),
+    });
+
+    // Mettre à jour la liste des produits
+    const updatedProduits = produits.map(p => {
+      if (p.id === gagnant.id) return gagnantRecalcule;
+      if (selectedIds.includes(p.id) && p.id !== gagnant.id) {
+        return {
+          ...p,
+          actif: false,
+          raisonDesactivation: 'doublon-fusion',
+          _ventesQuotidiennesOriginales: p.ventesQuotidiennes || [],
+        };
+      }
+      return p;
+    });
+
+    // Vider la sélection
+    setSelectionAssociation(new Set());
+
+    // Notifier le parent
+    if (onUpdateProduits) {
+      onUpdateProduits(updatedProduits);
+    } else if (onReloadGamme) {
+      onReloadGamme();
+    }
+  }, [selectionAssociation, produits, onUpdateProduits, onReloadGamme]);
 
   // Callback pour séparer un doublon (le réactiver)
   const handleSeparer = useCallback((produit) => {
     const norm = normaliserLibelle(produit.libelle);
     separerDoublon(norm);
-    if (onReloadGamme) onReloadGamme();
-  }, [onReloadGamme]);
-
-  // Callback pour fusionner manuellement un produit avec un autre
-  const handleFusionner = useCallback((source, cible) => {
-    const normSource = normaliserLibelle(source.libelle);
-    const normCible = normaliserLibelle(cible.libelle);
-    fusionnerManuellement(normSource, normCible);
     if (onReloadGamme) onReloadGamme();
   }, [onReloadGamme]);
 
@@ -519,12 +757,13 @@ const OngletGamme = ({ produits, onToggle, onToggleFiltres, onChangeRayon, plani
 
   // Compteurs pour le nettoyage
   const compteurs = useMemo(() => {
-    const c = { actifs: 0, promos: 0, doublons: 0, horsSaison: 0, aCreer: 0 };
+    const c = { actifs: 0, promos: 0, doublons: 0, horsSaison: 0, aCreer: 0, faibleCA: 0 };
     produits.forEach(p => {
       if (p.actif) c.actifs++;
       if (p.raisonDesactivation === 'promo') c.promos++;
       if (p.raisonDesactivation === 'doublon-fusion' || p.raisonDesactivation === 'doublon-pre') c.doublons++;
       if (p.raisonDesactivation === 'hors-saison') c.horsSaison++;
+      if (p.raisonDesactivation === 'faible-ca') c.faibleCA++;
       if (p.aCreer) c.aCreer++;
     });
     return c;
@@ -548,8 +787,13 @@ const OngletGamme = ({ produits, onToggle, onToggleFiltres, onChangeRayon, plani
 
   return (
     <div className="space-y-4">
-      {/* Compteurs nettoyage */}
+      {/* Compteurs nettoyage + modèle magasin */}
       <div className="flex flex-wrap items-center gap-3 px-1 text-sm">
+        {modeleMagasin && (
+          <span className="font-bold text-[#8B1538] bg-red-50 px-3 py-1 rounded-lg border border-[#8B1538]/30">
+            Magasin {modeleMagasin}
+          </span>
+        )}
         <span className="font-semibold text-green-700 bg-green-50 px-2.5 py-1 rounded-lg border border-green-200">
           {compteurs.actifs} actifs
         </span>
@@ -566,6 +810,11 @@ const OngletGamme = ({ produits, onToggle, onToggleFiltres, onChangeRayon, plani
         {compteurs.horsSaison > 0 && (
           <span className="text-orange-700 bg-orange-50 px-2.5 py-1 rounded-lg border border-orange-200">
             {compteurs.horsSaison} hors saison
+          </span>
+        )}
+        {compteurs.faibleCA > 0 && (
+          <span className="text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+            {compteurs.faibleCA} faible CA
           </span>
         )}
         {compteurs.aCreer > 0 && (
@@ -624,6 +873,30 @@ const OngletGamme = ({ produits, onToggle, onToggleFiltres, onChangeRayon, plani
         >
           Tout désactiver
         </button>
+
+        {/* Bouton Associer — visible quand 2+ produits sélectionnés */}
+        {selectionAssociation.size >= 2 && (
+          <button
+            onClick={handleAssocier}
+            className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 text-sm font-semibold border border-violet-700 shadow-sm transition-colors flex items-center gap-1.5"
+          >
+            <Link size={14} />
+            Associer ({selectionAssociation.size} produits)
+          </button>
+        )}
+        {selectionAssociation.size === 1 && (
+          <span className="text-xs text-violet-500 italic self-center">
+            Sélectionnez au moins 2 produits pour associer
+          </span>
+        )}
+        {selectionAssociation.size > 0 && (
+          <button
+            onClick={() => setSelectionAssociation(new Set())}
+            className="px-3 py-2 text-violet-600 hover:text-violet-800 text-sm underline"
+          >
+            Annuler sélection
+          </button>
+        )}
       </div>
 
       {/* Tableau flat avec rayon en colonne */}
@@ -639,8 +912,11 @@ const OngletGamme = ({ produits, onToggle, onToggleFiltres, onChangeRayon, plani
         promoItm8Set={promoItm8Set}
         promoPrecedenteMap={promoPrecedenteMap}
         onSeparer={handleSeparer}
-        onFusionner={handleFusionner}
         onDissocier={handleDissocier}
+        selectionAssociation={selectionAssociation}
+        onToggleSelection={handleToggleSelection}
+        modeleMagasin={modeleMagasin}
+        onChangeLot={handleChangeLot}
       />
     </div>
   );

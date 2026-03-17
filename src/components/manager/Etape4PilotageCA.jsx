@@ -440,6 +440,7 @@ const Etape4PilotageCA = () => {
             promoItm8Set={promoItm8Set}
             promoPrecedenteMap={promoPrecedenteMap}
             onReloadGamme={handleReloadGamme}
+            onUpdateProduits={setProduits}
           />
         )}
         {ongletActif === 'limites' && (

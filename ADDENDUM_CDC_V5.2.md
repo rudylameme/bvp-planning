@@ -338,13 +338,19 @@ case 'equipe':
   break;
 ```
 
-### 7.7 Configuration Vercel
+### 7.7 Configuration Vercel — 3 projets
 
-| Projet Vercel | Repo GitHub | Build Command | Output |
-|---------------|-------------|---------------|--------|
-| `dist-manager` | `rudylameme/bvp-planning` | `npm run build:manager` | `dist` |
-| `dist-equipe` | `rudylameme/bvp-planning` | `npm run build:equipe` | `dist` |
-| `bvp-planning` | `rudylameme/bvp-planning` | `npm run build` | `dist` |
+| Projet Vercel | URL | Version | Auto-deploy | Build Command |
+|---------------|-----|---------|-------------|---------------|
+| `dist-manager` | `dist-manager.vercel.app` | V5.3+ (courante) | **Oui** | `npm run build:manager` |
+| `dist-equipe` | `dist-equipe.vercel.app` | V5.3+ (courante) | **Oui** | `npm run build:equipe` |
+| `bvp-planning` | `bvp-planning.vercel.app` | **V4 (figée)** | **Non** | `npm run build` |
+
+**Important — bvp-planning.vercel.app (V4)** :
+- Ce projet est **figé** sur la version V4 (wizard 4 étapes : Chargement → Personnalisation → Semaine → Planning)
+- L'auto-deploy est désactivé via `commandForIgnoringBuildStep: "exit 0"` (API Vercel, configuré le 09/03/2026)
+- Le domaine pointe sur le déploiement du commit `a07d862` (dernière version V4 fonctionnelle)
+- **NE JAMAIS réactiver l'auto-deploy** sur ce projet sans accord explicite de l'utilisateur
 
 ### 7.8 Titre dynamique
 
@@ -926,6 +932,35 @@ Exemple : `MANAGER-02023-S09-2026.bvp.json`
 
 ---
 
-**Document mis à jour le 24 février 2026**
+---
+
+## 18. CONFIGURATION VERCEL — PROTECTION V4 (09/03/2026)
+
+### 18.1 Contexte
+
+Le projet Vercel `bvp-planning` (URL : `bvp-planning.vercel.app`) hébergeait historiquement la version V4 de l'application. Suite aux push V5.2/V5.3 sur la branche `main`, ce projet s'est automatiquement mis à jour, écrasant la V4.
+
+### 18.2 Actions correctives
+
+| Action | Détail |
+|--------|--------|
+| Désactivation auto-deploy | `commandForIgnoringBuildStep: "exit 0"` via API Vercel PATCH `/v9/projects/{id}` |
+| Restauration V4 | Alias du domaine `bvp-planning.vercel.app` vers le déploiement `dpl_8P9cku7cod7v3acCKSKF4V5mtnDH` (commit `a07d862`) via API Vercel POST `/v2/deployments/{id}/aliases` |
+
+### 18.3 État final des 3 sites Vercel
+
+| Site | Version | Auto-deploy | Remarque |
+|------|---------|-------------|----------|
+| `bvp-planning.vercel.app` | V4 (figée) | Non | Wizard 4 étapes, ne sera plus mis à jour |
+| `dist-manager.vercel.app` | V5.3+ | Oui | 3 univers (Benchmark + Manager + Équipe) |
+| `dist-equipe.vercel.app` | V5.3+ | Oui | Univers Équipe uniquement |
+
+### 18.4 Règle
+
+**⚠️ NE JAMAIS réactiver l'auto-deploy sur `bvp-planning`** sans accord explicite de l'utilisateur. Ce site doit rester sur la V4.
+
+---
+
+**Document mis à jour le 09 mars 2026**
 **Version 5.3.3**
-**Statut : En attente de déploiement Vercel**
+**Statut : Déployé sur Vercel (dist-manager + dist-equipe)**

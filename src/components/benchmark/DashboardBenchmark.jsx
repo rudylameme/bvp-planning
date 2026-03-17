@@ -31,6 +31,11 @@ const DashboardBenchmark = ({ donnees, onRetour, onNaviguerPlanning, onRetourAcc
 
   const { magasin, comparaison, indicateurs } = donnees;
 
+  // Période : mois ou semaine
+  const typePeriode = donnees.metadata?.typePeriode || 'semaine';
+  const multiplier = typePeriode === 'mois' ? 12 : 52;
+  const periodLabel = typePeriode === 'mois' ? 'mois' : 'semaine';
+
   return (
     <div className="min-h-screen bg-[#F5F2ED]">
       {/* Header */}
@@ -60,10 +65,10 @@ const DashboardBenchmark = ({ donnees, onRetour, onNaviguerPlanning, onRetourAcc
             {/* Titre */}
             <div className="text-center">
               <h1 className="text-xl font-bold text-[#8B1538]">
-                📊 Benchmark Hebdo BVP
+                📊 Benchmark {typePeriode === 'mois' ? 'Mensuel' : 'Hebdo'} BVP
               </h1>
               <p className="text-sm text-[#58595B]">
-                Semaine {donnees.semaine}
+                {donnees.periodeLabel || (typePeriode === 'mois' ? 'Mois en cours' : `Semaine ${donnees.semaine}`)}
               </p>
             </div>
 
@@ -176,10 +181,10 @@ const DashboardBenchmark = ({ donnees, onRetour, onNaviguerPlanning, onRetourAcc
         </div>
 
         {/* MODIFICATION 3 : Barres horizontales de pénétration (remplace les cards) */}
-        <BarresPenetration indicateurs={indicateurs} />
+        <BarresPenetration indicateurs={indicateurs} periodLabel={periodLabel} />
 
         {/* Graphique Flux vs Pénétration */}
-        <GraphiqueFluxPenetration indicateurs={indicateurs} />
+        <GraphiqueFluxPenetration indicateurs={indicateurs} multiplier={multiplier} periodLabel={periodLabel} />
 
         {/* Section Diagnostic Personnalisé par créneau horaire */}
         <div className="mt-8">
@@ -193,6 +198,8 @@ const DashboardBenchmark = ({ donnees, onRetour, onNaviguerPlanning, onRetourAcc
             indicateurs={indicateurs}
             panierMoyen={indicateurs.global.pdv.ticketMoyen || 0}
             onNaviguerPlanning={onNaviguerPlanning}
+            multiplier={multiplier}
+            periodLabel={periodLabel}
           />
         </div>
 

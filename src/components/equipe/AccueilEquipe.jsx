@@ -1,32 +1,64 @@
 /**
- * Accueil Équipe V5
+ * Accueil Équipe V5.3
  *
  * Donne accès aux 2 modules pour les équipiers :
  * - Planning du jour
  * - Commande (inventaire + personnalisation + plaquage J+1)
+ *
+ * Architecture zéro-localStorage :
+ * - Scanne le dossier partagé pour trouver le fichier MANAGER
+ * - Charge les personnalisations depuis le fichier EQUIPE existant
+ * - Passe le dirHandle aux enfants pour écriture
  */
 
 import React, { useState, useEffect } from 'react';
-import { Home, Calendar, Package, ArrowLeft, CheckCircle, Store, AlertCircle } from 'lucide-react';
+import { Home, Calendar, Package, ArrowLeft, CheckCircle, Store, AlertCircle, Loader2, FolderOpen, RefreshCw } from 'lucide-react';
 
 // Import des composants existants
-import ImportFichierEquipe, { useFichierMagasin } from './ImportFichierEquipe';
 import PlanningJour from './PlanningJour';
 import CommandeEquipe from './CommandeEquipe';
 
-const AccueilEquipe = ({ onRetourAccueil }) => {
-  const [fichierCharge, setFichierCharge] = useState(null);
-  const [moduleActif, setModuleActif] = useState(null); // 'planning', 'commande'
+// Service dossier partagé
+import { chargerDonneesDepuisDossier } from '../../services/dossierEquipeService';
 
-  const { chargerDepuisStorage, effacerFichier } = useFichierMagasin();
+const AccueilEquipe = ({ onRetourAccueil, dossierEquipeHandle }) => {
+  const [fichierCharge, setFichierCharge] = useState(null);    // Données MANAGER chargées
+  const [donneesEquipe, setDonneesEquipe] = useState(null);    // Données EQUIPE existantes
+  const [moduleActif, setModuleActif] = useState(null);        // 'planning', 'commande'
+  const [chargementEnCours, setChargementEnCours] = useState(false);
+  const [erreurChargement, setErreurChargement] = useState(null);
 
-  // Charger le fichier depuis localStorage au démarrage
+  // Scanner le dossier partagé au montage
   useEffect(() => {
-    const fichierSauvegarde = chargerDepuisStorage();
-    if (fichierSauvegarde) {
-      setFichierCharge(fichierSauvegarde);
-    }
-  }, []);
+    if (!dossierEquipeHandle) return;
+    let cancelled = false;
+
+    (async () => {
+      setChargementEnCours(true);
+      setErreurChargement(null);
+
+      const result = await chargerDonneesDepuisDossier(dossierEquipeHandle);
+
+      if (cancelled) return;
+
+      if (result.error && !result.manager) {
+        setErreurChargement(result.error);
+        setChargementEnCours(false);
+        return;
+      }
+
+      if (result.manager) {
+        setFichierCharge(result.manager.data);
+        // nomFichierManager disponible dans result.manager.filename si besoin
+      }
+      if (result.equipe) {
+        setDonneesEquipe(result.equipe.data);
+      }
+      setChargementEnCours(false);
+    })();
+
+    return () => { cancelled = true; };
+  }, [dossierEquipeHandle]);
 
   const MODULES = [
     {
@@ -47,16 +79,22 @@ const AccueilEquipe = ({ onRetourAccueil }) => {
     },
   ];
 
-  // Gérer le chargement du fichier
-  const handleFichierCharge = (data) => {
-    setFichierCharge(data);
-  };
-
-  // Changer de fichier
-  const handleChangerFichier = () => {
-    effacerFichier();
-    setFichierCharge(null);
-    setModuleActif(null);
+  // Recharger le dossier (ex: après un nouveau dépôt manager)
+  const handleRecharger = async () => {
+    if (!dossierEquipeHandle) return;
+    setChargementEnCours(true);
+    setErreurChargement(null);
+    const result = await chargerDonneesDepuisDossier(dossierEquipeHandle);
+    if (result.manager) {
+      setFichierCharge(result.manager.data);
+    }
+    if (result.equipe) {
+      setDonneesEquipe(result.equipe.data);
+    }
+    if (result.error && !result.manager) {
+      setErreurChargement(result.error);
+    }
+    setChargementEnCours(false);
   };
 
   // Retour aux modules
@@ -96,8 +134,8 @@ const AccueilEquipe = ({ onRetourAccueil }) => {
     personnalisationProduits: fichierCharge.personnalisationProduits || {},
   } : null;
 
-  // Si pas de fichier chargé, afficher l'import
-  if (!fichierCharge) {
+  // Si chargement en cours ou pas de fichier trouvé
+  if (chargementEnCours || !fichierCharge) {
     return (
       <div className="min-h-screen bg-[#F5F2ED]">
         {/* Header */}
@@ -123,8 +161,44 @@ const AccueilEquipe = ({ onRetourAccueil }) => {
           </div>
         </div>
 
-        {/* Zone d'import */}
-        <ImportFichierEquipe onFichierCharge={handleFichierCharge} />
+        {/* Zone de chargement ou erreur */}
+        <div className="max-w-xl mx-auto p-6 mt-10">
+          {chargementEnCours ? (
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-emerald-100 rounded-full mb-4">
+                <Loader2 className="w-10 h-10 text-emerald-600 animate-spin" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-700 mb-2">Recherche en cours...</h2>
+              <p className="text-gray-500">Scan du dossier partagé pour trouver le fichier Manager</p>
+            </div>
+          ) : erreurChargement ? (
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-amber-100 rounded-full mb-4">
+                <FolderOpen className="w-10 h-10 text-amber-600" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-700 mb-2">Aucun fichier Manager trouvé</h2>
+              <p className="text-gray-500 mb-6">{erreurChargement}</p>
+              <p className="text-sm text-gray-400 mb-6">
+                Vérifiez que votre responsable a bien déposé le fichier planning dans le dossier partagé.
+              </p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={onRetourAccueil}
+                  className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
+                >
+                  Retour
+                </button>
+                <button
+                  onClick={handleRecharger}
+                  className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-colors flex items-center gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Rescanner le dossier
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </div>
       </div>
     );
   }
@@ -161,11 +235,24 @@ const AccueilEquipe = ({ onRetourAccueil }) => {
         {/* Contenu du module */}
         <div className="flex-1">
           {moduleActif === 'planning' && donneesMagasin && (
-            <PlanningJour donneesMagasin={donneesMagasin} />
+            <PlanningJour
+              donneesMagasin={donneesMagasin}
+              dossierEquipeHandle={dossierEquipeHandle}
+              donneesEquipe={donneesEquipe}
+              infoSemaine={{
+                magasin: fichierCharge.magasin || {},
+                semaine: fichierCharge.planning?.semaine || fichierCharge.semaine?.numero || fichierCharge.configuration?.semaine,
+                annee: fichierCharge.planning?.annee || fichierCharge.semaine?.annee || fichierCharge.configuration?.annee,
+              }}
+            />
           )}
 
           {moduleActif === 'commande' && (
-            <CommandeEquipe fichierManager={fichierCharge} />
+            <CommandeEquipe
+              fichierManager={fichierCharge}
+              dossierEquipeHandle={dossierEquipeHandle}
+              donneesEquipe={donneesEquipe}
+            />
           )}
         </div>
       </div>
@@ -213,14 +300,17 @@ const AccueilEquipe = ({ onRetourAccueil }) => {
               </p>
             </div>
             <p className="text-sm text-gray-500">
-              Semaine {(fichierCharge.semaine?.numero || fichierCharge.configuration?.semaine)} / {(fichierCharge.semaine?.annee || fichierCharge.configuration?.annee)} • {fichierCharge.produits?.length || 0} produits
+              Semaine {(fichierCharge.planning?.semaine || fichierCharge.semaine?.numero || fichierCharge.configuration?.semaine)} / {(fichierCharge.planning?.annee || fichierCharge.semaine?.annee || fichierCharge.configuration?.annee)} • {fichierCharge.produits?.length || 0} produits
+              {donneesEquipe && <span className="ml-2 text-emerald-600 font-medium">• Personnalisations chargées</span>}
             </p>
           </div>
           <button
-            onClick={handleChangerFichier}
-            className="px-4 py-2 text-sm text-gray-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+            onClick={handleRecharger}
+            className="px-4 py-2 text-sm text-gray-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors flex items-center gap-1"
+            title="Rescanner le dossier pour un fichier plus récent"
           >
-            Changer
+            <RefreshCw className="w-3.5 h-3.5" />
+            Recharger
           </button>
         </div>
 
