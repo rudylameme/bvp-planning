@@ -769,7 +769,7 @@ export async function extraireProduitsParRayon(file, catalogueRayons = null) {
  * @returns {Array} Tableau de produits formatés pour le pilotage CA
  */
 export function formaterPourPilotageCA(data, options = {}) {
-  const { semaineNumero, moisPlanning, refMagasin } = options;
+  const { semaineNumero, moisPlanning, refMagasin, skipNettoyage = false } = options;
   const { produits, statistiques } = data;
 
   const produitsFormates = produits.map((p, index) => {
@@ -871,6 +871,11 @@ export function formaterPourPilotageCA(data, options = {}) {
       actif: true, // Tous les produits actifs par défaut
     };
   });
+
+  // Si skipNettoyage, retourner les produits bruts (tous actifs par défaut)
+  if (skipNettoyage) {
+    return produitsFormates;
+  }
 
   // Nettoyage intelligent de la gamme (avec référentiel magasin si disponible)
   const { produits: produitsNettoyes, rapportIdentification } = nettoyerGamme(

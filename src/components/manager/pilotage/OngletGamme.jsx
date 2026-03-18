@@ -330,15 +330,51 @@ const TableauProduits = ({ produits, onToggle, onChangeRayon, recherche, filtreR
                 )}
                 {produit._eansFusionnes && produit._eansFusionnes.length > 1 && (() => {
                   const eansAutres = produit._eansFusionnes.filter(ean => ean !== produit.codeEAN);
-                  const libelles = eansAutres.map(ean => {
+
+                  // Si trop de fusions (> 3), afficher un résumé compact
+                  if (eansAutres.length > 3) {
+                    return (
+                      <div className="text-[9px] text-violet-500 italic inline-flex items-center gap-1">
+                        <span>+ {eansAutres.length} produits fusionnés</span>
+                        {onSeparer && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              eansAutres.forEach(ean => {
+                                const p2 = produits.find(pp => pp.codeEAN === ean && pp.id !== produit.id);
+                                if (p2) onSeparer(p2);
+                              });
+                            }}
+                            className="inline-flex items-center gap-0.5 px-1 py-0.5 text-[8px] font-medium text-violet-700 bg-violet-50 border border-violet-200 rounded hover:bg-violet-100"
+                            title="Séparer tous les produits fusionnés"
+                          >
+                            <X size={7} /> Tout séparer
+                          </button>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  // ≤ 3 fusions : afficher chaque produit avec sa croix
+                  return eansAutres.map(ean => {
                     const p2 = produits.find(pp => pp.codeEAN === ean && pp.id !== produit.id);
-                    return p2 ? p2.libelle : ean;
+                    const label = p2 ? p2.libelle : ean;
+                    return (
+                      <div key={ean} className="text-[9px] text-violet-500 italic inline-flex items-center gap-0.5 truncate">
+                        + {label}
+                        {onSeparer && (
+                          <button
+                            type="button"
+                            onClick={() => { if (p2) onSeparer(p2); }}
+                            className="inline-flex items-center justify-center w-3 h-3 text-red-400 hover:text-red-600 rounded-full"
+                            title={`Retirer ${label} de la fusion`}
+                          >
+                            <X size={7} />
+                          </button>
+                        )}
+                      </div>
+                    );
                   });
-                  return (
-                    <div className="text-[9px] text-violet-500 italic truncate">
-                      + {libelles.join(', ')}
-                    </div>
-                  );
                 })()}
                 {(produit.ean13 || produit.ean || produit.codeEAN) && (
                   <div className="text-[9px] text-gray-400">EAN: {produit.ean13 || produit.ean || produit.codeEAN}</div>
@@ -633,7 +669,7 @@ const TableauProduits = ({ produits, onToggle, onChangeRayon, recherche, filtreR
 /**
  * Onglet Gamme - Sélection des produits
  */
-const OngletGamme = ({ produits, onToggle, onToggleFiltres, onChangeRayon, planifieManager, onChangePlanifie, promoItm8Set, promoPrecedenteMap, onReloadGamme, onUpdateProduits }) => {
+const OngletGamme = ({ produits, onToggle, onToggleFiltres, onChangeRayon, planifieManager, onChangePlanifie, promoItm8Set, promoPrecedenteMap, onReloadGamme, onUpdateProduits, archiveTrouvee, modeNettoyage, setModeNettoyage }) => {
   const [recherche, setRecherche] = useState('');
   const [filtreRayon, setFiltreRayon] = useState('tous');
   const [filtreStatut, setFiltreStatut] = useState('tous');
@@ -787,6 +823,37 @@ const OngletGamme = ({ produits, onToggle, onToggleFiltres, onChangeRayon, plani
 
   return (
     <div className="space-y-4">
+      {/* Switch Mode Gamme */}
+      {archiveTrouvee && (
+        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+          <span className={`text-sm font-medium ${!modeNettoyage ? 'text-[#8B1538]' : 'text-gray-400'}`}>
+            Gamme magasin
+          </span>
+          <button
+            type="button"
+            onClick={() => setModeNettoyage(!modeNettoyage)}
+            className={`relative w-12 h-6 rounded-full transition-colors ${
+              modeNettoyage ? 'bg-amber-500' : 'bg-[#8B1538]'
+            }`}
+          >
+            <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+              modeNettoyage ? 'translate-x-6' : 'translate-x-0.5'
+            }`} />
+          </button>
+          <span className={`text-sm font-medium ${modeNettoyage ? 'text-amber-600' : 'text-gray-400'}`}>
+            Nettoyage auto
+          </span>
+          <span className="text-xs text-gray-400 ml-2">
+            ({archiveTrouvee.nomFichier})
+          </span>
+          {modeNettoyage && (
+            <span className="text-xs text-amber-600 italic ml-auto">
+              Nettoyage automatique actif — vos choix de gamme précédents ne sont pas appliqués
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Compteurs nettoyage + modèle magasin */}
       <div className="flex flex-wrap items-center gap-3 px-1 text-sm">
         {modeleMagasin && (

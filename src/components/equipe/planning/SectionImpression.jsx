@@ -132,10 +132,9 @@ export function genererFicheJourHTML(jour, {
 
           const formatQte = (qteUnites) => {
             if (produit.unitesParLot && produit.unitesParLot > 1 && qteUnites > 0) {
-              // Arrondi supérieur : unités → lots (boîtes)
               const lots = Math.ceil(qteUnites / produit.unitesParLot);
-              const unitesReelles = lots * produit.unitesParLot;
-              return `<strong>${lots} Bte</strong><sub>(${unitesReelles} u.)</sub>`;
+              const totalU = lots * produit.unitesParLot;
+              return `<strong>${lots}</strong><span class="lot-info"> lots = ${totalU}u</span>`;
             }
             return `<strong>${qteUnites}</strong>`;
           };
@@ -161,13 +160,29 @@ export function genererFicheJourHTML(jour, {
 
           if (upp > 0) capaciteTotal += total / upp;
 
+          // u/pl = unitesParPlaque brut
+          const uplHTML = upp > 0 ? `${upp}` : '';
+
+          // Plaquage = nb plaques de la 1ère tranche (matin)
+          let qtePremiereTranche = 0;
+          if (modeRepartition === 'tranches' && tranchesAffichees.length > 0) {
+            qtePremiereTranche = getQteColonnePrint(tranchesAffichees[0], qtes.tranches);
+          } else {
+            qtePremiereTranche = total;
+          }
+          const plaquageHTML = upp > 0 && qtePremiereTranche > 0
+            ? `${(Math.ceil((qtePremiereTranche / upp) * 10) / 10).toFixed(1)}`
+            : '';
+
           lignesHTML += `
               <tr>
                 <td class="rayon">${famille}</td>
                 <td class="prog">${programme}</td>
-                <td class="plu">${produit.plu || produit.itm8 || ''}</td>
+                <td class="plu">${produit.plu || ''}</td>
+                <td class="upl">${uplHTML}</td>
                 <td class="article">${produit.libellePersonnalise || produit.libelle}</td>
                 <td class="remarque">${produit.remarque || ''}</td>
+                <td class="plaquage">${plaquageHTML}</td>
                 ${tranchesColsHTML}
                 <td class="stock"></td>
                 <td class="acuire"></td>
@@ -180,13 +195,18 @@ export function genererFicheJourHTML(jour, {
           `<td class="qte cap">${cap > 0 ? cap.toFixed(1) + ' Pl.' : '-'}</td>`
         ).join('');
 
+        // Plaquage capacité = plaques 1ère tranche
+        const capPlaquage = capaciteTranches[0] > 0 ? capaciteTranches[0].toFixed(1) : '';
+
         lignesHTML += `
             <tr class="capacite">
               <td class="rayon">${famille}</td>
               <td class="prog">${programme}</td>
               <td class="plu">Capacité</td>
+              <td class="upl"></td>
               <td class="article"></td>
               <td class="remarque"></td>
+              <td class="plaquage cap">${capPlaquage}</td>
               ${capaciteColsHTML}
               <td class="stock cap"></td>
               <td class="acuire total">Total: ${capaciteTotal.toFixed(1)} Pl.</td>
@@ -203,9 +223,11 @@ export function genererFicheJourHTML(jour, {
             <tr>
               <th class="col-rayon">Rayon</th>
               <th class="col-prog">Prog</th>
-              <th class="col-plu">Code PLU</th>
+              <th class="col-plu">PLU</th>
+              <th class="col-upl">u/pl</th>
               <th class="col-article">Article</th>
               <th class="col-remarque">Remarque</th>
+              <th class="col-plaquage">Plaquage</th>
               ${tranchesHeadersHTML}
               <th class="col-stock">Stock<br>rayon</th>
               <th class="col-acuire">A cuire</th>
@@ -324,7 +346,6 @@ export function getFicheCSS(orientation = 'portrait') {
     th.col-remarque { width: 50px; font-size: 7px; }
     th.tranche { width: 38px; font-size: 7px; line-height: 1.1; }
     th.col-stock { width: 32px; font-size: 7px; line-height: 1.1; }
-    th.col-acuire { width: 32px; font-size: 7px; }
 
     /* Cellules de données */
     td.rayon { font-size: 6px; font-weight: bold; text-align: left; background: #f5f5f5; }
@@ -335,17 +356,42 @@ export function getFicheCSS(orientation = 'portrait') {
     td.qte { font-size: 11px; font-weight: bold; width: 38px; }
     td.qte.derniere { background: #fff59d; }
     td.stock { width: 32px; background: #fff; }
-    td.acuire { width: 32px; background: #c8e6c9; }
 
-    /* Lignes de capacité */
-    tr.capacite { background: #e0e0e0; }
+    /* Lignes de capacité — gras + grisé + séparateur visible */
+    tr.capacite {
+      background: #e5e7eb !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      font-weight: bold;
+      border-top: 2px solid #666;
+      border-bottom: 2px solid #999;
+    }
+    tr.capacite td { font-weight: bold; }
     tr.capacite td.plu { font-style: italic; font-size: 5.5px; }
-    tr.capacite td.qte { font-size: 6px; font-weight: normal; }
+    tr.capacite td.qte { font-size: 6px; }
     tr.capacite td.total { font-weight: bold; font-size: 6px; }
-    tr.capacite td.stock { background: #e0e0e0; }
+    tr.capacite td.stock { background: #e5e7eb !important; }
 
-    /* Sous-texte lots */
-    sub { font-size: 5px; }
+    /* Lots compacts (une seule ligne) */
+    .lot-info { font-size: 6px; font-weight: normal; white-space: nowrap; }
+
+    /* Colonne u/pl (unités par plaque) */
+    th.col-upl { width: 24px; font-size: 6px; }
+    td.upl { font-size: 6px; color: #555; }
+
+    /* Colonne Plaquage (nb plaques 1ère tranche) */
+    th.col-plaquage { width: 32px; font-size: 6px; }
+    td.plaquage { font-size: 7px; color: #333; font-weight: bold; }
+    td.plaquage.cap { font-size: 6px; }
+
+    /* Colonne A cuire — fond jaune pour attirer l'attention */
+    td.acuire {
+      width: 50px;
+      background: #fefce8 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    th.col-acuire { width: 50px; }
 
     /* Bandeau famille en en-tête de page */
     .famille-bandeau {

@@ -304,6 +304,37 @@ export const recalculerDepuisVentesQuotidiennes = (produit) => {
   };
 };
 
+// Sous-fonction : fusionner un groupe de membres (actifs avec même clé)
+const fusionnerSousGroupe = (membres, resultats) => {
+  const actifs = membres.filter(m => m.produit.actif);
+  if (actifs.length <= 1) return;
+
+  // Garder celui avec le CA hebdo le plus élevé
+  actifs.sort((a, b) => (b.produit.caSemaine || 0) - (a.produit.caSemaine || 0));
+  const gagnant = actifs[0];
+
+  let ventesQuotidiennesFusionnees = [...(gagnant.produit.ventesQuotidiennes || [])];
+
+  for (let i = 1; i < actifs.length; i++) {
+    ventesQuotidiennesFusionnees = ventesQuotidiennesFusionnees.concat(
+      actifs[i].produit.ventesQuotidiennes || []
+    );
+    resultats[actifs[i].index] = {
+      ...actifs[i].produit,
+      actif: false,
+      raisonDesactivation: 'doublon-fusion',
+      _ventesQuotidiennesOriginales: actifs[i].produit.ventesQuotidiennes || [],
+    };
+  }
+
+  resultats[gagnant.index] = recalculerDepuisVentesQuotidiennes({
+    ...gagnant.produit,
+    ventesQuotidiennes: ventesQuotidiennesFusionnees,
+    _ventesQuotidiennesOriginales: gagnant.produit._ventesQuotidiennesOriginales || gagnant.produit.ventesQuotidiennes || [],
+    _eansFusionnes: actifs.map(a => a.produit.codeEAN),
+  });
+};
+
 const fusionnerDoublons = (produits) => {
   // Grouper par libellé normalisé
   const groupes = new Map();
@@ -321,44 +352,30 @@ const fusionnerDoublons = (produits) => {
   groupes.forEach((membres) => {
     if (membres.length <= 1) return;
 
-    // Ne considérer que les membres actifs
-    const actifs = membres.filter(m => m.produit.actif);
-    if (actifs.length <= 1) return;
+    // ═══ GARDE-FOU ITM8 ═══
+    // Si les membres ont des ITM8 DIFFÉRENTS et non-vides, ce ne sont PAS de vrais doublons.
+    // Exemple : "BAGUETTE PRECUITE" (ITM8: 18123456) et "BAGUETTE TRADITION" (ITM8: 18789012)
+    // ont le même libellé normalisé "BAGUETTE" mais sont des produits différents.
+    const itm8Set = new Set(membres.map(m => m.produit.itm8).filter(Boolean));
+    if (itm8Set.size > 1) {
+      // Plusieurs ITM8 différents → sous-grouper par ITM8
+      const sousGroupes = new Map();
+      membres.forEach(m => {
+        const itm8Key = m.produit.itm8 || `no-itm8-${m.index}`;
+        if (!sousGroupes.has(itm8Key)) sousGroupes.set(itm8Key, []);
+        sousGroupes.get(itm8Key).push(m);
+      });
 
-    // Garder celui avec le CA hebdo le plus élevé
-    actifs.sort((a, b) => (b.produit.caSemaine || 0) - (a.produit.caSemaine || 0));
-
-    const gagnant = actifs[0];
-
-    // Fusionner les ventes quotidiennes brutes de TOUS les doublons dans le gagnant
-    // C'est la seule bonne méthode : on merge jour par jour, puis on recalcule tout
-    let ventesQuotidiennesFusionnees = [...(gagnant.produit.ventesQuotidiennes || [])];
-
-    for (let i = 1; i < actifs.length; i++) {
-      // Ajouter les ventes quotidiennes du doublon
-      ventesQuotidiennesFusionnees = ventesQuotidiennesFusionnees.concat(
-        actifs[i].produit.ventesQuotidiennes || []
-      );
-
-      // Marquer le doublon comme inactif
-      resultats[actifs[i].index] = {
-        ...actifs[i].produit,
-        actif: false,
-        raisonDesactivation: 'doublon-fusion',
-        // Conserver ses ventes quotidiennes originales (pour dissociation future)
-        _ventesQuotidiennesOriginales: actifs[i].produit.ventesQuotidiennes || [],
-      };
+      // Fusionner uniquement au sein de chaque sous-groupe ITM8
+      sousGroupes.forEach((sousGroupe) => {
+        if (sousGroupe.length <= 1) return;
+        fusionnerSousGroupe(sousGroupe, resultats);
+      });
+      return;
     }
+    // ═══ FIN GARDE-FOU ITM8 ═══
 
-    // Recalculer TOUS les indicateurs du gagnant depuis les ventes fusionnées
-    resultats[gagnant.index] = recalculerDepuisVentesQuotidiennes({
-      ...gagnant.produit,
-      ventesQuotidiennes: ventesQuotidiennesFusionnees,
-      // Sauvegarder les ventes originales du gagnant (pour dissociation)
-      _ventesQuotidiennesOriginales: gagnant.produit.ventesQuotidiennes || [],
-      // Tracer les EAN source de la fusion
-      _eansFusionnes: actifs.map(a => a.produit.codeEAN),
-    });
+    fusionnerSousGroupe(membres, resultats);
   });
 
   return resultats;
@@ -1036,6 +1053,7 @@ export const appliquerCorrectionsManuelles = (produits) => {
 
   // ── Séparations : réactiver les doublons séparés ──
   if (corrections.separations?.length) {
+    // 1. Réactiver les produits séparés
     result = result.map(p => {
       const norm = normaliserLibelle(p.libelle);
       if (corrections.separations.includes(norm) &&
@@ -1044,6 +1062,31 @@ export const appliquerCorrectionsManuelles = (produits) => {
       }
       return p;
     });
+
+    // 2. Nettoyer _eansFusionnes des produits gagnants
+    const eansSepares = new Set();
+    result.forEach(p => {
+      const norm = normaliserLibelle(p.libelle);
+      if (corrections.separations.includes(norm)) {
+        if (p.codeEAN) eansSepares.add(p.codeEAN);
+        if (p.ean13) eansSepares.add(p.ean13);
+      }
+    });
+
+    if (eansSepares.size > 0) {
+      result = result.map(p => {
+        if (p._eansFusionnes && p._eansFusionnes.length > 1) {
+          const filtered = p._eansFusionnes.filter(ean => !eansSepares.has(ean));
+          if (filtered.length !== p._eansFusionnes.length) {
+            return {
+              ...p,
+              _eansFusionnes: filtered.length > 0 ? filtered : null,
+            };
+          }
+        }
+        return p;
+      });
+    }
   }
 
   // ── Fusions manuelles : fusionner jour par jour puis recalculer ──
@@ -1104,6 +1147,160 @@ export const appliquerCorrectionsManuelles = (produits) => {
 };
 
 // ── Algorithme principal ──
+
+/**
+ * Applique une archive MANAGER sur des ventes brutes.
+ * MUTUELLEMENT EXCLUSIF avec nettoyerGamme() — l'un OU l'autre, jamais les deux.
+ *
+ * @param {Array} produitsBruts — ventes brutes (tous actif=true), sortie de formaterPourPilotageCA(skipNettoyage=true)
+ * @param {Array} archiveProduits — produits lus depuis le fichier MANAGER .bvp.json
+ * @returns {Array} produits finaux (archive appliquée + corrections manuelles)
+ */
+export function appliquerArchiveSurBruts(produitsBruts, archiveProduits) {
+  // Construire les maps de matching (ARRAYS pour gérer les doublons d'EAN)
+  const archiveByEan = new Map();
+  const archiveByItm8 = new Map();
+  const archiveByLibelle = new Map();
+  archiveProduits.forEach(p => {
+    if (p.ean13) {
+      const key = String(p.ean13);
+      if (!archiveByEan.has(key)) archiveByEan.set(key, []);
+      archiveByEan.get(key).push(p);
+    }
+    if (p.itm8) {
+      const key = String(p.itm8);
+      if (!archiveByItm8.has(key)) archiveByItm8.set(key, []);
+      archiveByItm8.get(key).push(p);
+    }
+    if (p.libelle) {
+      // Si le libellé existe déjà, garder le produit ACTIF en priorité
+      // (cas de doublons : même libellé, EAN différents, un actif et un inactif)
+      const existing = archiveByLibelle.get(p.libelle);
+      if (!existing || (p.actif && !existing.actif)) {
+        archiveByLibelle.set(p.libelle, p);
+      }
+    }
+  });
+
+  // Clé stable : EAN + libellé (les IDs numériques changent d'une semaine à l'autre)
+  const getStableKey = (p) => `${p.ean13 || p.codeEAN || ''}|${p.libelle || ''}`;
+  const usedArchiveKeys = new Set();
+
+  const findMatch = (pg) => {
+    const pgEan = String(pg.ean13 || pg.codeEAN || '');
+    const pgItm8 = String(pg.itm8 || '');
+    const pgLibelle = pg.libelle || '';
+
+    // 1. Match exact par libellé
+    if (pgLibelle) {
+      const m = archiveByLibelle.get(pgLibelle);
+      if (m) return m;
+    }
+    // 2. Match par EAN13
+    if (pgEan) {
+      const candidates = archiveByEan.get(pgEan);
+      if (candidates) {
+        if (candidates.length === 1) return candidates[0];
+        const byLib = candidates.find(c => c.libelle === pgLibelle);
+        if (byLib) return byLib;
+        const unused = candidates.find(c => !usedArchiveKeys.has(getStableKey(c)));
+        if (unused) return unused;
+        return candidates[0];
+      }
+    }
+    // 3. Match par ITM8
+    if (pgItm8) {
+      const candidates = archiveByItm8.get(pgItm8);
+      if (candidates) {
+        if (candidates.length === 1) return candidates[0];
+        const byLib = candidates.find(c => c.libelle === pgLibelle);
+        if (byLib) return byLib;
+        const unused = candidates.find(c => !usedArchiveKeys.has(getStableKey(c)));
+        if (unused) return unused;
+        return candidates[0];
+      }
+    }
+    // 4. Match par PLU
+    if (pg.plu) {
+      const candidates = archiveByItm8.get(String(pg.plu));
+      if (candidates) return candidates[0];
+    }
+    return null;
+  };
+
+  let matchCount = 0;
+  let changedCount = 0;
+  const matchedArchiveKeys = new Set();
+
+  const updated = produitsBruts.map(pg => {
+    const match = findMatch(pg);
+    if (!match) {
+      // Produit dans les ventes mais ABSENT de l'archive → inactif
+      changedCount++;
+      return { ...pg, actif: false, raisonDesactivation: 'absent-archive' };
+    }
+
+    matchCount++;
+    const matchKey = getStableKey(match);
+    matchedArchiveKeys.add(matchKey);
+    usedArchiveKeys.add(matchKey);
+
+    // L'archive PRIME : reprendre actif, rayon, programme, lots, plaques
+    const changes = {};
+    if (typeof match.actif === 'boolean') {
+      changes.actif = match.actif;
+      if (match.actif) changes.raisonDesactivation = null;
+      if (!match.actif && match.raisonDesactivation) changes.raisonDesactivation = match.raisonDesactivation;
+    }
+    if (match.famille) changes.famille = match.famille;
+    if (match.rayon) changes.rayon = match.rayon;
+    if (match.programme !== undefined) changes.programme = match.programme;
+    if (match.unitesParPlaque !== undefined) changes.unitesParPlaque = match.unitesParPlaque;
+    if (match.unitesParLot !== undefined) changes.unitesParLot = match.unitesParLot;
+    if (match.libelleRefV2) changes.libelleRefV2 = match.libelleRefV2;
+    if (match.marqueRefV2) changes.marqueRefV2 = match.marqueRefV2;
+    if (match._eansFusionnes) changes._eansFusionnes = match._eansFusionnes;
+    if (match.unitesParVente) changes.unitesParVente = match.unitesParVente;
+
+    if (Object.keys(changes).length > 0) {
+      changedCount++;
+      return { ...pg, ...changes };
+    }
+    return pg;
+  });
+
+  // Produits de l'archive absents des ventes brutes → les ajouter (moy=0)
+  const brutsEans = new Set(produitsBruts.map(p => String(p.ean13 || p.codeEAN || '')).filter(Boolean));
+  const brutsItm8s = new Set(produitsBruts.map(p => String(p.itm8 || '')).filter(Boolean));
+  const brutsLibelles = new Set(produitsBruts.map(p => p.libelle || '').filter(Boolean));
+
+  let addedCount = 0;
+  archiveProduits.filter(ap => !matchedArchiveKeys.has(getStableKey(ap))).forEach(ap => {
+    const dejaPresent = (ap.ean13 && brutsEans.has(String(ap.ean13))) ||
+                        (ap.itm8 && brutsItm8s.has(String(ap.itm8))) ||
+                        (ap.libelle && brutsLibelles.has(ap.libelle));
+    if (!dejaPresent) {
+      updated.push({
+        id: `archive_${ap.ean13 || ap.itm8 || Date.now()}_${addedCount}`,
+        plu: ap.plu || '', itm8: ap.itm8 || '', ean13: ap.ean13 || '',
+        libelle: ap.libelle || '', famille: ap.famille || 'AUTRE',
+        rayon: ap.rayon || ap.famille || 'AUTRE', actif: ap.actif ?? false,
+        programme: ap.programme || '', unitesParPlaque: ap.unitesParPlaque || 0,
+        unitesParLot: ap.unitesParLot || 1, moyHebdo: ap.moyenneHebdo || 0,
+        caSemaine: 0, potentiel: ap.potentielAlgo || 0, cdt: ap.cdt || 0,
+        _sourceArchive: true,
+      });
+      addedCount++;
+    }
+  });
+
+  // PAS DE DÉDOUBLONNAGE. L'archive décide, point final.
+  // Appliquer les corrections manuelles (séparations, dissociations) PAR-DESSUS
+  const final = appliquerCorrectionsManuelles(updated);
+
+  console.log(`[appliquerArchiveSurBruts] ${matchCount} matchés, ${changedCount} modifiés, ${addedCount} ajoutés depuis l'archive`);
+  return final;
+}
 
 /**
  * Nettoie et enrichit la gamme produits.

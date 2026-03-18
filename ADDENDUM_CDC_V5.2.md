@@ -961,6 +961,263 @@ Le projet Vercel `bvp-planning` (URL : `bvp-planning.vercel.app`) hébergeait hi
 
 ---
 
-**Document mis à jour le 09 mars 2026**
-**Version 5.3.3**
-**Statut : Déployé sur Vercel (dist-manager + dist-equipe)**
+## 19. REPORT DE GAMME MANAGER — RÈGLE FONDAMENTALE (18/03/2026)
+
+### 19.1 Principe
+
+**Le fichier MANAGER .bvp.json est la SOURCE DE VÉRITÉ pour la gamme du magasin.**
+
+Le nettoyage automatique et l'archive sont MUTUELLEMENT EXCLUSIFS :
+- **Archive trouvée** → les ventes brutes sont enrichies avec les choix de l'archive, ZÉRO nettoyage
+- **Pas d'archive** → les ventes brutes sont nettoyées (6 passes) — comportement premier usage
+- **Switch "Nettoyage"** → les ventes brutes sont nettoyées à la demande, l'archive est ignorée
+
+Le nettoyage ne s'exécute JAMAIS quand une archive est présente, sauf demande explicite du manager (switch). Les ventes brutes (avant tout nettoyage ou application d'archive) sont conservées dans `produitsVentesBrutes` pour permettre le switch à tout moment.
+
+Le travail de validation de la gamme par le magasin (activation/désactivation produit par produit, ~100 produits sur ~600 lignes) est un travail long (30-60 min) qui n'est fait qu'UNE SEULE FOIS. Ensuite, la gamme est reprise telle quelle semaine après semaine. Seules les données de ventes (moyennes, CA, tendances) sont rafraîchies.
+
+### 19.2 Cas d'usage
+
+| Cas | Scénario | Recherche archive | Comportement |
+|-----|----------|-------------------|--------------|
+| **A** | Manager refait la même semaine (ex: mercredi S12, ajuste pour jeudi-dimanche) | Chercher MANAGER S12 en premier | Reprendre intégralement la gamme S12 existante |
+| **B** | Manager démarre une nouvelle semaine (S12 → S13) | S13 pas trouvé → chercher S12 | Reprendre intégralement la gamme S12, enrichir avec les nouvelles données de ventes |
+| **C** | Équipe le dimanche S11 prépare le lundi S12 | L'Espace Équipe charge le fichier MANAGER S12 tel quel | Aucun recalcul, le fichier est lu directement |
+| **D** | Premier usage (aucun fichier MANAGER existant) | Rien trouvé | Lancer le nettoyage automatique classique (comportement actuel) |
+
+### 19.3 Ordre de recherche des archives
+
+Quand le Manager démarre une planification pour la semaine S(n) :
+
+1. **Scanner TOUS les fichiers** MANAGER-{codePDV}-S{XX}-{YYYY}.bvp.json du dossier d'archives
+2. **Prendre le plus récent** (année + semaine la plus élevée)
+3. **Si même semaine** → reprendre gamme + quantités planifiées (cas A)
+4. **Si semaine différente** → reprendre la gamme uniquement (actif/inactif, rayon, programme, lots), remettre quantités à zéro (cas B amélioré)
+5. **Si aucun fichier trouvé** → nettoyage automatique (cas D)
+
+Justification : la gamme est un travail cumulatif. Si le manager a pris de l'avance (ex: fichier S15 existe et on travaille S12), S15 contient les choix de gamme les plus à jour.
+
+### 19.4 Comportement quand une archive est trouvée
+
+**Par défaut : la gamme de l'archive PRIME sur le nettoyage automatique.**
+
+Concrètement :
+- Les flags `actif` / `inactif` de chaque produit de l'archive sont appliqués aux produits de la nouvelle extraction de ventes
+- Le matching se fait par `ean13` (priorité 1), `itm8` (priorité 2), ou `libelle normalisé` (priorité 3)
+- Les champs suivants sont repris de l'archive : `actif`, `famille`, `rayon`, `programme`, `unitesParPlaque`, `unitesParLot`, `planifieManager`
+- Les champs suivants sont rafraîchis depuis les nouvelles données de ventes : `moyenneHebdo`, `caSemaine`, `potentiel`, `tendance`, `fiabilite`, `ventesQuotidiennes`
+- Les produits présents dans l'archive mais ABSENTS des nouvelles ventes sont conservés avec leurs données d'archive (moyennes à 0 si pas de ventes récentes)
+- Les produits présents dans les nouvelles ventes mais ABSENTS de l'archive sont ajoutés comme `actif: false` (le magasin ne les avait pas sélectionnés)
+
+**Le nettoyage automatique (desactiverFaibleCA, détection doublons, etc.) NE S'APPLIQUE PAS quand une archive est trouvée.** Seule la détection saisonnière (galettes en mars, etc.) peut s'appliquer avec un avertissement visuel.
+
+### 19.5 Switch "Gamme magasin / Nettoyage auto"
+
+Un switch est affiché en haut de l'onglet Gamme (Étape 4 — Pilotage CA) quand une archive est trouvée :
+
+- **Gamme magasin** (défaut, gauche, bordeaux) : les choix du magasin sont repris depuis l'archive la plus récente. Aucun nettoyage automatique.
+- **Nettoyage auto** (droite, ambre) : le nettoyage 6 passes s'applique sur l'extraction de ventes fraîche, comme s'il n'y avait pas d'archive.
+
+Les deux versions sont conservées en mémoire (`produitsGamme` et `produitsGammeNettoyage` dans MagasinContext). Le manager peut basculer sans perdre de données.
+Le switch n'apparaît PAS quand aucune archive n'existe (cas D — nettoyage automatique par défaut).
+
+### 19.6 Ce qui NE DOIT PAS arriver
+
+- Le nettoyage automatique désactive des produits que le magasin avait activés
+- Le nettoyage automatique active des produits que le magasin avait désactivés
+- La fusion de doublons refait ses propres choix sans respecter les choix du magasin
+- La fonction desactiverFaibleCA retire des produits validés par le magasin
+- Les réglages (familles, programmes, lots, plaques) sont recalculés alors qu'ils étaient déjà fixés
+
+### 19.7 Données de test — Confolens S11
+
+Le fichier MANAGER-9839-S11-2026.bvp.json (462 produits, 99 actifs) constitue le cas de test de référence. Ce fichier a été validé ligne par ligne avec le magasin de Confolens et ne doit JAMAIS être altéré par un calcul automatique lors du passage à S12 ou toute semaine suivante.
+
+### 19.8 Correction technique — IDs produits (18/03/2026)
+
+Les produits ajoutés depuis l'archive MANAGER (absents des nouvelles ventes) reçoivent
+un ID préfixé `archive_` pour éviter toute collision avec les IDs des produits extraits
+des ventes (`ventes_X` ou entier séquentiel). Cette correction résout le bug de filtrage
+dans l'onglet Gamme et les erreurs React "duplicate key".
+
+**Fichier modifié :** `src/contexts/MagasinContext.jsx` — ligne d'attribution d'ID dans le
+bloc `produitsArchiveManquants`. L'ancien code reprenait `ap.id` (entier séquentiel provenant
+de gammeExtractionService) qui entrait en collision avec les IDs des produits ventes.
+Le nouvel ID est toujours une chaîne préfixée `archive_` combinant EAN/ITM8 et un compteur.
+
+### 19.9 Identifiants produits — Clé stable (18/03/2026)
+
+Les IDs produits (`id: index + 1`) sont attribués par l'extraction de ventes et changent d'une semaine à l'autre selon l'ordre d'extraction. Ils ne sont PAS stables et ne doivent JAMAIS être utilisés pour le matching entre archive et ventes.
+
+Le matching archive utilise une clé composite stable : `ean13 + libellé`. C'est la seule méthode fiable car :
+- Le même produit a toujours le même EAN et le même libellé d'une semaine à l'autre
+- Les IDs numériques changent selon l'ordre d'extraction
+
+### 19.10 Champs sauvegardés dans le fichier .bvp.json (18/03/2026)
+
+Le fichier MANAGER .bvp.json sauvegarde maintenant les champs d'association du nettoyage pour chaque produit :
+- `raisonDesactivation` : promo, doublon-fusion, doublon-pre, hors-saison, faible-ca, absent-archive
+- `libelleRefV2` : libellé du référentiel V2 (matching fuzzy)
+- `marqueRefV2` : marque du référentiel V2
+- `_eansFusionnes` : liste des EAN regroupés sous ce produit (doublons)
+- `unitesParVente` : conditionnement physique
+
+Ces champs permettent de conserver les associations entre sessions sans les recalculer.
+
+### 19.11 Corrections manuelles et archive (18/03/2026)
+
+Les corrections manuelles du manager (séparations de doublons, dissociations de ref V2, fusions manuelles, associations) sont sauvegardées dans le fichier MANAGER .bvp.json sous la clé `correctionsManuelles`.
+
+Quand une archive est chargée :
+1. Les corrections manuelles de l'archive sont fusionnées avec celles du localStorage
+2. L'archive est appliquée sur les produits (gamme, rayon, programme, etc.)
+3. Les corrections manuelles sont re-appliquées PAR-DESSUS l'archive
+4. Les doublons actifs (même libellé normalisé) sont automatiquement dédoublonnés
+
+Cet ordre garantit que :
+- Les choix du magasin (archive) sont respectés
+- Les corrections manuelles (dissociations, séparations) ne sont jamais perdues
+- Les doublons actifs sont détectés et fusionnés même quand l'archive les contient
+
+### 19.12 Garde-fou fusion doublons — ITM8 différent (18/03/2026)
+
+La fusion automatique de doublons (Passe 3 du nettoyage) ne fusionne désormais que les produits
+ayant le même ITM8. Si deux produits ont le même libellé normalisé mais des ITM8 différents,
+ils sont traités comme des produits distincts.
+
+Exemple : "BAGUETTE PRECUITE/250G" (ITM8 18123456) et "BAGUETTE TRADITION 250G" (ITM8 18789012)
+ont le même libellé normalisé "BAGUETTE" mais ne sont PAS fusionnés car leurs ITM8 diffèrent.
+
+L'affichage des fusions dans l'onglet Gamme est désormais compact :
+- ≤ 3 produits fusionnés : affichage individuel avec croix × de dissociation
+- \> 3 produits fusionnés : résumé "N produits fusionnés" avec bouton "Tout séparer"
+
+---
+
+## 20. ORIENTATION IMPRESSION PAYSAGE/PORTRAIT (18/03/2026)
+
+L'Espace Équipe propose maintenant un choix d'orientation (portrait/paysage) dans le dropdown "Options" d'impression. Le choix est persisté dans le fichier EQUIPE et en localStorage.
+
+- Portrait : @page size A4 portrait — défaut, adapté aux tableaux avec peu de tranches
+- Paysage : @page size A4 landscape — plus de place pour les tableaux larges, police légèrement augmentée (9px vs 8px)
+
+---
+
+## 21. CONDITIONNEMENT PHYSIQUE — LOT ÉQUIPE (18/03/2026)
+
+Le modal "Modifier le produit" dans l'Espace Équipe inclut un champ "Conditionnement physique (unités par lot)" amélioré. L'équipe peut renseigner le nombre d'unités physiques par lot pour les produits où le système ne connaît pas le conditionnement réel (ex: CROISSANT PT PRX PP x10 → le système compte à l'unité, mais physiquement c'est un sachet de 10).
+
+Quand une valeur > 1 est saisie, les quantités s'affichent en "Bte" (boîtes) sur la fiche d'impression et dans le planning.
+
+---
+
+## 22. ONGLET ANALYSE GAMME vs MODÈLE BVP (18/03/2026)
+
+Nouvel onglet "Analyse" (icône cible, couleur indigo) dans l'Étape 4 — Pilotage CA. Compare la gamme active du magasin avec la gamme préconisée du catalogue-modeles.json pour le modèle BVP du magasin.
+
+- Dashboard par famille (4 cartes : Boulangerie, Viennoiserie, Pâtisserie, Snacking) avec taux de conformité et barres de progression
+- Compteurs : préconisé, détenu, manquant, surplus
+- Tableau détaillé filtrable par statut (manquant/conforme/surplus) et par famille
+- Mapping segment → famille pour les 21 segments du catalogue
+
+---
+
+## 23. CONVERSION VENTES → UNITÉS DANS L'EXPORT MANAGER (18/03/2026)
+
+### 23.1 Règle
+Les valeurs stockées dans le fichier `.bvp.json` (planifieManager, moyenneHebdo, potentielAlgo, repartitionJours) sont TOUJOURS en **unités individuelles**, jamais en "ventes" ou "lots".
+
+### 23.2 Formule de conversion
+`valeur_unités = valeur_ventes × unitesParVente`
+
+- unitesParVente (ou unitesParLot) = nombre d'unités dans un lot (ex: 4 pour un lot de 4 baguettes)
+- Si unitesParVente = 1 (produit à l'unité), pas de conversion
+
+### 23.3 Justification
+Le code d'affichage Équipe (Produit3Lignes, SectionImpression) convertit les unités en lots pour l'affichage via `Math.ceil(unités / unitesParLot)`. Si les valeurs d'entrée sont en "ventes" (= lots), cette division produit des préconisations divisées par le facteur de lot (ex: ÷4 pour des lots de 4).
+
+---
+
+## 24. DOSSIER BVP UNIQUE (18/03/2026)
+
+Un seul dossier partagé (`dossierBVP`, clé IndexedDB `dossierBVP`) remplace les anciens `dossierArchives` et `dossierEquipe`. Ce dossier sert à la fois pour :
+- Sauvegarder les fichiers MANAGER (export étape 5)
+- Relire les archives MANAGER (section 19, report de gamme)
+- Être le dossier partagé pour l'Équipe (lecture MANAGER + écriture EQUIPE)
+
+**Migration automatique** : au démarrage, si `dossierBVP` n'existe pas dans IndexedDB mais que `dossierArchives` ou `dossierEquipe` existe, le handle est migré automatiquement vers `dossierBVP`.
+
+Fichiers impactés : AppV5.jsx, MagasinContext.jsx, Etape2ObjectifCA.jsx, Etape5Communication.jsx, EtapeConfigPlanning.jsx.
+
+---
+
+## 25. FICHIER EQUIPE — TOUJOURS LE PLUS RÉCENT (18/03/2026)
+
+Le chargement du fichier EQUIPE (`trouverDernierFichierEquipe` dans `dossierEquipeService.js`) prend toujours le fichier EQUIPE le plus récent (semaine + année la plus élevée), quelle que soit la semaine travaillée. Même logique que pour le MANAGER (section 19.3).
+
+Tri : année descendante → semaine descendante → version descendante. Les paramètres `semaine` et `annee` sont conservés dans la signature pour compatibilité mais ne sont plus utilisés pour le filtrage.
+
+Les personnalisations (renommages de programmes, affectations de cuisson) sont ainsi conservées même en changeant de semaine.
+
+---
+
+## 26. CORRECTION IDS DUPLIQUÉS ARCHIVES (18/03/2026)
+
+Les produits ajoutés depuis l'archive MANAGER (absents des nouvelles ventes) reçoivent un ID préfixé `archive_` pour éviter toute collision avec les IDs des produits extraits des ventes. Le matching archive se fait par clé stable (`ean13` + `libellé`), jamais par `id` numérique séquentiel.
+
+Cette correction résout le bug de filtrage dans l'onglet Gamme et les erreurs React "Encountered two children with the same key".
+
+---
+
+## 27. ARCHITECTURE ARCHIVE VS NETTOYAGE (18/03/2026)
+
+L'archive et le nettoyage sont **mutuellement exclusifs** (CDC §19). Si une archive existe, les ventes brutes sont directement filtrées par les choix du magasin (actif/inactif, rayon, programme, lots), SANS passer par le pipeline de nettoyage 6 passes. Le nettoyage ne s'applique que :
+- S'il n'y a pas d'archive (cas D)
+- Si le manager active le switch "Nettoyage auto" (section 28)
+
+L'application de l'archive se fait dans `MagasinContext.jsx` via `appliquerArchiveSurBruts()` qui opère sur `produitsVentesBrutes` (stable) pour éviter les re-déclenchements.
+
+---
+
+## 28. SWITCH GAMME MAGASIN / NETTOYAGE AUTO (18/03/2026)
+
+Un toggle est affiché en haut de l'onglet Gamme (Étape 4 — Pilotage CA) quand une archive est trouvée :
+
+- **Gamme magasin** (défaut, gauche) : les choix du magasin sont repris depuis l'archive la plus récente. Aucun nettoyage automatique.
+- **Nettoyage auto** (droite) : le nettoyage 6 passes s'applique sur l'extraction de ventes fraîche, comme s'il n'y avait pas d'archive.
+
+Les deux versions sont conservées en mémoire (`produitsGamme` vs `produitsGammeNettoyage`). Le manager peut basculer sans perdre de données. Le switch n'apparaît PAS quand aucune archive n'existe (cas D — nettoyage automatique par défaut).
+
+---
+
+## 29. SÉLECTEUR DE SEMAINE — ESPACE ÉQUIPE (18/03/2026)
+
+L'Espace Équipe affiche un dropdown permettant de choisir la semaine à afficher parmi les fichiers MANAGER disponibles dans le dossier partagé.
+
+- Le dropdown liste toutes les semaines trouvées (ex: S09/2026, S10/2026, S11/2026, S12/2026)
+- Triées par date décroissante (plus récente en premier)
+- La semaine courante (ou la plus récente) est sélectionnée par défaut
+- Changer de semaine recharge instantanément le planning et les données produits
+- Le dropdown n'apparaît que s'il y a plus d'une semaine disponible
+
+---
+
+## 30. AMÉLIORATIONS FEUILLE DE PRODUCTION IMPRESSION (18/03/2026)
+
+6 améliorations de la feuille de production imprimable (Espace Équipe) :
+1. Lignes "Capacité" en gras + fond grisé (visibles en impression sans fond) + bordures épaisses
+2. Nouvelle colonne "u/pl" entre PLU et Article : affiche le nombre d'unités par plaque du produit
+   Nouvelle colonne "Plaquage" après Remarque : nb plaques de la 1ère tranche (qté matin / unitesParPlaque)
+3. Colonne PLU : affiche uniquement le PLU, jamais l'EAN (si pas de PLU → vide)
+4. Affichage compact des lots : "5 lots = 20u" sur une seule ligne au lieu de multilignes
+5. Séparateur visuel renforcé entre les programmes de cuisson (bordures épaisses sur lignes Capacité)
+6. Colonne "A cuire" avec fond jaune léger (#fefce8) et largeur augmentée (50px)
+
+Ordre final des colonnes :
+Rayon | Prog | PLU | u/pl | Article | Remarque | Plaquage | [tranches horaires] | Stock rayon | A cuire
+
+---
+
+**Document mis à jour le 18 mars 2026**
+**Version 5.4.0**
+**Statut : En cours de développement**

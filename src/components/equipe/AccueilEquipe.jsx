@@ -19,7 +19,7 @@ import PlanningJour from './PlanningJour';
 import CommandeEquipe from './CommandeEquipe';
 
 // Service dossier partagé
-import { chargerDonneesDepuisDossier } from '../../services/dossierEquipeService';
+import { chargerDonneesDepuisDossier, listerSemainesDisponibles } from '../../services/dossierEquipeService';
 
 const AccueilEquipe = ({ onRetourAccueil, dossierEquipeHandle }) => {
   const [fichierCharge, setFichierCharge] = useState(null);    // Données MANAGER chargées
@@ -27,6 +27,8 @@ const AccueilEquipe = ({ onRetourAccueil, dossierEquipeHandle }) => {
   const [moduleActif, setModuleActif] = useState(null);        // 'planning', 'commande'
   const [chargementEnCours, setChargementEnCours] = useState(false);
   const [erreurChargement, setErreurChargement] = useState(null);
+  const [semainesDisponibles, setSemainesDisponibles] = useState([]);
+  const [semaineSelectionnee, setSemaineSelectionnee] = useState(null);
 
   // Scanner le dossier partagé au montage
   useEffect(() => {
@@ -49,11 +51,16 @@ const AccueilEquipe = ({ onRetourAccueil, dossierEquipeHandle }) => {
 
       if (result.manager) {
         setFichierCharge(result.manager.data);
-        // nomFichierManager disponible dans result.manager.filename si besoin
+        setSemaineSelectionnee(result.manager.filename);
       }
       if (result.equipe) {
         setDonneesEquipe(result.equipe.data);
       }
+
+      // Lister toutes les semaines disponibles pour le dropdown
+      const semaines = await listerSemainesDisponibles(dossierEquipeHandle);
+      if (!cancelled) setSemainesDisponibles(semaines);
+
       setChargementEnCours(false);
     })();
 
@@ -304,14 +311,41 @@ const AccueilEquipe = ({ onRetourAccueil, dossierEquipeHandle }) => {
               {donneesEquipe && <span className="ml-2 text-emerald-600 font-medium">• Personnalisations chargées</span>}
             </p>
           </div>
-          <button
-            onClick={handleRecharger}
-            className="px-4 py-2 text-sm text-gray-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors flex items-center gap-1"
-            title="Rescanner le dossier pour un fichier plus récent"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Recharger
-          </button>
+          <div className="flex items-center gap-2">
+            {semainesDisponibles.length > 1 && (
+              <select
+                value={semaineSelectionnee || ''}
+                onChange={async (e) => {
+                  const selected = semainesDisponibles.find(s => s.nomFichier === e.target.value);
+                  if (!selected) return;
+                  setSemaineSelectionnee(selected.nomFichier);
+                  try {
+                    const file = await selected.handle.getFile();
+                    const text = await file.text();
+                    const data = JSON.parse(text);
+                    setFichierCharge(data);
+                  } catch (err) {
+                    console.error('Erreur chargement semaine:', err);
+                  }
+                }}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+              >
+                {semainesDisponibles.map(s => (
+                  <option key={s.nomFichier} value={s.nomFichier}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            )}
+            <button
+              onClick={handleRecharger}
+              className="px-4 py-2 text-sm text-gray-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors flex items-center gap-1"
+              title="Rescanner le dossier pour un fichier plus récent"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Recharger
+            </button>
+          </div>
         </div>
 
         {/* Grille des modules */}

@@ -68,19 +68,11 @@ const ITEMS_MANAGER = [
     helpTitle: 'Comment exporter la Liste PLU depuis Mercalys',
   },
   {
-    id: 'archives',
-    label: 'Dossier archives Manager',
-    description: 'Dossier pour sauvegarder et relire les fichiers .bvp.json',
+    id: 'dossierBVP',
+    label: 'Dossier BVP partagé',
+    description: 'Dossier partagé pour les fichiers .bvp.json (Manager et Équipe)',
     type: 'directory',
-    idbKey: 'dossierArchives',
-    required: false,
-  },
-  {
-    id: 'equipe',
-    label: 'Dossier equipe',
-    description: "Dossier partagé où le Manager dépose les fichiers .bvp.json pour l'équipe",
-    type: 'directory',
-    idbKey: 'dossierEquipe',
+    idbKey: 'dossierBVP',
     required: false,
   },
 ];
@@ -98,11 +90,11 @@ const ITEMS_SECTEUR = [
 
 const ITEMS_EQUIPE = [
   {
-    id: 'dossierEquipe',
-    label: 'Dossier partagé équipe',
-    description: 'Dossier partagé où le Manager dépose les fichiers .bvp.json et où l\'équipe enregistre ses modifications',
+    id: 'dossierBVP',
+    label: 'Dossier BVP partagé',
+    description: 'Dossier partagé pour les fichiers .bvp.json (Manager et Équipe)',
     type: 'directory',
-    idbKey: 'dossierEquipe',
+    idbKey: 'dossierBVP',
     required: true,
   },
 ];
@@ -125,7 +117,7 @@ function AppV5() {
   const allerManager = () => setEcran('manager');
   const allerEquipeAvecDossier = ({ etats }) => {
     // Récupérer le handle du dossier partagé depuis PageParametres
-    const handle = etats?.dossierEquipe?.handle;
+    const handle = etats?.dossierBVP?.handle;
     if (handle) setDossierEquipeHandle(handle);
     setEcran('equipe');
   };

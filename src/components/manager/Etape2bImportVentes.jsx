@@ -41,6 +41,8 @@ const Etape2bImportVentes = () => {
     refMagasin,
     setRefMagasin,
     setRapportIdentification,
+    archiveProduitsEnAttente,
+    setProduitsVentesBrutes,
   } = useMagasin();
 
   const [chargement, setChargement] = useState(false);
@@ -89,16 +91,20 @@ const Etape2bImportVentes = () => {
       }
 
       const moisP = semainePlanning ? new Date(semainePlanning.annee, 0, 1 + (semainePlanning.semaine - 1) * 7).getMonth() + 1 : null;
-      const produitsFormates = formaterPourPilotageCA(donneesVC, {
+      // Extraire les ventes brutes (sans nettoyage)
+      const produitsBruts = formaterPourPilotageCA(donneesVC, {
         semaineNumero: semainePlanning?.semaine,
         moisPlanning: moisP,
         refMagasin: refMagasinLocal || null,
+        skipNettoyage: true,
       });
-      // Extraire et stocker le rapport d'identification
-      if (produitsFormates._rapportIdentification) {
-        setRapportIdentification(produitsFormates._rapportIdentification);
-      }
-      setProduitsGamme(produitsFormates);
+      setProduitsVentesBrutes(produitsBruts);
+
+      // Toujours passer les bruts au contexte.
+      // Le MagasinContext décidera : archive (si trouvée) ou nettoyage (sinon).
+      // On ne nettoie JAMAIS ici car la recherche d'archive est asynchrone
+      // et peut ne pas encore être terminée.
+      setProduitsGamme(produitsBruts);
       setFichierVentesSelectionne({ nom: file.name });
     } catch (error) {
       setErreur('Impossible de charger le fichier. Vérifiez le format.');

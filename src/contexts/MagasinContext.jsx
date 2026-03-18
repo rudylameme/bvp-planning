@@ -7,6 +7,7 @@
 
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { saveHandle, loadHandle, verifyHandlePermission } from '../services/handleStorage';
+import { appliquerArchiveSurBruts } from '../services/nettoyageGamme';
 
 const MagasinContext = createContext();
 
@@ -47,6 +48,7 @@ export function MagasinProvider({ children }) {
   const [fichierVentesSelectionne, setFichierVentesSelectionne] = useState(null);
   const [donneesGamme, setDonneesGamme] = useState(null);
   const [produitsGamme, setProduitsGamme] = useState([]);
+  const [produitsVentesBrutes, setProduitsVentesBrutes] = useState([]); // ventes brutes avant nettoyage/archive
 
   // Pilotage CA — partagés pour l'export Communication
   const [planifieManager, setPlanifieManager] = useState({}); // { [produitId]: quantité }
@@ -64,22 +66,36 @@ export function MagasinProvider({ children }) {
   // Produits archive en attente d'application sur produitsGamme
   const [archiveProduitsEnAttente, setArchiveProduitsEnAttente] = useState(null);
 
-  // Dossier d'archives Manager (persisté via IndexedDB)
-  const [dossierArchives, setDossierArchivesState] = useState(null);
+  // Archive trouvée (info pour le switch Gamme magasin / Nettoyage)
+  const [archiveTrouvee, setArchiveTrouvee] = useState(null); // { semaine, estMemeSemaine, nomFichier }
 
-  // Dossier équipe — partagé Manager↔Équipe (persisté via IndexedDB)
-  const [dossierEquipe, setDossierEquipeState] = useState(null);
+  // Flag : l'archive a été appliquée sur les produits
+  const [archiveAppliquee, setArchiveAppliquee] = useState(false);
+
+  // Corrections manuelles en attente de restauration depuis l'archive
+  const [archiveCorrectionsEnAttente, setArchiveCorrectionsEnAttente] = useState(null);
+
+  // Dossier BVP partagé — unique dossier pour Manager et Équipe (persisté via IndexedDB)
+  const [dossierBVP, setDossierBVPState] = useState(null);
 
   // Personnalisations équipe lues depuis le fichier EQUIPE-*.bvp.json
   const [personnalisationsEquipe, setPersonnalisationsEquipe] = useState(null);
 
   // Charger les handles depuis IndexedDB au montage
   useEffect(() => {
-    // Dossier archives
-    loadHandle('dossierArchives').then(async (handle) => {
-      if (!handle) return;
-      if (await verifyHandlePermission(handle, 'readwrite')) {
-        setDossierArchivesState(handle);
+    // Dossier BVP partagé (migration : essayer dossierBVP, sinon dossierArchives, sinon dossierEquipe)
+    loadHandle('dossierBVP').then(async (handle) => {
+      if (handle) {
+        if (await verifyHandlePermission(handle, 'readwrite')) {
+          setDossierBVPState(handle);
+        }
+        return;
+      }
+      // Migration : chercher les anciennes clés
+      const ancien = await loadHandle('dossierArchives') || await loadHandle('dossierEquipe');
+      if (ancien && await verifyHandlePermission(ancien, 'readwrite')) {
+        setDossierBVPState(ancien);
+        saveHandle('dossierBVP', ancien);
       }
     });
     // Dossier DATA (pré-configuré via PageParametres)
@@ -89,69 +105,58 @@ export function MagasinProvider({ children }) {
         setDirHandle(handle);
       }
     });
-    // Dossier équipe
-    loadHandle('dossierEquipe').then(async (handle) => {
-      if (!handle) return;
-      if (await verifyHandlePermission(handle, 'read')) {
-        setDossierEquipeState(handle);
-      }
-    });
   }, []);
 
   // Setter qui persiste aussi dans IndexedDB
-  const setDossierArchives = useCallback((handle) => {
-    setDossierArchivesState(handle);
+  const setDossierBVP = useCallback((handle) => {
+    setDossierBVPState(handle);
     if (handle) {
-      saveHandle('dossierArchives', handle);
+      saveHandle('dossierBVP', handle);
     }
   }, []);
 
-  const setDossierEquipe = useCallback((handle) => {
-    setDossierEquipeState(handle);
-    if (handle) {
-      saveHandle('dossierEquipe', handle);
-    }
-  }, []);
-
-  // Appliquer les données archive (actif, rayon) quand produitsGamme se remplit
+  // ═══════════════════════════════════════════════════════════════
+  // RÈGLE FONDAMENTALE (CDC §19) :
+  // Archive et nettoyage sont MUTUELLEMENT EXCLUSIFS.
+  // Ce useEffect applique l'archive sur les ventes BRUTES (pas sur produitsGamme).
+  // Dépend de produitsVentesBrutes (stable) pour éviter les re-déclenchements.
+  // PAS de dédoublonnage — l'archive décide, point final.
+  // ═══════════════════════════════════════════════════════════════
   useEffect(() => {
-    if (!archiveProduitsEnAttente || !produitsGamme || produitsGamme.length === 0) return;
+    if (!archiveProduitsEnAttente || !produitsVentesBrutes || produitsVentesBrutes.length === 0) return;
 
-    const archiveMap = new Map();
-    archiveProduitsEnAttente.forEach(p => {
-      if (p.itm8) archiveMap.set(p.itm8, p);
-      if (p.plu) archiveMap.set(p.plu, p);
-      if (p.libelle) archiveMap.set(p.libelle, p);
-    });
+    const updated = appliquerArchiveSurBruts(produitsVentesBrutes, archiveProduitsEnAttente);
 
-    let matchCount = 0;
-    let changedCount = 0;
-    const updated = produitsGamme.map(pg => {
-      const match = archiveMap.get(pg.itm8) || archiveMap.get(pg.plu) || archiveMap.get(pg.libelle);
-      if (!match) return pg;
-      matchCount++;
-      const changes = {};
-      // Ne PAS écraser actif si le nettoyage a désactivé le produit
-      // (raisonDesactivation = promo, hors-saison, doublon-fusion, doublon-pre, article-a-creer)
-      if (typeof match.actif === 'boolean' && !pg.raisonDesactivation) {
-        changes.actif = match.actif;
-      }
-      // Ne PAS écraser rayon si le nettoyage l'a enrichi depuis le référentiel V2
-      if (match.rayon && !pg.matchRefV2) {
-        changes.rayon = match.rayon;
-      }
-      if (Object.keys(changes).length > 0) {
-        changedCount++;
-        return { ...pg, ...changes };
-      }
-      return pg;
-    });
-
-    if (changedCount > 0) {
-      setProduitsGamme(updated);
+    setArchiveAppliquee(true);
+    // Marquer qu'une archive a été trouvée (pour le switch Gamme/Nettoyage dans l'UI)
+    if (!archiveTrouvee) {
+      setArchiveTrouvee({ nomFichier: 'archive MANAGER', estMemeSemaine: false });
     }
+    setProduitsGamme(updated);
     setArchiveProduitsEnAttente(null);
-  }, [archiveProduitsEnAttente, produitsGamme]);
+  }, [archiveProduitsEnAttente, produitsVentesBrutes]);
+
+  // Restaurer les corrections manuelles depuis l'archive (merge avec localStorage)
+  useEffect(() => {
+    if (!archiveCorrectionsEnAttente) return;
+    try {
+      const existant = JSON.parse(localStorage.getItem('bvp_corrections_doublons') || '{}');
+      const merged = {
+        separations: [...new Set([...(existant.separations || []), ...(archiveCorrectionsEnAttente.separations || [])])],
+        fusions: [...(existant.fusions || []), ...(archiveCorrectionsEnAttente.fusions || [])].reduce((acc, f) => {
+          if (!acc.find(a => a.source === f.source)) acc.push(f);
+          return acc;
+        }, []),
+        dissociations: [...new Set([...(existant.dissociations || []), ...(archiveCorrectionsEnAttente.dissociations || [])])],
+        associations: [...(existant.associations || []), ...(archiveCorrectionsEnAttente.associations || [])].reduce((acc, a) => {
+          if (!acc.find(x => x.libelle === a.libelle)) acc.push(a);
+          return acc;
+        }, []),
+      };
+      localStorage.setItem('bvp_corrections_doublons', JSON.stringify(merged));
+    } catch { /* ignore */ }
+    setArchiveCorrectionsEnAttente(null);
+  }, [archiveCorrectionsEnAttente]);
 
   // Appliquer les personnalisations équipe (unitesParLot, programme, etc.) aux produitsGamme
   useEffect(() => {
@@ -206,6 +211,7 @@ export function MagasinProvider({ children }) {
     setFichierVentesSelectionne(null);
     setDonneesGamme(null);
     setProduitsGamme([]);
+    setProduitsVentesBrutes([]);
     setObjectifCA(null);
     setSemainePlanning(null);
     setSemaineFrequentation(null);
@@ -216,6 +222,9 @@ export function MagasinProvider({ children }) {
     setPromosActives([]);
     setPromosPrecedentes([]);
     setArchiveProduitsEnAttente(null);
+    setArchiveTrouvee(null);
+    setArchiveAppliquee(false);
+    setArchiveCorrectionsEnAttente(null);
     setPersonnalisationsEquipe(null);
     setRefMagasin(null);
     setRapportIdentification(null);
@@ -281,6 +290,8 @@ export function MagasinProvider({ children }) {
     setDonneesGamme,
     produitsGamme,
     setProduitsGamme,
+    produitsVentesBrutes,
+    setProduitsVentesBrutes,
 
     // Pilotage CA / Communication
     planifieManager,
@@ -304,13 +315,17 @@ export function MagasinProvider({ children }) {
     archiveProduitsEnAttente,
     setArchiveProduitsEnAttente,
 
-    // Dossier archives
-    dossierArchives,
-    setDossierArchives,
+    // Archive trouvée (info) pour le switch UI
+    archiveTrouvee,
+    setArchiveTrouvee,
+    archiveAppliquee,
 
-    // Dossier équipe + personnalisations
-    dossierEquipe,
-    setDossierEquipe,
+    // Corrections manuelles depuis l'archive
+    setArchiveCorrectionsEnAttente,
+
+    // Dossier BVP partagé (unique pour Manager + Équipe)
+    dossierBVP,
+    setDossierBVP,
     personnalisationsEquipe,
     setPersonnalisationsEquipe,
 

@@ -101,6 +101,40 @@ async function scannerDossier(dirHandle) {
 }
 
 /**
+ * Retourne la liste des semaines disponibles (fichiers MANAGER) dans le dossier partagé.
+ * Trié par date décroissante (plus récent en premier).
+ *
+ * @param {FileSystemDirectoryHandle} dirHandle
+ * @returns {Promise<Array<{ semaine: number, annee: number, nomFichier: string, handle: FileSystemFileHandle, label: string }>>}
+ */
+export async function listerSemainesDisponibles(dirHandle) {
+  if (!dirHandle) return [];
+  const semaines = [];
+
+  try {
+    for await (const entry of dirHandle.values()) {
+      if (entry.kind !== 'file') continue;
+      const info = parseNomFichier(entry.name);
+      if (info && info.type === 'manager') {
+        semaines.push({
+          semaine: info.semaine,
+          annee: info.annee,
+          nomFichier: entry.name,
+          handle: entry,
+          label: `S${String(info.semaine).padStart(2, '0')} / ${info.annee}`,
+        });
+      }
+    }
+  } catch {
+    return [];
+  }
+
+  // Trier par date décroissante
+  semaines.sort((a, b) => (b.annee * 100 + b.semaine) - (a.annee * 100 + a.semaine));
+  return semaines;
+}
+
+/**
  * Trouve le fichier MANAGER le plus récent pour une semaine donnée (ou la courante).
  * Cherche d'abord la semaine exacte, puis S-1, S-2... jusqu'à S-4 max.
  *
@@ -164,12 +198,17 @@ export async function trouverDernierFichierManager(dirHandle, semaine, annee) {
  * @returns {Promise<{ data: Object, filename: string, version: number } | null>}
  */
 export async function trouverDernierFichierEquipe(dirHandle, semaine, annee) {
-  if (!dirHandle || !semaine || !annee) return null;
+  if (!dirHandle) return null;
 
   const fichiers = await scannerDossier(dirHandle);
   const equipes = fichiers
-    .filter(f => f.info.type === 'equipe' && f.info.semaine === semaine && f.info.annee === annee)
-    .sort((a, b) => b.info.version - a.info.version);
+    .filter(f => f.info.type === 'equipe')
+    .sort((a, b) => {
+      // Trier par année desc, puis semaine desc, puis version desc
+      if (b.info.annee !== a.info.annee) return b.info.annee - a.info.annee;
+      if (b.info.semaine !== a.info.semaine) return b.info.semaine - a.info.semaine;
+      return (b.info.version || 1) - (a.info.version || 1);
+    });
 
   if (equipes.length === 0) return null;
 
@@ -181,6 +220,8 @@ export async function trouverDernierFichierEquipe(dirHandle, semaine, annee) {
     return {
       data,
       filename: meilleur.filename,
+      semaine: meilleur.info.semaine,
+      annee: meilleur.info.annee,
       version: meilleur.info.version,
     };
   } catch {

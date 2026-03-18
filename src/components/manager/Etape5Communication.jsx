@@ -3,7 +3,7 @@
  *
  * Exporte automatiquement un fichier .bvp.json contenant
  * toutes les données du planning pour l'équipe.
- * Si dossierArchives configuré → écriture directe.
+ * Si dossierBVP configuré → écriture directe.
  * Sinon → téléchargement navigateur en fallback.
  */
 
@@ -143,10 +143,14 @@ const construireArchive = ({
   // Produits
   const produits = (produitsGamme || []).map((p, index) => {
     const planifie = planifieManager?.[p.id] ?? p.potentiel ?? p.moyHebdo ?? 0;
+    // Convertir en UNITÉS réelles pour l'export
+    // planifie est en "ventes" (lots), on multiplie par unitesParVente pour obtenir des unités
+    const upv = p.unitesParLot || p.unitesParVente || 1;
+    const planifieUnites = planifie * upv;
 
     const repartitionJours = {};
     joursActifs.forEach(jour => {
-      repartitionJours[jour] = Math.round(planifie * poidsNormalises[jour]);
+      repartitionJours[jour] = Math.round(planifieUnites * poidsNormalises[jour]);
     });
 
     return {
@@ -161,11 +165,17 @@ const construireArchive = ({
       programme: p.programme || '',
       unitesParPlaque: p.unitesParPlaque || 0,
       unitesParLot: p.unitesParLot || p.unitesParVente || 1,
-      moyenneHebdo: p.moyHebdo || 0,
-      potentielAlgo: p.potentiel || 0,
-      planifieManager: planifie,
+      moyenneHebdo: (p.moyHebdo || 0) * upv,
+      potentielAlgo: (p.potentiel || 0) * upv,
+      planifieManager: planifieUnites,
       cdt: p.cdt || p.cdtAchat || 0,
       repartitionJours,
+      // Associations et nettoyage (conservés entre sessions)
+      raisonDesactivation: p.raisonDesactivation || null,
+      libelleRefV2: p.libelleRefV2 || null,
+      marqueRefV2: p.marqueRefV2 || null,
+      _eansFusionnes: p._eansFusionnes || null,
+      unitesParVente: p.unitesParVente || 1,
     };
   });
 
@@ -269,6 +279,17 @@ const construireArchive = ({
       familles,
       source: 'referentiel V2.xlsx',
     },
+
+    // Corrections manuelles (séparations, fusions, dissociations, associations)
+    correctionsManuelles: (() => {
+      try {
+        const data = JSON.parse(localStorage.getItem('bvp_corrections_doublons') || '{}');
+        if (data.separations?.length || data.fusions?.length || data.dissociations?.length || data.associations?.length) {
+          return data;
+        }
+      } catch { /* ignore */ }
+      return null;
+    })(),
   };
 
   return archive;
@@ -290,7 +311,7 @@ const Etape5Communication = () => {
     joursOuverture,
     promosActives,
     commandeConfig,
-    dossierArchives,
+    dossierBVP,
     frequentationData,
   } = useMagasin();
 
@@ -336,7 +357,7 @@ const Etape5Communication = () => {
     setExportOk(false);
 
     try {
-      let dirToUse = dossierArchives;
+      let dirToUse = dossierBVP;
 
       // Si pas de dossier configuré → téléchargement navigateur
       if (!dirToUse) {
@@ -491,8 +512,8 @@ const Etape5Communication = () => {
             <div>
               <p className="font-semibold text-green-800">Planning exporté avec succès</p>
               <p className="text-sm text-green-600 font-mono">{nomFichierExporte}</p>
-              {dossierArchives && (
-                <p className="text-xs text-green-500 mt-1">Sauvegardé dans : {dossierArchives.name}</p>
+              {dossierBVP && (
+                <p className="text-xs text-green-500 mt-1">Sauvegardé dans : {dossierBVP.name}</p>
               )}
             </div>
           </div>

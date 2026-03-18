@@ -169,11 +169,11 @@ const EtapeConfigPlanning = () => {
     setPlanifieManager,
     setPromosActives,
     setPromosPrecedentes,
-    dossierArchives,
-    setDossierArchives,
+    dossierBVP,
     setArchiveProduitsEnAttente,
-    dossierEquipe,
     setPersonnalisationsEquipe,
+    archiveProduitsEnAttente,
+    setProduitsVentesBrutes,
   } = useMagasin();
 
   const [etapeChargement, setEtapeChargement] = useState('');
@@ -384,15 +384,23 @@ const EtapeConfigPlanning = () => {
             const donneesVC = await extraireProduitsVentesCasse(vcFile);
             setDonneesGamme(donneesVC);
 
-            setEtapeChargement('Nettoyage intelligent de la gamme…');
+            setEtapeChargement('Préparation de la gamme…');
             await attendrePeinture();
 
             const semApp = semaineAppliquee || semainePlanning;
             const moisP = semApp ? new Date(semApp.annee, 0, 1 + (semApp.semaine - 1) * 7).getMonth() + 1 : null;
-            setProduitsGamme(formaterPourPilotageCA(donneesVC, {
+
+            // Extraire les ventes brutes (sans nettoyage)
+            const produitsBruts = formaterPourPilotageCA(donneesVC, {
               semaineNumero: semApp?.semaine,
               moisPlanning: moisP,
-            }));
+              skipNettoyage: true,
+            });
+            setProduitsVentesBrutes(produitsBruts);
+
+            // Toujours passer les bruts. Le MagasinContext décidera :
+            // archive (si trouvée) ou nettoyage (sinon).
+            setProduitsGamme(produitsBruts);
           } catch { /* non bloquant */ }
         }
 
@@ -528,7 +536,7 @@ const EtapeConfigPlanning = () => {
   // RECHERCHE ARCHIVE MANAGER (S-1, S-2… S-52)
   // ═══════════════════════════════════════════════════════
   useEffect(() => {
-    if (!dossierArchives || !semaineAppliquee || !magasinSelectionne) {
+    if (!dossierBVP || !semaineAppliquee || !magasinSelectionne) {
       setArchiveTrouvee(null);
       return;
     }
@@ -539,7 +547,7 @@ const EtapeConfigPlanning = () => {
 
     (async () => {
       try {
-        const ok = await checkHandlePermission(dossierArchives, 'read');
+        const ok = await checkHandlePermission(dossierBVP, 'read');
         if (!ok) { setRechercheArchiveEnCours(false); return; }
       } catch { setRechercheArchiveEnCours(false); return; }
 
@@ -548,7 +556,7 @@ const EtapeConfigPlanning = () => {
         const sem = calculerSemaineMoinsN(semaineAppliquee.semaine, semaineAppliquee.annee, offset);
         const nomArchive = `MANAGER-${codePDV}-S${String(sem.semaine).padStart(2, '0')}-${sem.annee}.bvp.json`;
         try {
-          const fileHandle = await dossierArchives.getFileHandle(nomArchive);
+          const fileHandle = await dossierBVP.getFileHandle(nomArchive);
           if (cancelled) return;
           const file = await fileHandle.getFile();
           const data = JSON.parse(await file.text());
@@ -577,13 +585,13 @@ const EtapeConfigPlanning = () => {
       if (!cancelled) { setArchiveTrouvee(null); setRechercheArchiveEnCours(false); }
     })();
     return () => { cancelled = true; };
-  }, [dossierArchives, semaineAppliquee, magasinSelectionne]);
+  }, [dossierBVP, semaineAppliquee, magasinSelectionne]);
 
   // ═══════════════════════════════════════════════════════
   // RECHERCHE FICHIER EQUIPE (retour personnalisations équipe)
   // ═══════════════════════════════════════════════════════
   useEffect(() => {
-    if (!dossierEquipe || !semaineAppliquee || !magasinSelectionne) {
+    if (!dossierBVP || !semaineAppliquee || !magasinSelectionne) {
       setPersonnalisationsEquipe(null);
       return;
     }
@@ -592,7 +600,7 @@ const EtapeConfigPlanning = () => {
 
     (async () => {
       try {
-        const ok = await checkHandlePermission(dossierEquipe, 'read');
+        const ok = await checkHandlePermission(dossierBVP, 'read');
         if (!ok || cancelled) return;
       } catch { return; }
 
@@ -604,7 +612,7 @@ const EtapeConfigPlanning = () => {
           : calculerSemaineMoinsN(semaineAppliquee.semaine, semaineAppliquee.annee, offset);
         const nomFichier = `EQUIPE-${codePDV}-S${String(sem.semaine).padStart(2, '0')}-${sem.annee}.bvp.json`;
         try {
-          const fileHandle = await dossierEquipe.getFileHandle(nomFichier);
+          const fileHandle = await dossierBVP.getFileHandle(nomFichier);
           if (cancelled) return;
           const file = await fileHandle.getFile();
           const data = JSON.parse(await file.text());
@@ -617,7 +625,7 @@ const EtapeConfigPlanning = () => {
       if (!cancelled) setPersonnalisationsEquipe(null);
     })();
     return () => { cancelled = true; };
-  }, [dossierEquipe, semaineAppliquee, magasinSelectionne]);
+  }, [dossierBVP, semaineAppliquee, magasinSelectionne]);
 
   // ── Persister semaine planning dans le contexte ──
   useEffect(() => {

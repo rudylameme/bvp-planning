@@ -9,7 +9,7 @@
  * - Formulaire pour accepter/modifier/ignorer l'objectif
  */
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Target,
   TrendingUp,
@@ -93,9 +93,15 @@ const Etape2ObjectifCA = ({ onPrecedent }) => {
     setPlanifieManager,
     setPromosActives,
     setPromosPrecedentes,
-    dossierArchives,
-    setDossierArchives,
+    dossierBVP,
+    setDossierBVP,
     setArchiveProduitsEnAttente,
+    archiveTrouvee,
+    setArchiveTrouvee,
+    setArchiveCorrectionsEnAttente,
+    produitsVentesBrutes,
+    setProduitsGamme,
+    archiveAppliquee,
   } = useMagasin();
 
   const { selectDirectory } = useFileAccess();
@@ -216,17 +222,35 @@ const Etape2ObjectifCA = ({ onPrecedent }) => {
     return () => { cancelled = true; };
   }, [dirHandle, semaineAppliquee, typePonderation, setFrequentationData]);
 
-  // ── Recherche d'archive Manager (S-1, S-2... S-52) ──
-  const [archiveTrouvee, setArchiveTrouvee] = useState(null); // { semaine, annee, estExacte, data }
+  // ── Recherche d'archive Manager (scan complet du dossier, plus récent) ──
   const [rechercheArchiveEnCours, setRechercheArchiveEnCours] = useState(false);
 
+  // Helper : déclencher le nettoyage des bruts quand aucune archive n'est trouvée
+  const declencherNettoyageBruts = useCallback(() => {
+    if (!produitsVentesBrutes || produitsVentesBrutes.length === 0) return;
+    const sem = semaineAppliquee;
+    const moisP = sem ? new Date(sem.annee, 0, 1 + (sem.semaine - 1) * 7).getMonth() + 1 : null;
+    import('../../services/nettoyageGamme').then(({ nettoyerGamme }) => {
+      const { produits: nettoyes } = nettoyerGamme(produitsVentesBrutes, sem?.semaine, moisP);
+      setProduitsGamme(nettoyes);
+    });
+  }, [produitsVentesBrutes, semaineAppliquee, setProduitsGamme]);
+
   useEffect(() => {
-    if (!dossierArchives || !semaineAppliquee) {
+    // Si l'archive a déjà été appliquée, ne pas relancer la recherche
+    // (évite de remettre archiveTrouvee à null quand on navigue entre étapes)
+    if (archiveAppliquee) return;
+
+    if (!dossierBVP || !semaineAppliquee) {
       setArchiveTrouvee(null);
+      declencherNettoyageBruts();
       return;
     }
     const codePDV = infoPDV?.code || donneesMagasin?.magasin?.code || '';
-    if (!codePDV) return;
+    if (!codePDV) {
+      declencherNettoyageBruts();
+      return;
+    }
 
     let cancelled = false;
     setRechercheArchiveEnCours(true);
@@ -235,101 +259,130 @@ const Etape2ObjectifCA = ({ onPrecedent }) => {
     (async () => {
       // Vérifier la permission sur le dossier
       try {
-        const ok = await checkHandlePermission(dossierArchives, 'read');
+        const ok = await checkHandlePermission(dossierBVP, 'read');
         if (!ok) {
           setRechercheArchiveEnCours(false);
+          declencherNettoyageBruts();
           return;
         }
       } catch {
         setRechercheArchiveEnCours(false);
+        declencherNettoyageBruts();
         return;
       }
 
-      for (let offset = 1; offset <= 52; offset++) {
-        if (cancelled) return;
-        const sem = calculerSemaineMoinsN(semaineAppliquee.semaine, semaineAppliquee.annee, offset);
-        const nomArchive = `MANAGER-${codePDV}-S${String(sem.semaine).padStart(2, '0')}-${sem.annee}.bvp.json`;
-        try {
-          const fileHandle = await dossierArchives.getFileHandle(nomArchive);
+      // Scanner TOUS les fichiers du dossier d'archives pour ce PDV
+      const fichiers = [];
+      const regex = new RegExp(`^MANAGER-${codePDV}-S(\\d{2})-(\\d{4})(?:_v\\d+)?\\.bvp\\.json$`);
+      try {
+        for await (const [nom] of dossierBVP.entries()) {
           if (cancelled) return;
-          const file = await fileHandle.getFile();
-          const text = await file.text();
-          const data = JSON.parse(text);
-
-          const estExacte = offset === 1; // S-1 = semaine attendue
-
-          // Charger dans le contexte
-          if (!cancelled) {
-            // Toujours charger : jours d'ouverture et articles sélectionnés
-            if (data.configuration) {
-              setJoursOuverture({
-                creneaux: data.configuration.creneaux || null,
-                redistribution: null,
-                regroupements: data.configuration.regroupements || null,
-              });
-            }
-
-            // Stocker les promos de l'archive comme "promos précédentes" (pour indicateur S-1)
-            if (data.promotions && data.promotions.length > 0) {
-              setPromosPrecedentes(data.promotions.map(p => ({
-                plu: p.plu || '',
-                itm8: p.itm8 || '',
-                libelle: p.libelle || '',
-                qteValidee: p.qteValidee || p.quantitePrevue || 0,
-              })));
-            } else {
-              setPromosPrecedentes([]);
-            }
-
-            // Stocker les produits de l'archive dans le contexte (sera appliqué
-            // automatiquement par le useEffect dans MagasinContext quand produitsGamme se remplit)
-            if (data.produits && data.produits.length > 0) {
-              setArchiveProduitsEnAttente(data.produits);
-            }
-
-            // Les promos de l'archive ne sont JAMAIS chargées comme promos actives
-            // (les promos de la semaine en cours sont ajoutées manuellement par l'utilisateur)
-            setPromosActives([]);
-
-            if (estExacte) {
-              // S-1 exacte : charger les quantités planifiées
-              if (data.produits) {
-                const planifie = {};
-                data.produits.forEach(p => {
-                  if (p.planifieManager && p.planifieManager > 0) {
-                    const id = p.plu || p.itm8 || p.libelle;
-                    planifie[id] = p.planifieManager;
-                  }
-                });
-                if (Object.keys(planifie).length > 0) {
-                  setPlanifieManager(planifie);
-                }
-              }
-            } else {
-              // Pas S-1 : réglages et articles seulement, pas de quantités
-              setPlanifieManager({});
-            }
-
-            setArchiveTrouvee({
-              semaine: sem,
-              estExacte,
-              nomFichier: nomArchive,
+          const match = nom.match(regex);
+          if (match) {
+            fichiers.push({
+              nom,
+              semaine: parseInt(match[1], 10),
+              annee: parseInt(match[2], 10),
             });
           }
-          setRechercheArchiveEnCours(false);
-          return;
-        } catch {
-          // Fichier non trouvé, continuer
         }
+      } catch {
+        if (!cancelled) {
+          setRechercheArchiveEnCours(false);
+          declencherNettoyageBruts();
+        }
+        return;
       }
-      // Aucune archive trouvée
-      if (!cancelled) {
+
+      if (cancelled) return;
+
+      if (fichiers.length === 0) {
+        // Aucune archive trouvée → nettoyage des bruts
         setArchiveTrouvee(null);
         setRechercheArchiveEnCours(false);
+        declencherNettoyageBruts();
+        return;
+      }
+
+      // Trier par date décroissante (année × 100 + semaine)
+      fichiers.sort((a, b) => (b.annee * 100 + b.semaine) - (a.annee * 100 + a.semaine));
+
+      // Charger le fichier le plus récent
+      const plusRecent = fichiers[0];
+      try {
+        const fileHandle = await dossierBVP.getFileHandle(plusRecent.nom);
+        if (cancelled) return;
+        const file = await fileHandle.getFile();
+        const text = await file.text();
+        const data = JSON.parse(text);
+
+        const estMemeSemaine = (plusRecent.semaine === semaineAppliquee.semaine && plusRecent.annee === semaineAppliquee.annee);
+
+        // Charger dans le contexte
+        if (!cancelled) {
+          if (data.configuration) {
+            setJoursOuverture({
+              creneaux: data.configuration.creneaux || null,
+              redistribution: null,
+              regroupements: data.configuration.regroupements || null,
+            });
+          }
+
+          if (data.promotions && data.promotions.length > 0) {
+            setPromosPrecedentes(data.promotions.map(p => ({
+              plu: p.plu || '',
+              itm8: p.itm8 || '',
+              libelle: p.libelle || '',
+              qteValidee: p.qteValidee || p.quantitePrevue || 0,
+            })));
+          } else {
+            setPromosPrecedentes([]);
+          }
+
+          if (data.produits && data.produits.length > 0) {
+            setArchiveProduitsEnAttente(data.produits);
+          }
+
+          if (data.correctionsManuelles) {
+            setArchiveCorrectionsEnAttente(data.correctionsManuelles);
+          }
+
+          setPromosActives([]);
+
+          if (estMemeSemaine) {
+            if (data.produits) {
+              const planifie = {};
+              data.produits.forEach(p => {
+                if (p.planifieManager && p.planifieManager > 0) {
+                  const id = p.plu || p.itm8 || p.libelle;
+                  planifie[id] = p.planifieManager;
+                }
+              });
+              if (Object.keys(planifie).length > 0) {
+                setPlanifieManager(planifie);
+              }
+            }
+          } else {
+            setPlanifieManager({});
+          }
+
+          setArchiveTrouvee({
+            semaine: { semaine: plusRecent.semaine, annee: plusRecent.annee },
+            estMemeSemaine,
+            nomFichier: plusRecent.nom,
+          });
+        }
+        setRechercheArchiveEnCours(false);
+      } catch {
+        if (!cancelled) {
+          setArchiveTrouvee(null);
+          setRechercheArchiveEnCours(false);
+          declencherNettoyageBruts();
+        }
       }
     })();
     return () => { cancelled = true; };
-  }, [dossierArchives, semaineAppliquee, infoPDV, donneesMagasin, setJoursOuverture, setPlanifieManager, setPromosActives, setPromosPrecedentes, setArchiveProduitsEnAttente]);
+  }, [archiveAppliquee, dossierBVP, semaineAppliquee, infoPDV, donneesMagasin, setJoursOuverture, setPlanifieManager, setPromosActives, setPromosPrecedentes, setArchiveProduitsEnAttente, declencherNettoyageBruts]);
 
   // Persister la semaine appliquée dans le contexte
   useEffect(() => {
@@ -542,14 +595,14 @@ const Etape2ObjectifCA = ({ onPrecedent }) => {
         )}
 
         {/* Archive Manager précédente */}
-        {semaineAppliquee && !dossierArchives && (
+        {semaineAppliquee && !dossierBVP && (
           <div className="mt-3 text-sm px-4 py-2 rounded-lg flex items-center justify-between bg-amber-50 border border-amber-200 text-amber-700">
             <span>Aucun dossier d'archives configuré. Configurez-le à l'étape Communication, ou :</span>
             <button
               onClick={async () => {
                 try {
                   const handle = await selectDirectory({ mode: 'readwrite' });
-                  setDossierArchives(handle);
+                  setDossierBVP(handle);
                 } catch { /* annulé */ }
               }}
               className="ml-3 px-3 py-1 text-xs font-semibold bg-[#8B1538] text-white rounded-lg hover:bg-[#6d1029] transition-colors whitespace-nowrap"
@@ -558,12 +611,12 @@ const Etape2ObjectifCA = ({ onPrecedent }) => {
             </button>
           </div>
         )}
-        {semaineAppliquee && dossierArchives && (
+        {semaineAppliquee && dossierBVP && (
           <div className={`mt-3 text-sm px-4 py-2 rounded-lg flex items-center justify-between ${
             rechercheArchiveEnCours
               ? 'bg-gray-50 text-gray-600'
               : archiveTrouvee
-              ? archiveTrouvee.estExacte
+              ? archiveTrouvee.estMemeSemaine
                 ? 'bg-green-50 border border-green-200 text-green-700'
                 : 'bg-amber-50 border border-amber-200 text-amber-700'
               : 'bg-gray-50 border border-gray-200 text-gray-500'
@@ -579,11 +632,11 @@ const Etape2ObjectifCA = ({ onPrecedent }) => {
                   <FileSpreadsheet className="w-4 h-4" />
                   <span>
                     Archive chargée : <code className="font-mono bg-gray-200 px-2 py-0.5 rounded">{archiveTrouvee.nomFichier}</code>
-                    {archiveTrouvee.estExacte ? (
-                      <span className="ml-1">— S-1 (réglages + quantités + promos)</span>
+                    {archiveTrouvee.estMemeSemaine ? (
+                      <span className="ml-1">— même semaine (réglages + quantités)</span>
                     ) : (
                       <span className="ml-2 font-medium">
-                        — S{String(archiveTrouvee.semaine.semaine).padStart(2, '0')}/{archiveTrouvee.semaine.annee} utilisée comme modèle (réglages uniquement)
+                        — S{String(archiveTrouvee.semaine.semaine).padStart(2, '0')}/{archiveTrouvee.semaine.annee} utilisée comme modèle (gamme uniquement, quantités remises à zéro)
                       </span>
                     )}
                   </span>
@@ -596,7 +649,7 @@ const Etape2ObjectifCA = ({ onPrecedent }) => {
               onClick={async () => {
                 try {
                   const handle = await selectDirectory({ mode: 'readwrite' });
-                  setDossierArchives(handle);
+                  setDossierBVP(handle);
                 } catch { /* annulé */ }
               }}
               className="ml-3 px-3 py-1 text-xs font-medium bg-white border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors whitespace-nowrap flex-shrink-0"

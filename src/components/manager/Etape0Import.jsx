@@ -78,6 +78,8 @@ const Etape0Import = () => {
     refMagasin,
     setRefMagasin,
     setRapportIdentification,
+    archiveProduitsEnAttente,
+    setProduitsVentesBrutes,
   } = useMagasin();
 
   const { selectDirectory } = useFileAccess();
@@ -286,16 +288,18 @@ const Etape0Import = () => {
             await attendrePeinture();
 
             const moisP = semainePlanning ? new Date(semainePlanning.annee, 0, 1 + (semainePlanning.semaine - 1) * 7).getMonth() + 1 : null;
-            const produitsFormates = formaterPourPilotageCA(donneesVC, {
+            // Extraire les ventes brutes (sans nettoyage)
+            const produitsBruts = formaterPourPilotageCA(donneesVC, {
               semaineNumero: semainePlanning?.semaine,
               moisPlanning: moisP,
               refMagasin: refMagasin || null,
+              skipNettoyage: true,
             });
-            // Extraire et stocker le rapport d'identification
-            if (produitsFormates._rapportIdentification) {
-              setRapportIdentification(produitsFormates._rapportIdentification);
-            }
-            setProduitsGamme(produitsFormates);
+            setProduitsVentesBrutes(produitsBruts);
+
+            // Toujours passer les bruts. Le MagasinContext décidera :
+            // archive (si trouvée) ou nettoyage (sinon).
+            setProduitsGamme(produitsBruts);
           } catch (vcError) {
             // Ce n'est pas bloquant, on continue sans données gamme
           }

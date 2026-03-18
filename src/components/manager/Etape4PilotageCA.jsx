@@ -19,6 +19,7 @@ import {
   ShoppingCart,
   Sliders,
   BarChart2,
+  Target,
 } from 'lucide-react';
 import { useMagasin } from '../../contexts/MagasinContext';
 import StepAnimationCommerciale from '../responsable/StepAnimationCommerciale';
@@ -26,8 +27,9 @@ import OngletCommande from './OngletCommande';
 import OngletGamme from './pilotage/OngletGamme';
 import OngletLimites from './pilotage/OngletMatrice';
 import OngletSuivi from './pilotage/OngletStats';
+import OngletAnalyseGamme from './pilotage/OngletAnalyseGamme';
 import DashboardCA from './pilotage/DashboardCA';
-import { appliquerCorrectionsManuelles } from '../../services/nettoyageGamme';
+import { appliquerCorrectionsManuelles, nettoyerGamme } from '../../services/nettoyageGamme';
 
 // ============================================================================
 // CONSTANTES
@@ -157,6 +159,7 @@ const Onglets = ({ actif, onChange }) => {
     { id: 'promo', label: 'Promo', icon: Tag, color: 'bg-blue-100 border-blue-300 text-blue-800' },
     { id: 'commande', label: 'Commande', icon: ShoppingCart, color: 'bg-emerald-100 border-emerald-300 text-emerald-800' },
     { id: 'suivi', label: 'Suivi', icon: BarChart2, color: 'bg-amber-100 border-amber-300 text-amber-800' },
+    { id: 'analyse', label: 'Analyse', icon: Target, color: 'bg-indigo-100 border-indigo-300 text-indigo-800' },
   ];
 
   return (
@@ -188,12 +191,22 @@ const Onglets = ({ actif, onChange }) => {
 // ============================================================================
 
 const Etape4PilotageCA = () => {
-  const { semaineSelectionnee, produitsGamme, setProduitsGamme, objectifCA, objectifPourcent, planifieManager, setPlanifieManager, promosActives, setPromosActives, promosPrecedentes } = useMagasin();
+  const { semaineSelectionnee, produitsGamme, setProduitsGamme, objectifCA, objectifPourcent, planifieManager, setPlanifieManager, promosActives, setPromosActives, promosPrecedentes, archiveTrouvee, produitsVentesBrutes, semainePlanning } = useMagasin();
 
   // État local
   const [ongletActif, setOngletActif] = useState('gamme');
   const [limitesProgression, setLimitesProgression] = useState(LIMITES_PROGRESSION_DEFAUT);
   const [produitsExceptionnels, setProduitsExceptionnels] = useState([]);
+  const [modeNettoyage, setModeNettoyage] = useState(false); // false = gamme magasin (défaut)
+
+  // Calculer les produits nettoyés à la demande (depuis les ventes brutes)
+  const produitsNettoyesCalcules = useMemo(() => {
+    if (!modeNettoyage || !produitsVentesBrutes || produitsVentesBrutes.length === 0) return null;
+    const sem = semaineSelectionnee || semainePlanning;
+    const moisP = sem ? new Date(sem.annee, 0, 1 + (sem.semaine - 1) * 7).getMonth() + 1 : null;
+    const { produits: nettoyes } = nettoyerGamme(produitsVentesBrutes, sem?.semaine, moisP);
+    return nettoyes;
+  }, [modeNettoyage, produitsVentesBrutes, semaineSelectionnee, semainePlanning]);
   const [periodePromo, setPeriodePromo] = useState(null);
   const [produits, setProduits] = useState(() => {
     if (produitsGamme && produitsGamme.length > 0) {
@@ -431,7 +444,7 @@ const Etape4PilotageCA = () => {
       <div className="min-h-[400px]">
         {ongletActif === 'gamme' && (
           <OngletGamme
-            produits={produits}
+            produits={modeNettoyage && produitsNettoyesCalcules ? produitsNettoyesCalcules : produits}
             onToggle={handleToggleProduit}
             onToggleFiltres={handleToggleFiltres}
             onChangeRayon={handleChangeRayon}
@@ -441,6 +454,9 @@ const Etape4PilotageCA = () => {
             promoPrecedenteMap={promoPrecedenteMap}
             onReloadGamme={handleReloadGamme}
             onUpdateProduits={setProduits}
+            archiveTrouvee={archiveTrouvee}
+            modeNettoyage={modeNettoyage}
+            setModeNettoyage={setModeNettoyage}
           />
         )}
         {ongletActif === 'limites' && (
@@ -468,6 +484,9 @@ const Etape4PilotageCA = () => {
             planifieManager={planifieManager}
             promosPrecedentes={promosPrecedentes}
           />
+        )}
+        {ongletActif === 'analyse' && (
+          <OngletAnalyseGamme produits={produits} />
         )}
       </div>
 
