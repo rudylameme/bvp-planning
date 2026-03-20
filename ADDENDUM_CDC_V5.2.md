@@ -1218,6 +1218,52 @@ Rayon | Prog | PLU | u/pl | Article | Remarque | Plaquage | [tranches horaires] 
 
 ---
 
-**Document mis à jour le 18 mars 2026**
-**Version 5.4.0**
+## 31. Onglet Plaquage — Pourcentage par programme de cuisson (19/03/2026)
+
+### 31.1 Définition
+Le plaquage est l'action de préparer les plaques de cuisson la veille pour la 1ère cuisson du lendemain matin. Le manager définit un pourcentage de plaquage par programme de cuisson (0-100%, défaut 100%).
+
+### 31.2 Onglet Plaquage (Étape 4 Pilotage CA)
+Un nouvel onglet "Plaquage" dans l'Étape 4 permet au manager de :
+- Voir tous les programmes de cuisson (fusionnés depuis le fichier EQUIPE + produits gamme)
+- Définir un pourcentage par programme via slider + input numérique
+- Sélectionner 3-4 produits exemples par programme pour visualiser l'impact en temps réel
+- Actualiser la liste des programmes depuis le fichier EQUIPE le plus récent
+
+### 31.3 Formule colonne Plaquage (feuille de production)
+`Plaquage = ⌈ quantité_1ère_tranche × %_programme / 100 / unitésParPlaque ⌉`
+
+Exemple : CROISSANT, 1ère tranche = 48u, programme "Viennoiserie" à 80%, 20 u/plaque → ⌈48 × 0.80 / 20⌉ = 2 plaques.
+
+### 31.4 Persistance
+Les pourcentages sont stockés dans le fichier MANAGER .bvp.json (champ `plaquage`) et rechargés depuis l'archive.
+
+---
+
+## 32. Fix matching archive — priorité EAN sur libellé (19/03/2026)
+
+Le matching `appliquerArchiveSurBruts` utilisait le libellé en priorité 1 pour retrouver les produits de l'archive dans les ventes brutes. Pour les doublons (même libellé, EAN différents, un seul actif), cela réactivait à tort les copies inactives (99 actifs dans l'archive → 113 affichés).
+
+Correction : l'ordre de matching est maintenant **EAN (priorité 1) → ITM8 (priorité 2) → libellé (priorité 3, fallback) → PLU (dernier recours)**. L'EAN étant spécifique à chaque version du produit, il porte le bon état actif/inactif.
+
+---
+
+## 33. Onglet Pâtisserie — Couverture multi-jours (19/03/2026)
+
+### 33.1 Règle métier
+Les produits pâtisserie (sous atmosphère contrôlée, DLC 7 jours) ne sont pas planifiés jour par jour comme la viennoiserie. Le manager définit un nombre de jours de couverture (1-7, défaut 2) et un jour de mise en rayon. Les préconisations de chaque jour sont additionnées pour donner le total à mettre en rayon.
+
+### 33.2 Calcul
+Total = Σ repartitionJours[jour_i] pour i = jourDepart à jourDepart + nbJours - 1
+
+### 33.3 Feuille de production
+Les produits pâtisserie affichent des colonnes jour (Lun, Mar, Mer...) au lieu des tranches horaires (Matin, 12h, 14h, Soir). Le total est la somme des jours. La colonne Plaquage affiche "—" (pas de cuisson pour la pâtisserie). Les colonnes finales sont : Ventes | Stock | À sortir.
+
+### 33.4 Persistance
+`couverturePatisserie = { jours: 3, jourDepart: "mercredi" }` dans le fichier MANAGER .bvp.json.
+
+---
+
+**Document mis à jour le 19 mars 2026**
+**Version 5.4.3**
 **Statut : En cours de développement**

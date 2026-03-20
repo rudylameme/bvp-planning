@@ -81,6 +81,12 @@ export function MagasinProvider({ children }) {
   // Personnalisations équipe lues depuis le fichier EQUIPE-*.bvp.json
   const [personnalisationsEquipe, setPersonnalisationsEquipe] = useState(null);
 
+  // Plaquage : pourcentage par programme de cuisson (ex: { "Viennoiserie classique": 80 })
+  const [plaquageProgrammes, setPlaquageProgrammes] = useState({});
+
+  // Pâtisserie : couverture multi-jours (ex: { jours: 3, jourDepart: "mercredi", exemplesIds: [] })
+  const [couverturePatisserie, setCouverturePatisserie] = useState({ jours: 2, jourDepart: 'lundi', exemplesIds: [] });
+
   // Charger les handles depuis IndexedDB au montage
   useEffect(() => {
     // Dossier BVP partagé (migration : essayer dossierBVP, sinon dossierArchives, sinon dossierEquipe)
@@ -228,6 +234,8 @@ export function MagasinProvider({ children }) {
     setPersonnalisationsEquipe(null);
     setRefMagasin(null);
     setRapportIdentification(null);
+    setPlaquageProgrammes({});
+    setCouverturePatisserie({ jours: 2, jourDepart: 'lundi', exemplesIds: [] });
   }, []);
 
   // Vérifie si l'import est complet (prêt à passer à l'étape suivante)
@@ -328,6 +336,14 @@ export function MagasinProvider({ children }) {
     setDossierBVP,
     personnalisationsEquipe,
     setPersonnalisationsEquipe,
+
+    // Plaquage par programme
+    plaquageProgrammes,
+    setPlaquageProgrammes,
+
+    // Pâtisserie couverture multi-jours
+    couverturePatisserie,
+    setCouverturePatisserie,
 
     // Helpers
     reinitialiser,

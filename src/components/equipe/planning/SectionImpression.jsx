@@ -44,6 +44,8 @@ export function genererFicheJourHTML(jour, {
   configuration,
   modeImpression = 'continu',
   famillesImpression = null,
+  plaquageProgrammes = {},
+  couverturePatisserie = null,
 }) {
   const jourIndex = JOURS.indexOf(jour);
   const jourLabel = JOURS_LABELS[jourIndex];
@@ -99,14 +101,35 @@ export function genererFicheJourHTML(jour, {
     }).join('');
   };
 
+  // Détecter si une famille est pâtisserie
+  const isPatisserie = (f) => f.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes('patisserie');
+
+  // Jours couverts pour la pâtisserie
+  const getJoursCouverts = () => {
+    if (!couverturePatisserie) return [jour];
+    const nbJ = couverturePatisserie.jours || 2;
+    const result = [];
+    const startIdx = JOURS.indexOf(jour);
+    for (let i = 0; i < nbJ; i++) {
+      result.push(JOURS[(startIdx + i) % 7]);
+    }
+    return result;
+  };
+
   // Helper pour construire un tableau complet pour une famille
   const construireTableauFamille = (famille) => {
     const groupe = produitsParFamille[famille];
     if (!groupe) return '';
 
+    const estPat = isPatisserie(famille) && couverturePatisserie;
+
     const tranchesAffichees = colonnesVisiblesParFamille?.[famille] || colonnesDefaut || TRANCHES_CONFIG;
     const nbTranches = tranchesAffichees.length;
     const tranchesHeadersHTML = buildTranchesHeaders(tranchesAffichees);
+
+    // Colonnes jour pour la pâtisserie
+    const joursCouverts = estPat ? getJoursCouverts() : [];
+    const joursHeadersHTML = joursCouverts.map(j => `<th class="tranche">${JOURS_LABELS[JOURS.indexOf(j)]}</th>`).join('');
 
     const modeRepartition = configuration?.repartitionParFamille?.[famille] || 'journalier';
     let lignesHTML = '';
@@ -118,7 +141,7 @@ export function genererFicheJourHTML(jour, {
       const produitsProgramme = groupe.parProgramme[programme];
       if (!produitsProgramme?.length) return;
 
-      const capaciteTranches = tranchesAffichees.map(() => 0);
+      const capaciteTranches = (estPat ? joursCouverts : tranchesAffichees).map(() => 0);
       let capaciteTotal = 0;
 
       produitsProgramme
@@ -126,61 +149,96 @@ export function genererFicheJourHTML(jour, {
         .forEach((produit) => {
           const qtes = calculerQuantites(produit, jour, modeRepartition);
           const total = qtes.total?.preco || 0;
-          if (total === 0) return;
+          if (total === 0 && !estPat) return;
 
           const upp = produit.unitesParPlaque || 0;
 
+          const isLot = produit.unitesParLot && produit.unitesParLot > 1;
           const formatQte = (qteUnites) => {
-            if (produit.unitesParLot && produit.unitesParLot > 1 && qteUnites > 0) {
+            if (isLot && qteUnites > 0) {
               const lots = Math.ceil(qteUnites / produit.unitesParLot);
               const totalU = lots * produit.unitesParLot;
-              return `<strong>${lots}</strong><span class="lot-info"> lots = ${totalU}u</span>`;
+              return `<span class="lot-line"><strong>${lots}</strong><span class="lot-sep">lt</span><span class="lot-total">/${totalU}u</span></span>`;
             }
             return `<strong>${qteUnites}</strong>`;
           };
+          const lotLabel = isLot ? ` <span class="lot-badge">×${produit.unitesParLot}</span>` : '';
 
-          let tranchesColsHTML = '';
-          if (modeRepartition === 'tranches') {
-            tranchesAffichees.forEach((tranche, i) => {
-              const qte = getQteColonnePrint(tranche, qtes.tranches);
-              if (upp > 0) capaciteTranches[i] += qte / upp;
-              const isDerniere = i === nbTranches - 1;
-              tranchesColsHTML += `<td class="qte ${isDerniere ? 'derniere' : ''}">${formatQte(qte)}</td>`;
+          if (estPat) {
+            // Mode pâtisserie : colonnes jour au lieu de tranches
+            let totalMultiJours = 0;
+            let joursColsHTML = '';
+            joursCouverts.forEach((j, i) => {
+              const qtesJ = calculerQuantites(produit, j, 'journalier');
+              const qteJ = qtesJ.total?.preco || 0;
+              totalMultiJours += qteJ;
+              capaciteTranches[i] += qteJ;
+              joursColsHTML += `<td class="qte">${formatQte(qteJ)}</td>`;
             });
+            if (totalMultiJours === 0) return;
+            capaciteTotal += totalMultiJours;
+
+            lignesHTML += `
+              <tr>
+                <td class="rayon">${famille}</td>
+                <td class="prog">${programme}</td>
+                <td class="plu">${produit.plu || ''}</td>
+                <td class="upl"></td>
+                <td class="article">${produit.libellePersonnalise || produit.libelle}${lotLabel}</td>
+                <td class="remarque">${produit.remarque || ''}</td>
+                <td class="plaquage">—</td>
+                ${joursColsHTML}
+                <td class="qte derniere">${formatQte(totalMultiJours)}</td>
+                <td class="stock"></td>
+                <td class="acuire"></td>
+              </tr>
+            `;
           } else {
-            tranchesAffichees.forEach((_, i) => {
-              if (i === nbTranches - 1) {
-                tranchesColsHTML += `<td class="qte derniere">${formatQte(total)}</td>`;
-                if (upp > 0) capaciteTranches[i] += total / upp;
-              } else {
-                tranchesColsHTML += `<td class="qte">-</td>`;
-              }
-            });
-          }
+            // Mode standard : tranches horaires
+            let tranchesColsHTML = '';
+            if (modeRepartition === 'tranches') {
+              tranchesAffichees.forEach((tranche, i) => {
+                const qte = getQteColonnePrint(tranche, qtes.tranches);
+                if (upp > 0) capaciteTranches[i] += qte / upp;
+                const isDerniere = i === nbTranches - 1;
+                tranchesColsHTML += `<td class="qte ${isDerniere ? 'derniere' : ''}">${formatQte(qte)}</td>`;
+              });
+            } else {
+              tranchesAffichees.forEach((_, i) => {
+                if (i === nbTranches - 1) {
+                  tranchesColsHTML += `<td class="qte derniere">${formatQte(total)}</td>`;
+                  if (upp > 0) capaciteTranches[i] += total / upp;
+                } else {
+                  tranchesColsHTML += `<td class="qte">-</td>`;
+                }
+              });
+            }
 
-          if (upp > 0) capaciteTotal += total / upp;
+            if (upp > 0) capaciteTotal += total / upp;
 
-          // u/pl = unitesParPlaque brut
-          const uplHTML = upp > 0 ? `${upp}` : '';
+            // u/pl = unitesParPlaque brut
+            const uplHTML = upp > 0 ? `${upp}` : '';
 
-          // Plaquage = nb plaques de la 1ère tranche (matin)
-          let qtePremiereTranche = 0;
-          if (modeRepartition === 'tranches' && tranchesAffichees.length > 0) {
-            qtePremiereTranche = getQteColonnePrint(tranchesAffichees[0], qtes.tranches);
-          } else {
-            qtePremiereTranche = total;
-          }
-          const plaquageHTML = upp > 0 && qtePremiereTranche > 0
-            ? `${(Math.ceil((qtePremiereTranche / upp) * 10) / 10).toFixed(1)}`
-            : '';
+            // Plaquage = nb plaques de la 1ère tranche × %programme / unitésParPlaque
+            let qtePremiereTranche = 0;
+            if (modeRepartition === 'tranches' && tranchesAffichees.length > 0) {
+              qtePremiereTranche = getQteColonnePrint(tranchesAffichees[0], qtes.tranches);
+            } else {
+              qtePremiereTranche = total;
+            }
+            const pctProgramme = (plaquageProgrammes && plaquageProgrammes[programme] != null)
+              ? plaquageProgrammes[programme] : 100;
+            const plaquageHTML = upp > 0 && qtePremiereTranche > 0
+              ? `${Math.ceil(qtePremiereTranche * pctProgramme / 100 / upp)}`
+              : '';
 
-          lignesHTML += `
+            lignesHTML += `
               <tr>
                 <td class="rayon">${famille}</td>
                 <td class="prog">${programme}</td>
                 <td class="plu">${produit.plu || ''}</td>
                 <td class="upl">${uplHTML}</td>
-                <td class="article">${produit.libellePersonnalise || produit.libelle}</td>
+                <td class="article">${produit.libellePersonnalise || produit.libelle}${lotLabel}</td>
                 <td class="remarque">${produit.remarque || ''}</td>
                 <td class="plaquage">${plaquageHTML}</td>
                 ${tranchesColsHTML}
@@ -188,15 +246,18 @@ export function genererFicheJourHTML(jour, {
                 <td class="acuire"></td>
               </tr>
             `;
+          }
         });
 
-      if (capaciteTotal > 0) {
+      if (capaciteTotal > 0 && !estPat) {
         const capaciteColsHTML = capaciteTranches.map((cap) =>
           `<td class="qte cap">${cap > 0 ? cap.toFixed(1) + ' Pl.' : '-'}</td>`
         ).join('');
 
-        // Plaquage capacité = plaques 1ère tranche
-        const capPlaquage = capaciteTranches[0] > 0 ? capaciteTranches[0].toFixed(1) : '';
+        // Plaquage capacité = plaques 1ère tranche × %programme
+        const pctProg = (plaquageProgrammes?.[programme] != null) ? plaquageProgrammes[programme] : 100;
+        const capPlaquageBrut = capaciteTranches[0] * pctProg / 100;
+        const capPlaquage = capPlaquageBrut > 0 ? Math.ceil(capPlaquageBrut).toString() : '';
 
         lignesHTML += `
             <tr class="capacite">
@@ -216,6 +277,31 @@ export function genererFicheJourHTML(jour, {
     });
 
     if (!lignesHTML) return '';
+
+    if (estPat) {
+      // Tableau pâtisserie : colonnes jour + Ventes + Stock + À sortir
+      return `
+        <table>
+          <thead>
+            <tr>
+              <th class="col-rayon">Rayon</th>
+              <th class="col-prog">Prog</th>
+              <th class="col-plu">PLU</th>
+              <th class="col-upl"></th>
+              <th class="col-article">Article</th>
+              <th class="col-remarque">Remarque</th>
+              <th class="col-plaquage"></th>
+              ${joursHeadersHTML}
+              <th class="tranche">Ventes</th>
+              <th class="col-stock">Stock</th>
+              <th class="col-acuire">À sortir</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${lignesHTML}
+          </tbody>
+        </table>`;
+    }
 
     return `
         <table>
@@ -343,8 +429,8 @@ export function getFicheCSS(orientation = 'portrait') {
     th.col-prog { width: 50px; font-size: 8px; }
     th.col-plu { width: 38px; font-size: 8px; }
     th.col-article { font-size: 8px; }
-    th.col-remarque { width: 50px; font-size: 7px; }
-    th.tranche { width: 38px; font-size: 7px; line-height: 1.1; }
+    th.col-remarque { width: 40px; font-size: 7px; }
+    th.tranche { width: 52px; font-size: 7px; line-height: 1.1; }
     th.col-stock { width: 32px; font-size: 7px; line-height: 1.1; }
 
     /* Cellules de données */
@@ -353,7 +439,7 @@ export function getFicheCSS(orientation = 'portrait') {
     td.plu { font-size: 7px; }
     td.article { text-align: left; font-size: 8px; font-weight: bold; }
     td.remarque { font-size: 6px; }
-    td.qte { font-size: 11px; font-weight: bold; width: 38px; }
+    td.qte { font-size: 11px; font-weight: bold; width: 52px; }
     td.qte.derniere { background: #fff59d; }
     td.stock { width: 32px; background: #fff; }
 
@@ -372,8 +458,18 @@ export function getFicheCSS(orientation = 'portrait') {
     tr.capacite td.total { font-weight: bold; font-size: 6px; }
     tr.capacite td.stock { background: #e5e7eb !important; }
 
-    /* Lots compacts (une seule ligne) */
-    .lot-info { font-size: 6px; font-weight: normal; white-space: nowrap; }
+    /* Lots : format inline "15 lt / 60u" */
+    .lot-line { white-space: nowrap; }
+    .lot-sep { font-size: 6px; font-weight: normal; color: #666; margin: 0 1px; }
+    .lot-total { font-size: 7px; font-weight: normal; color: #555; }
+    /* Badge ×N à côté du nom article */
+    .lot-badge {
+      font-size: 6.5px; font-weight: bold; color: #b45309;
+      background: #fef3c7; border: 1px solid #f59e0b;
+      border-radius: 3px; padding: 0 2px; margin-left: 4px;
+      white-space: nowrap;
+    }
+    td.qte { padding: 1px 2px; line-height: 1.1; }
 
     /* Colonne u/pl (unités par plaque) */
     th.col-upl { width: 24px; font-size: 6px; }
@@ -409,7 +505,7 @@ export function getFicheCSS(orientation = 'portrait') {
  * Imprimer le planning au format professionnel (jour actuel)
  */
 export function handlePrintPlanningPro(jourSelectionne, params, options = {}) {
-  const { modeImpression = 'continu', orientationImpression = 'portrait', famillesImpression = null } = options;
+  const { modeImpression = 'continu', orientationImpression = 'portrait', famillesImpression = null, plaquageProgrammes = {}, couverturePatisserie = null } = options;
   const { configuration } = params;
   const jourComplet = JOURS_COMPLETS[JOURS.indexOf(jourSelectionne)];
   const magasinDisplay = configuration?.codePDV
@@ -424,7 +520,7 @@ export function handlePrintPlanningPro(jourSelectionne, params, options = {}) {
   <style>${getFicheCSS(orientationImpression)}</style>
 </head>
 <body>
-  ${genererFicheJourHTML(jourSelectionne, { ...params, modeImpression, famillesImpression })}
+  ${genererFicheJourHTML(jourSelectionne, { ...params, modeImpression, famillesImpression, plaquageProgrammes, couverturePatisserie })}
 </body>
 </html>`;
 
@@ -438,14 +534,14 @@ export function handlePrintPlanningPro(jourSelectionne, params, options = {}) {
  * Imprimer la semaine complète (7 fiches, une par jour)
  */
 export function handlePrintSemaine(params, options = {}) {
-  const { modeImpression = 'continu', orientationImpression = 'portrait', famillesImpression = null } = options;
+  const { modeImpression = 'continu', orientationImpression = 'portrait', famillesImpression = null, plaquageProgrammes = {}, couverturePatisserie = null } = options;
   const { configuration } = params;
   const magasinDisplay = configuration?.codePDV
     ? `PDV ${configuration.codePDV} - ${configuration.nomPDV}`
     : (configuration?.magasin || '');
 
   // Générer les 7 fiches
-  const pagesHTML = JOURS.map(jour => genererFicheJourHTML(jour, { ...params, modeImpression, famillesImpression })).join('\n');
+  const pagesHTML = JOURS.map(jour => genererFicheJourHTML(jour, { ...params, modeImpression, famillesImpression, plaquageProgrammes, couverturePatisserie })).join('\n');
 
   const html = `<!DOCTYPE html>
 <html lang="fr">

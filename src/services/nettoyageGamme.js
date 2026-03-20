@@ -1191,12 +1191,7 @@ export function appliquerArchiveSurBruts(produitsBruts, archiveProduits) {
     const pgItm8 = String(pg.itm8 || '');
     const pgLibelle = pg.libelle || '';
 
-    // 1. Match exact par libellé
-    if (pgLibelle) {
-      const m = archiveByLibelle.get(pgLibelle);
-      if (m) return m;
-    }
-    // 2. Match par EAN13
+    // 1. Match par EAN13 EN PREMIER (plus spécifique, porte le bon état actif/inactif)
     if (pgEan) {
       const candidates = archiveByEan.get(pgEan);
       if (candidates) {
@@ -1208,7 +1203,7 @@ export function appliquerArchiveSurBruts(produitsBruts, archiveProduits) {
         return candidates[0];
       }
     }
-    // 3. Match par ITM8
+    // 2. Match par ITM8
     if (pgItm8) {
       const candidates = archiveByItm8.get(pgItm8);
       if (candidates) {
@@ -1220,7 +1215,12 @@ export function appliquerArchiveSurBruts(produitsBruts, archiveProduits) {
         return candidates[0];
       }
     }
-    // 4. Match par PLU
+    // 3. Match par libellé SEULEMENT si ni EAN ni ITM8 n'ont matché
+    if (pgLibelle) {
+      const m = archiveByLibelle.get(pgLibelle);
+      if (m) return m;
+    }
+    // 4. Match par PLU (dernier recours)
     if (pg.plu) {
       const candidates = archiveByItm8.get(String(pg.plu));
       if (candidates) return candidates[0];

@@ -20,6 +20,8 @@ import {
   Sliders,
   BarChart2,
   Target,
+  Layers,
+  Cake,
 } from 'lucide-react';
 import { useMagasin } from '../../contexts/MagasinContext';
 import StepAnimationCommerciale from '../responsable/StepAnimationCommerciale';
@@ -28,6 +30,8 @@ import OngletGamme from './pilotage/OngletGamme';
 import OngletLimites from './pilotage/OngletMatrice';
 import OngletSuivi from './pilotage/OngletStats';
 import OngletAnalyseGamme from './pilotage/OngletAnalyseGamme';
+import OngletPlaquage from './pilotage/OngletPlaquage';
+import OngletPatisserie from './pilotage/OngletPatisserie';
 import DashboardCA from './pilotage/DashboardCA';
 import { appliquerCorrectionsManuelles, nettoyerGamme } from '../../services/nettoyageGamme';
 
@@ -159,6 +163,8 @@ const Onglets = ({ actif, onChange }) => {
     { id: 'promo', label: 'Promo', icon: Tag, color: 'bg-blue-100 border-blue-300 text-blue-800' },
     { id: 'commande', label: 'Commande', icon: ShoppingCart, color: 'bg-emerald-100 border-emerald-300 text-emerald-800' },
     { id: 'suivi', label: 'Suivi', icon: BarChart2, color: 'bg-amber-100 border-amber-300 text-amber-800' },
+    { id: 'plaquage', label: 'Plaquage', icon: Layers, color: 'bg-orange-100 border-orange-300 text-orange-800' },
+    { id: 'patisserie', label: 'Pâtisserie', icon: Cake, color: 'bg-purple-100 border-purple-300 text-purple-800' },
     { id: 'analyse', label: 'Analyse', icon: Target, color: 'bg-indigo-100 border-indigo-300 text-indigo-800' },
   ];
 
@@ -484,6 +490,12 @@ const Etape4PilotageCA = () => {
             planifieManager={planifieManager}
             promosPrecedentes={promosPrecedentes}
           />
+        )}
+        {ongletActif === 'plaquage' && (
+          <OngletPlaquage produits={produits} />
+        )}
+        {ongletActif === 'patisserie' && (
+          <OngletPatisserie produits={produits} />
         )}
         {ongletActif === 'analyse' && (
           <OngletAnalyseGamme produits={produits} />

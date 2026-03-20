@@ -82,6 +82,8 @@ const construireArchive = ({
   promosActives,
   commandeConfig,
   frequentationData,
+  plaquageProgrammes,
+  couverturePatisserie,
 }) => {
   const sem = semainePlanning || { semaine: 1, annee: 2026 };
   const code = infoPDV?.code || donneesMagasin?.magasin?.code || 'XXXXX';
@@ -280,6 +282,15 @@ const construireArchive = ({
       source: 'referentiel V2.xlsx',
     },
 
+    // Plaquage par programme de cuisson (pourcentages définis par le manager)
+    plaquage: Object.keys(plaquageProgrammes || {}).length > 0 ? plaquageProgrammes : null,
+
+    // Pâtisserie couverture multi-jours
+    couverturePatisserie: couverturePatisserie?.jours ? {
+      jours: couverturePatisserie.jours,
+      jourDepart: couverturePatisserie.jourDepart || 'lundi',
+    } : null,
+
     // Corrections manuelles (séparations, fusions, dissociations, associations)
     correctionsManuelles: (() => {
       try {
@@ -313,6 +324,8 @@ const Etape5Communication = () => {
     commandeConfig,
     dossierBVP,
     frequentationData,
+    plaquageProgrammes,
+    couverturePatisserie,
   } = useMagasin();
 
   const { writeFile } = useFileAccess();
@@ -335,7 +348,9 @@ const Etape5Communication = () => {
     commandeConfig,
     promosActives,
     frequentationData,
-  }), [donneesMagasin, infoPDV, semainePlanning, objectifCA, objectifPourcent, produitsGamme, planifieManager, joursOuverture, promosActives, commandeConfig, frequentationData]);
+    plaquageProgrammes,
+    couverturePatisserie,
+  }), [donneesMagasin, infoPDV, semainePlanning, objectifCA, objectifPourcent, produitsGamme, planifieManager, joursOuverture, promosActives, commandeConfig, frequentationData, plaquageProgrammes, couverturePatisserie]);
 
   const nomFichier = useMemo(() => {
     const code = archive.magasin.code;
