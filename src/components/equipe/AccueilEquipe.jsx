@@ -139,6 +139,8 @@ const AccueilEquipe = ({ onRetourAccueil, dossierEquipeHandle }) => {
     })),
     commandes: fichierCharge.commandes || {},
     personnalisationProduits: fichierCharge.personnalisationProduits || {},
+    plaquage: fichierCharge.plaquage || {},
+    couverturePatisserie: fichierCharge.couverturePatisserie || null,
   } : null;
 
   // Si chargement en cours ou pas de fichier trouvé

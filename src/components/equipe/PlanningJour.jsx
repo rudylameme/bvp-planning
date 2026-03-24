@@ -199,7 +199,7 @@ export default function PlanningJour({ donneesMagasin, dossierEquipeHandle, donn
     };
   }, [executerSauvegarde]);
 
-  const { configuration, frequentation, produits: produitsOriginaux } = donneesMagasin;
+  const { configuration, frequentation, produits: produitsOriginaux, plaquage, couverturePatisserie } = donneesMagasin;
 
   // Tranches par famille (nouveau format) avec rétrocompatibilité
   const tranchesParFamille = useMemo(() => {
@@ -502,7 +502,7 @@ export default function PlanningJour({ donneesMagasin, dossierEquipeHandle, donn
       colonnesVisiblesParFamille,
       colonnesDefaut,
       configuration,
-    }, { modeImpression, orientationImpression, famillesImpression });
+    }, { modeImpression, orientationImpression, famillesImpression, plaquageProgrammes: plaquage || {}, couverturePatisserie });
   };
 
   const onPrintSemaine = () => {
@@ -515,7 +515,7 @@ export default function PlanningJour({ donneesMagasin, dossierEquipeHandle, donn
       colonnesVisiblesParFamille,
       colonnesDefaut,
       configuration,
-    }, { modeImpression, orientationImpression, famillesImpression });
+    }, { modeImpression, orientationImpression, famillesImpression, plaquageProgrammes: plaquage || {}, couverturePatisserie });
   };
 
   const onExportExcel = () => {
@@ -527,7 +527,7 @@ export default function PlanningJour({ donneesMagasin, dossierEquipeHandle, donn
       colonnesVisiblesParFamille,
       colonnesDefaut,
       configuration,
-    }, { modeImpression, orientationImpression, famillesImpression });
+    }, { modeImpression, orientationImpression, famillesImpression, plaquageProgrammes: plaquage || {}, couverturePatisserie });
   };
 
   return (

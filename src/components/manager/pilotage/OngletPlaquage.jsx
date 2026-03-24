@@ -252,12 +252,11 @@ const OngletPlaquage = ({ produits }) => {
                     if (!p) return null;
 
                     const upp = p.unitesParPlaque || 0;
-                    // Quantité matin approximative = planifieManager / 7 ou moyenneHebdo / 7
+                    // Quantité matin approximative
                     const qteHebdo = p.planifieManager || p.potentiel || p.moyHebdo || 0;
-                    const qteMatin = Math.ceil(qteHebdo * 0.2); // ~20% pour la 1ère tranche (approximation)
-                    const plaquage = upp > 0
-                      ? Math.ceil(qteMatin * pourcentage / 100 / upp)
-                      : null;
+                    const qteMatin = Math.ceil(qteHebdo * 0.2);
+                    // Plaquage en UNITÉS (pas en plaques)
+                    const plaquageUnites = Math.round(qteMatin * pourcentage / 100);
 
                     return (
                       <tr key={`ex-${programme}-${produitId}`} className="bg-amber-50/50 border-b border-gray-100">
@@ -280,11 +279,7 @@ const OngletPlaquage = ({ produits }) => {
                           {upp > 0 ? `${upp} u/pl` : '-'}
                         </td>
                         <td className="text-center px-4 py-1.5">
-                          {plaquage !== null ? (
-                            <span className="font-bold text-[#8B1538]">{plaquage} pl.</span>
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
+                          <span className="font-bold text-[#8B1538]">{plaquageUnites} u</span>
                         </td>
                       </tr>
                     );
@@ -292,22 +287,29 @@ const OngletPlaquage = ({ produits }) => {
 
                   {/* Total plaques si exemples existent */}
                   {exemples.length > 0 && (() => {
-                    let totalPlaques = 0;
+                    let totalUnites = 0;
+                    let totalUpp = 0;
+                    let hasUpp = false;
                     exemples.forEach(produitId => {
                       const p = (produitsParProgramme[programme] || []).find(pr => pr.id === produitId);
                       if (!p) return;
                       const upp = p.unitesParPlaque || 0;
                       const qteHebdo = p.planifieManager || p.potentiel || p.moyHebdo || 0;
                       const qteMatin = Math.ceil(qteHebdo * 0.2);
-                      if (upp > 0) totalPlaques += Math.ceil(qteMatin * pourcentage / 100 / upp);
+                      const plaqUnites = Math.round(qteMatin * pourcentage / 100);
+                      totalUnites += plaqUnites;
+                      if (upp > 0) {
+                        totalUpp += plaqUnites / upp;
+                        hasUpp = true;
+                      }
                     });
-                    return totalPlaques > 0 ? (
+                    return totalUnites > 0 ? (
                       <tr className="bg-amber-100/50 border-b-2 border-amber-200">
                         <td colSpan={3} className="px-4 py-1.5 text-right text-sm font-semibold text-amber-800">
                           Total exemples {programme} :
                         </td>
                         <td className="text-center px-4 py-1.5 font-bold text-[#8B1538]">
-                          {totalPlaques} pl.
+                          {hasUpp ? `${totalUpp.toFixed(1)} pl.` : `${totalUnites} u`}
                         </td>
                       </tr>
                     ) : null;

@@ -219,7 +219,7 @@ export function genererFicheJourHTML(jour, {
             // u/pl = unitesParPlaque brut
             const uplHTML = upp > 0 ? `${upp}` : '';
 
-            // Plaquage = nb plaques de la 1ère tranche × %programme / unitésParPlaque
+            // Plaquage = unités à plaquer (1ère tranche × %programme)
             let qtePremiereTranche = 0;
             if (modeRepartition === 'tranches' && tranchesAffichees.length > 0) {
               qtePremiereTranche = getQteColonnePrint(tranchesAffichees[0], qtes.tranches);
@@ -228,9 +228,10 @@ export function genererFicheJourHTML(jour, {
             }
             const pctProgramme = (plaquageProgrammes && plaquageProgrammes[programme] != null)
               ? plaquageProgrammes[programme] : 100;
-            const plaquageHTML = upp > 0 && qtePremiereTranche > 0
-              ? `${Math.ceil(qtePremiereTranche * pctProgramme / 100 / upp)}`
-              : '';
+            const plaquageUnites = qtePremiereTranche > 0
+              ? Math.round(qtePremiereTranche * pctProgramme / 100)
+              : 0;
+            const plaquageHTML = plaquageUnites > 0 ? `${plaquageUnites}` : '';
 
             lignesHTML += `
               <tr>
@@ -254,10 +255,10 @@ export function genererFicheJourHTML(jour, {
           `<td class="qte cap">${cap > 0 ? cap.toFixed(1) + ' Pl.' : '-'}</td>`
         ).join('');
 
-        // Plaquage capacité = plaques 1ère tranche × %programme
+        // Plaquage capacité = total unités plaquées / u/pl (NON arrondi)
         const pctProg = (plaquageProgrammes?.[programme] != null) ? plaquageProgrammes[programme] : 100;
         const capPlaquageBrut = capaciteTranches[0] * pctProg / 100;
-        const capPlaquage = capPlaquageBrut > 0 ? Math.ceil(capPlaquageBrut).toString() : '';
+        const capPlaquage = capPlaquageBrut > 0 ? capPlaquageBrut.toFixed(1) + ' Pl.' : '';
 
         lignesHTML += `
             <tr class="capacite">
