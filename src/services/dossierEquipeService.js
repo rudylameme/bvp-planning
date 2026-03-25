@@ -153,13 +153,18 @@ export async function trouverDernierFichierManager(dirHandle, semaine, annee) {
   const fichiers = await scannerDossier(dirHandle);
   const managers = fichiers.filter(f => f.info.type === 'manager');
 
-  // Chercher d'abord la semaine exacte, puis les semaines précédentes
-  for (let offset = 0; offset <= 4; offset++) {
-    let sem = semCible - offset;
+  // Chercher : semaine S+1 (avance), S (courante), S-1, S-2, S-3, S-4 (passées)
+  // Le manager prépare souvent la semaine suivante pendant la semaine en cours
+  const offsets = [+1, 0, -1, -2, -3, -4];
+  for (const offset of offsets) {
+    let sem = semCible + offset;
     let an = anCible;
     if (sem <= 0) {
       sem += 52;
       an -= 1;
+    } else if (sem > 52) {
+      sem -= 52;
+      an += 1;
     }
 
     // Filtrer les fichiers pour cette semaine
