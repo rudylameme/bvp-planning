@@ -7,7 +7,7 @@
 
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { saveHandle, loadHandle, verifyHandlePermission } from '../services/handleStorage';
-import { appliquerArchiveSurBruts } from '../services/nettoyageGamme';
+import { appliquerArchiveSurBruts, nettoyerGamme } from '../services/nettoyageGamme';
 
 const MagasinContext = createContext();
 
@@ -81,6 +81,9 @@ export function MagasinProvider({ children }) {
   // Personnalisations équipe lues depuis le fichier EQUIPE-*.bvp.json
   const [personnalisationsEquipe, setPersonnalisationsEquipe] = useState(null);
 
+  // Flag : nettoyage nécessaire (mis à true par EtapeConfigPlanning quand aucune archive n'est trouvée)
+  const [nettoyageNecessaire, setNettoyageNecessaire] = useState(false);
+
   // Plaquage : pourcentage par programme de cuisson (ex: { "Viennoiserie classique": 80 })
   const [plaquageProgrammes, setPlaquageProgrammes] = useState({});
 
@@ -141,6 +144,24 @@ export function MagasinProvider({ children }) {
     setProduitsGamme(updated);
     setArchiveProduitsEnAttente(null);
   }, [archiveProduitsEnAttente, produitsVentesBrutes]);
+
+  // ═══════════════════════════════════════════════════════════════
+  // NETTOYAGE AUTOMATIQUE (Cas D du CDC §19) :
+  // Quand les ventes brutes sont chargées et qu'aucune archive n'existe,
+  // déclencher le nettoyage pour réduire la gamme à ~80-120 produits.
+  // Le flag nettoyageNecessaire est mis à true par EtapeConfigPlanning
+  // quand la recherche d'archive se termine sans résultat.
+  // ═══════════════════════════════════════════════════════════════
+  useEffect(() => {
+    if (!nettoyageNecessaire || !produitsVentesBrutes || produitsVentesBrutes.length === 0) return;
+    if (archiveAppliquee) return; // L'archive a été appliquée, pas de nettoyage
+
+    const sem = semainePlanning;
+    const moisP = sem ? new Date(sem.annee, 0, 1 + (sem.semaine - 1) * 7).getMonth() + 1 : null;
+    const { produits: nettoyes } = nettoyerGamme(produitsVentesBrutes, sem?.semaine, moisP);
+    setProduitsGamme(nettoyes);
+    setNettoyageNecessaire(false);
+  }, [nettoyageNecessaire, produitsVentesBrutes, archiveAppliquee, semainePlanning]);
 
   // Restaurer les corrections manuelles depuis l'archive (merge avec localStorage)
   useEffect(() => {
@@ -231,6 +252,7 @@ export function MagasinProvider({ children }) {
     setArchiveTrouvee(null);
     setArchiveAppliquee(false);
     setArchiveCorrectionsEnAttente(null);
+    setNettoyageNecessaire(false);
     setPersonnalisationsEquipe(null);
     setRefMagasin(null);
     setRapportIdentification(null);
@@ -330,6 +352,10 @@ export function MagasinProvider({ children }) {
 
     // Corrections manuelles depuis l'archive
     setArchiveCorrectionsEnAttente,
+
+    // Nettoyage automatique (Cas D — pas d'archive)
+    nettoyageNecessaire,
+    setNettoyageNecessaire,
 
     // Dossier BVP partagé (unique pour Manager + Équipe)
     dossierBVP,

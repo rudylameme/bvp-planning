@@ -174,6 +174,7 @@ const EtapeConfigPlanning = () => {
     setPersonnalisationsEquipe,
     archiveProduitsEnAttente,
     setProduitsVentesBrutes,
+    setNettoyageNecessaire,
   } = useMagasin();
 
   const [etapeChargement, setEtapeChargement] = useState('');
@@ -538,6 +539,7 @@ const EtapeConfigPlanning = () => {
   useEffect(() => {
     if (!dossierBVP || !semaineAppliquee || !magasinSelectionne) {
       setArchiveTrouvee(null);
+      if (!dossierBVP) setNettoyageNecessaire(true);
       return;
     }
     const codePDV = magasinSelectionne.code;
@@ -582,7 +584,7 @@ const EtapeConfigPlanning = () => {
           return;
         } catch { /* continuer */ }
       }
-      if (!cancelled) { setArchiveTrouvee(null); setRechercheArchiveEnCours(false); }
+      if (!cancelled) { setArchiveTrouvee(null); setRechercheArchiveEnCours(false); setNettoyageNecessaire(true); }
     })();
     return () => { cancelled = true; };
   }, [dossierBVP, semaineAppliquee, magasinSelectionne]);
