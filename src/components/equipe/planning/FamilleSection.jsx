@@ -94,6 +94,10 @@ export default function FamilleSection({
   handleDragOverProgramme,
   handleDropProgramme,
   handleDragEndProgramme,
+  handleDragStartProduit,
+  handleDragOverProduit,
+  handleDropProduit,
+  handleDragEndProduit,
   setProduitEnEdition,
   famillesTriees,
 }) {
@@ -248,6 +252,10 @@ export default function FamilleSection({
                     onDragOver={handleDragOverProgramme}
                     onDrop={handleDropProgramme}
                     onDragEnd={handleDragEndProgramme}
+                    onDragStartProduit={handleDragStartProduit}
+                    onDragOverProduit={handleDragOverProduit}
+                    onDropProduit={handleDropProduit}
+                    onDragEndProduit={handleDragEndProduit}
                     onEditProduit={setProduitEnEdition}
                   />
                 );

@@ -76,7 +76,7 @@ const BenchmarkContent = ({ onRetourAccueil, onAllerPlanning }) => {
   const renderContenuEtape = () => {
     switch (etapeActive) {
       case 0:
-        return <Etape0Import />;
+        return <Etape0Import masquerReferentielMagasin />;
       case 1:
         return <Etape1Diagnostic onPrecedent={allerEtapePrecedente} />;
       default:

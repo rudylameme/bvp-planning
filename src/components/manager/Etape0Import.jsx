@@ -46,7 +46,7 @@ import {
 import { chargerReferentielMagasin, genererRapportMatching } from '../../services/referentielMagasin';
 import { useFileAccess } from '../../hooks/useFileAccess';
 
-const Etape0Import = () => {
+const Etape0Import = ({ masquerReferentielMagasin = false }) => {
   const {
     dirHandle,
     setDirHandle,
@@ -483,8 +483,8 @@ const Etape0Import = () => {
             )}
           </div>
 
-          {/* Section référentiel magasin (optionnel) */}
-          {dirHandle && (
+          {/* Section référentiel magasin (optionnel) — masqué dans le module Benchmark */}
+          {!masquerReferentielMagasin && dirHandle && (
             <div className="bg-white rounded-xl shadow-md p-5">
               <div className="flex items-center gap-3 mb-3">
                 <Database className="w-5 h-5 text-amber-600" />

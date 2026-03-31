@@ -111,7 +111,7 @@ export default function PlanningJour({ donneesMagasin, dossierEquipeHandle, donn
     if (donneesEquipe?.preferencesAffichage?.ordrePersonnalise) {
       return donneesEquipe.preferencesAffichage.ordrePersonnalise;
     }
-    return { familles: null, programmes: {} };
+    return { familles: null, programmes: {}, produits: {} };
   });
 
   // État pour l'édition des produits
@@ -422,6 +422,10 @@ export default function PlanningJour({ donneesMagasin, dossierEquipeHandle, donn
     handleDragOverProgramme,
     handleDropProgramme,
     handleDragEndProgramme,
+    handleDragStartProduit,
+    handleDragOverProduit,
+    handleDropProduit,
+    handleDragEndProduit,
   } = useDragReorder({
     sectionsOuvertes,
     ordrePersonnalise,
@@ -471,7 +475,7 @@ export default function PlanningJour({ donneesMagasin, dossierEquipeHandle, donn
   }, [frequentation, configuration, isCreneauFerme]);
 
   // Grouper les produits par famille, puis par programme (extracted hook)
-  const produitsParFamille = useProduitsParFamille(produits, sortConfig);
+  const produitsParFamille = useProduitsParFamille(produits, sortConfig, ordrePersonnalise.produits);
 
   // Ordre des familles triées (extracted hook)
   const famillesTriees = useFamillesTriees(produitsParFamille, sortConfig, ordrePersonnalise.familles);
@@ -628,6 +632,10 @@ export default function PlanningJour({ donneesMagasin, dossierEquipeHandle, donn
                 handleDragOverProgramme={handleDragOverProgramme}
                 handleDropProgramme={handleDropProgramme}
                 handleDragEndProgramme={handleDragEndProgramme}
+                handleDragStartProduit={handleDragStartProduit}
+                handleDragOverProduit={handleDragOverProduit}
+                handleDropProduit={handleDropProduit}
+                handleDragEndProduit={handleDragEndProduit}
                 setProduitEnEdition={setProduitEnEdition}
                 famillesTriees={famillesTriees}
               />

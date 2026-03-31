@@ -211,9 +211,22 @@ export function MagasinProvider({ children }) {
       if (perso.nomPersonnalise) {
         changes.libellePersonnalise = perso.nomPersonnalise;
       }
+      if (perso.famille && perso.famille !== pg.famille) {
+        changes.famille = perso.famille;
+        changes.rayon = perso.famille;
+      }
       if (Object.keys(changes).length > 0) {
         changedCount++;
         return { ...pg, ...changes };
+      }
+
+      // Fallback : chercher par libellé si pas trouvé par itm8
+      const persoByLib = Object.values(personnalisationsEquipe).find(
+        pe => pe.libelle && pe.libelle === pg.libelle
+      );
+      if (persoByLib?.famille && persoByLib.famille !== pg.famille) {
+        changedCount++;
+        return { ...pg, famille: persoByLib.famille, rayon: persoByLib.famille };
       }
       return pg;
     });
@@ -221,7 +234,7 @@ export function MagasinProvider({ children }) {
     if (changedCount > 0) {
       setProduitsGamme(updated);
     }
-  }, [personnalisationsEquipe, produitsGamme]);
+  }, [personnalisationsEquipe, produitsGamme?.length]);
 
   // Reset complet
   const reinitialiser = useCallback(() => {

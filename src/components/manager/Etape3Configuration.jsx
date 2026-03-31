@@ -294,7 +294,7 @@ const SectionJoursOuverture = ({ creneaux, onChange, redistribution, onRedistrib
 // COMPOSANT PRINCIPAL : Etape3Configuration
 // ============================================================================
 const Etape3Configuration = () => {
-  const { semaineSelectionnee, joursOuverture, setJoursOuverture, produitsGamme } = useMagasin();
+  const { semaineSelectionnee, semainePlanning, joursOuverture, setJoursOuverture, produitsGamme } = useMagasin();
 
   // Familles disponibles (depuis les produits importés ou défaut)
   const familles = useMemo(() => {
@@ -360,9 +360,9 @@ const Etape3Configuration = () => {
         </h2>
         <p className="text-gray-600 mt-1">
           Paramétrez le cadre de travail pour la semaine
-          {semaineSelectionnee && (
+          {(semainePlanning || semaineSelectionnee) && (
             <span className="text-[#8B1538] font-medium">
-              {' '}S{semaineSelectionnee.semaine}/{semaineSelectionnee.annee}
+              {' '}S{(semainePlanning || semaineSelectionnee).semaine}/{(semainePlanning || semaineSelectionnee).annee}
             </span>
           )}
         </p>

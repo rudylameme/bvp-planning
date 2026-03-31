@@ -415,7 +415,7 @@ const Etape4PilotageCA = () => {
       if (p.id !== id) return p;
       const idx = FAMILLES.indexOf(p.rayon);
       const nextRayon = FAMILLES[(idx + 1) % FAMILLES.length];
-      return { ...p, rayon: nextRayon };
+      return { ...p, rayon: nextRayon, famille: nextRayon };
     }));
   }, []);
 
@@ -430,8 +430,8 @@ const Etape4PilotageCA = () => {
           </h2>
           <p className="text-gray-600 mt-1">
             Gérez le chiffre d'affaires et la gamme produits
-            {semaineSelectionnee && (
-              <span className="text-[#8B1538] font-medium"> S{semaineSelectionnee.semaine}/{semaineSelectionnee.annee}</span>
+            {(semainePlanning || semaineSelectionnee) && (
+              <span className="text-[#8B1538] font-medium"> S{(semainePlanning || semaineSelectionnee).semaine}/{(semainePlanning || semaineSelectionnee).annee}</span>
             )}
           </p>
         </div>

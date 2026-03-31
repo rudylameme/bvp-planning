@@ -534,7 +534,7 @@ const EtapeConfigPlanning = () => {
   }, [dirHandle, semaineAppliquee, typePonderation, setFrequentationData]);
 
   // ═══════════════════════════════════════════════════════
-  // RECHERCHE ARCHIVE MANAGER (S-1, S-2… S-52)
+  // RECHERCHE ARCHIVE MANAGER — 3 étapes : Promos S(X), Gamme hautes, Gamme basses
   // ═══════════════════════════════════════════════════════
   useEffect(() => {
     if (!dossierBVP || !semaineAppliquee || !magasinSelectionne) {
@@ -543,48 +543,127 @@ const EtapeConfigPlanning = () => {
       return;
     }
     const codePDV = magasinSelectionne.code;
+    const semX = semaineAppliquee.semaine;
+    const anX = semaineAppliquee.annee;
     let cancelled = false;
     setRechercheArchiveEnCours(true);
     setArchiveTrouvee(null);
 
+    // Helper : ajuster semaine/année si débordement
+    const ajusterSemAn = (sem, an) => {
+      if (sem > 52) return { semaine: sem - 52, annee: an + 1 };
+      if (sem <= 0) return { semaine: sem + 52, annee: an - 1 };
+      return { semaine: sem, annee: an };
+    };
+
+    // Helper : tenter de charger un fichier MANAGER
+    const chargerFichier = async (sem) => {
+      const nom = `MANAGER-${codePDV}-S${String(sem.semaine).padStart(2, '0')}-${sem.annee}.bvp.json`;
+      const fileHandle = await dossierBVP.getFileHandle(nom);
+      const file = await fileHandle.getFile();
+      const data = JSON.parse(await file.text());
+      return { data, nom, sem };
+    };
+
     (async () => {
       try {
         const ok = await checkHandlePermission(dossierBVP, 'read');
-        if (!ok) { setRechercheArchiveEnCours(false); return; }
+        if (!ok || cancelled) { setRechercheArchiveEnCours(false); return; }
       } catch { setRechercheArchiveEnCours(false); return; }
 
-      for (let offset = 1; offset <= 52; offset++) {
-        if (cancelled) return;
-        const sem = calculerSemaineMoinsN(semaineAppliquee.semaine, semaineAppliquee.annee, offset);
-        const nomArchive = `MANAGER-${codePDV}-S${String(sem.semaine).padStart(2, '0')}-${sem.annee}.bvp.json`;
-        try {
-          const fileHandle = await dossierBVP.getFileHandle(nomArchive);
-          if (cancelled) return;
-          const file = await fileHandle.getFile();
-          const data = JSON.parse(await file.text());
-          const estExacte = offset === 1;
-
-          if (!cancelled) {
-            if (data.configuration) {
-              setJoursOuverture({ creneaux: data.configuration.creneaux || null, redistribution: null, regroupements: data.configuration.regroupements || null });
-            }
-            if (data.promotions?.length > 0) {
-              setPromosPrecedentes(data.promotions.map(p => ({ plu: p.plu || '', itm8: p.itm8 || '', libelle: p.libelle || '', qteValidee: p.qteValidee || p.quantitePrevue || 0 })));
-            } else { setPromosPrecedentes([]); }
-            if (data.produits?.length > 0) setArchiveProduitsEnAttente(data.produits);
-            setPromosActives([]);
-            if (estExacte && data.produits) {
-              const planifie = {};
-              data.produits.forEach(p => { if (p.planifieManager > 0) planifie[p.plu || p.itm8 || p.libelle] = p.planifieManager; });
-              if (Object.keys(planifie).length > 0) setPlanifieManager(planifie);
-            } else { setPlanifieManager({}); }
-            setArchiveTrouvee({ semaine: sem, estExacte, nomFichier: nomArchive });
+      // ── ÉTAPE A : Promos uniquement depuis S(X) ──
+      try {
+        if (!cancelled) {
+          const { data } = await chargerFichier({ semaine: semX, annee: anX });
+          if (!cancelled && data.promotions?.length > 0) {
+            setPromosPrecedentes(data.promotions.map(p => ({
+              plu: p.plu || '', itm8: p.itm8 || '',
+              libelle: p.libelle || '',
+              qteValidee: p.qteValidee || p.quantitePrevue || 0,
+            })));
+          } else if (!cancelled) {
+            setPromosPrecedentes([]);
           }
+        }
+      } catch {
+        // S(X) n'existe pas → pas de promos
+        if (!cancelled) setPromosPrecedentes([]);
+      }
+
+      // ── ÉTAPE B : Gamme depuis les hautes S(X+10) → S(X) ──
+      let gammeTrouvee = false;
+      for (let offset = 10; offset >= 0; offset--) {
+        if (cancelled) return;
+        const sem = ajusterSemAn(semX + offset, anX);
+        try {
+          const { data, nom } = await chargerFichier(sem);
+          if (cancelled) return;
+
+          // Restaurer la configuration (tranches horaires, créneaux)
+          if (data.configuration) {
+            setJoursOuverture({
+              creneaux: data.configuration.creneaux || null,
+              redistribution: null,
+              regroupements: data.configuration.regroupements || null,
+            });
+          }
+          // Restaurer la gamme
+          if (data.produits?.length > 0) setArchiveProduitsEnAttente(data.produits);
+          setPromosActives([]);
+
+          // planifieManager seulement si c'est la semaine exacte (offset 0 = S(X))
+          const estSemaineExacte = (sem.semaine === semX && sem.annee === anX);
+          if (estSemaineExacte && data.produits) {
+            const planifie = {};
+            data.produits.forEach(p => {
+              if (p.planifieManager > 0)
+                planifie[p.plu || p.itm8 || p.libelle] = p.planifieManager;
+            });
+            if (Object.keys(planifie).length > 0) setPlanifieManager(planifie);
+          } else {
+            setPlanifieManager({});
+          }
+
+          setArchiveTrouvee({ semaine: sem, estExacte: estSemaineExacte, nomFichier: nom });
+          gammeTrouvee = true;
           setRechercheArchiveEnCours(false);
           return;
-        } catch { /* continuer */ }
+        } catch { /* fichier non trouvé, continuer */ }
       }
-      if (!cancelled) { setArchiveTrouvee(null); setRechercheArchiveEnCours(false); setNettoyageNecessaire(true); }
+
+      // ── ÉTAPE C : Gamme depuis les basses S(X-1) → S(X-52) ──
+      if (!gammeTrouvee) {
+        for (let offset = 1; offset <= 52; offset++) {
+          if (cancelled) return;
+          const sem = ajusterSemAn(semX - offset, anX);
+          try {
+            const { data, nom } = await chargerFichier(sem);
+            if (cancelled) return;
+
+            if (data.configuration) {
+              setJoursOuverture({
+                creneaux: data.configuration.creneaux || null,
+                redistribution: null,
+                regroupements: data.configuration.regroupements || null,
+              });
+            }
+            if (data.produits?.length > 0) setArchiveProduitsEnAttente(data.produits);
+            setPromosActives([]);
+            setPlanifieManager({});
+
+            setArchiveTrouvee({ semaine: sem, estExacte: false, nomFichier: nom });
+            setRechercheArchiveEnCours(false);
+            return;
+          } catch { /* continuer */ }
+        }
+      }
+
+      // Rien trouvé nulle part → nettoyage automatique
+      if (!cancelled) {
+        setArchiveTrouvee(null);
+        setRechercheArchiveEnCours(false);
+        setNettoyageNecessaire(true);
+      }
     })();
     return () => { cancelled = true; };
   }, [dossierBVP, semaineAppliquee, magasinSelectionne]);

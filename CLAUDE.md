@@ -1166,6 +1166,12 @@ Source : `src/styles/mousquetaires-theme.js` lignes 69-114
 
 6. **Distribution par défaut famille** : `WizardResponsable.jsx` (L38-45) définit `REPARTITION_DEFAUT` avec `NEGOCE: 'journalier'` mais la famille NEGOCE n'apparaît pas dans `LIMITES_PROGRESSION_DEFAUT` — cohérence à vérifier.
 
+---
+
+## 🤝 MÉTHODE DE COLLABORATION COWORK ↔ CLAUDE CODE
+
+Voir `ORGANISATION_PROJET.md` pour le flux de travail complet, les règles de format des prompts, et la règle QUOI+POURQUOI (pas le COMMENT).
+
 7. ~~**Bug UTC dateDebut**~~ **CORRIGÉ le 23/02/2026** : `getDateDebutSemaine()` dans `Etape5Communication.jsx` utilisait `toISOString().split('T')[0]` qui convertit en UTC → en France (UTC+1), un lundi minuit devenait dimanche 23h UTC → date de la veille stockée dans le .bvp.json. Corrigé avec `formatDateLocale()`. Rétrocompatibilité assurée dans `helpers.js` (si dateDebut = dimanche → +1 jour).
 
 8. ~~**`repartitionParFamille` codée en dur**~~ **CORRIGÉ le 23/02/2026** : Dans `Etape5Communication.jsx`, la `repartitionParFamille` était codée en dur avec des valeurs par défaut au lieu d'être déduite de `tranchesParFamille` configuré par le manager. Corrigé : si une famille a >1 tranche → 'tranches', si 1 seule tranche → 'journalier'. Règle métier : c'est le manager qui décide, pas l'équipe.

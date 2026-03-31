@@ -46,6 +46,10 @@ export default function ProgrammeGroup({
   onDragOver,
   onDrop,
   onDragEnd,
+  onDragStartProduit,
+  onDragOverProduit,
+  onDropProduit,
+  onDragEndProduit,
   onEditProduit
 }) {
   const isPlaque = affichage === 'plaques';
@@ -171,6 +175,8 @@ export default function ProgrammeGroup({
       {/* Produits actifs - Visible seulement si ouvert ou pas de header */}
       {(isOuvert || !showProgrammeHeader) && produitsActifs.map(({ produit, qtes }, produitIdx) => {
         const tranchesAffichees = colonnesVisibles || TRANCHES_CONFIG;
+        const isProduitDragging = dragState?.type === 'produit' && dragState?.famille === famille && dragState?.programme === programme && dragState?.dragIndex === produitIdx;
+        const isProduitHovered = dragState?.type === 'produit' && dragState?.famille === famille && dragState?.programme === programme && dragState?.hoverIndex === produitIdx;
 
         // Mode détail avec 3 lignes (si showHisto et pas modeSimplifie)
         if (showHisto && !modeSimplifie) {
@@ -189,9 +195,20 @@ export default function ProgrammeGroup({
 
         // Mode simplifié : 1 ligne par produit (quantités uniquement)
         return (
-          <tr key={`${produit.itm8 || produit.id}-${produitIdx}`} className="hover:bg-gray-50 transition-colors group">
+          <tr
+            key={`${produit.itm8 || produit.id}-${produitIdx}`}
+            draggable
+            onDragStart={(e) => { e.stopPropagation(); onDragStartProduit?.(e, famille, programme, produitIdx); }}
+            onDragOver={(e) => { e.stopPropagation(); e.preventDefault(); onDragOverProduit?.(e, famille, programme, produitIdx); }}
+            onDrop={(e) => { e.stopPropagation(); e.preventDefault(); onDropProduit?.(e, produitIdx, famille, programme, produitsActifs.map(a => a.produit)); }}
+            onDragEnd={(e) => { e.stopPropagation(); onDragEndProduit?.(); }}
+            className={`hover:bg-gray-50 transition-colors group ${
+              isProduitDragging ? 'opacity-50' : ''
+            } ${isProduitHovered ? 'border-t-2 border-emerald-400 bg-emerald-50/50' : ''}`}
+          >
             <td className="px-4 py-3">
               <div className="flex items-center gap-2">
+                <GripVertical className="w-3 h-3 text-gray-300 cursor-grab active:cursor-grabbing flex-shrink-0 print:hidden" />
                 <div className="flex-1">
                   <div className="font-medium text-[#58595B]">
                     {produit.libellePersonnalise || produit.libelle}

@@ -7,7 +7,7 @@ import { useMemo, useCallback } from 'react';
 /**
  * Groupe les produits par famille, puis par programme, et trie selon sortConfig
  */
-export function useProduitsParFamille(produits, sortConfig) {
+export function useProduitsParFamille(produits, sortConfig, ordrePersonnaliseProduits) {
   return useMemo(() => {
     const groupes = {};
 
@@ -74,8 +74,34 @@ export function useProduitsParFamille(produits, sortConfig) {
       });
     }
 
+    // Appliquer l'ordre personnalisé des produits (prioritaire sur le tri)
+    if (ordrePersonnaliseProduits && Object.keys(ordrePersonnaliseProduits).length > 0) {
+      Object.entries(groupes).forEach(([famille, groupe]) => {
+        Object.keys(groupe.parProgramme).forEach(prog => {
+          const cleOrdre = `${famille}__${prog}`;
+          const ordre = ordrePersonnaliseProduits[cleOrdre];
+          if (!ordre || ordre.length === 0) return;
+
+          const prods = groupe.parProgramme[prog];
+          const indexMap = new Map();
+          ordre.forEach((lib, idx) => indexMap.set(lib, idx));
+
+          groupe.parProgramme[prog] = [...prods].sort((a, b) => {
+            const idxA = indexMap.get(a.libelle);
+            const idxB = indexMap.get(b.libelle);
+            // Produits connus dans l'ordre → position personnalisée
+            // Produits inconnus → après les connus, ordre d'import conservé
+            if (idxA != null && idxB != null) return idxA - idxB;
+            if (idxA != null) return -1;
+            if (idxB != null) return 1;
+            return 0;
+          });
+        });
+      });
+    }
+
     return groupes;
-  }, [produits, sortConfig]);
+  }, [produits, sortConfig, ordrePersonnaliseProduits]);
 }
 
 /**

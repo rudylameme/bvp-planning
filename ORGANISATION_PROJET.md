@@ -66,6 +66,21 @@ Lis et exécute le fichier PROMPT_FIX_NOM_DU_FIX.md. Il corrige [description cou
 3. Rudy copie cette instruction via le bouton copier et la colle dans Claude Code
 4. Une fois le travail validé, les fichiers PROMPT_*.md sont supprimés pour garder le dossier propre
 
-### Règle importante
+### Règle de format
 - Ne JAMAIS proposer les instructions sous forme de citation (>) ou de texte libre
 - TOUJOURS utiliser le bloc de code (triple backtick) pour que Rudy ait le bouton copier
+
+### Règle de rédaction des prompts : QUOI + POURQUOI, pas le COMMENT
+
+Claude Code connaît l'architecture du projet mieux que Cowork. Les prompts doivent lui laisser l'initiative sur l'implémentation.
+
+**Ce que le prompt doit contenir :**
+- Le problème constaté (bug, manque) avec les fichiers et lignes concernés
+- Le comportement attendu (ce que l'utilisateur veut obtenir)
+- Les contraintes (ce qu'il ne faut pas casser)
+
+**Ce que le prompt ne doit PAS contenir :**
+- Le code exact à écrire (sauf pour des corrections d'une seule ligne)
+- L'architecture de la solution imposée ligne par ligne
+
+Claude Code doit pouvoir vérifier les impacts sur les composants dépendants et adapter l'implémentation à sa connaissance du code.

@@ -258,6 +258,10 @@ export async function extraireDonneesMagasinMensuel(file, codePdv, dirHandle = n
       },
       parTrancheHoraire: donneesParTrancheHoraire,
       moyenneSecteurParTrancheHoraire: moyenneSecteurParTrancheHoraire,
+      // Nombre de magasins dans le groupe comparable + mode de comparaison
+      nbMagasinsComparables: magasinsComparables.length,
+      modeComparaison,
+      modeleComparaison: modele,
     },
 
     // Données brutes pour le planning

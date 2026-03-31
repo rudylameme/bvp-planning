@@ -57,9 +57,15 @@ const Bloc4Penetration = ({ indicateurs, magasinCible }) => {
         <Target className="w-6 h-6 text-[#8B1538]" />
         <h3 className="font-bold text-gray-800">Taux de pénétration par tranche horaire</h3>
       </div>
-      <p className="text-sm text-gray-500 mb-6">
-        Pourcentage de clients passant en caisse qui achètent en BVP — comparé à la moyenne du groupe
+      <p className="text-sm text-gray-500 mb-4">
+        Pourcentage de clients passant en caisse qui achètent en BVP
       </p>
+
+      {indicateurs.nbMagasinsComparables != null && indicateurs.nbMagasinsComparables <= 1 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 mb-4 text-sm text-amber-700">
+          Seul magasin de ce modèle dans le secteur — la comparaison porte sur lui-même et n'est pas significative.
+        </div>
+      )}
 
       <SectionRepliable labelExpand="Voir les créneaux" labelCollapse="Masquer les créneaux">
         <div className="space-y-4">
@@ -148,7 +154,12 @@ const Bloc4Penetration = ({ indicateurs, magasinCible }) => {
             </div>
             <div className="flex items-center gap-2">
               <div className="w-1 h-4 bg-[#3B82F6]" />
-              <span className="text-xs text-gray-500">Moyenne secteur</span>
+              <span className="text-xs text-gray-500">
+                {indicateurs.modeComparaison === 'Secteur + Modèle' && indicateurs.modeleComparaison
+                  ? `Moyenne ${indicateurs.modeleComparaison} du secteur`
+                  : 'Moyenne secteur'}
+                {indicateurs.nbMagasinsComparables != null && ` (${indicateurs.nbMagasinsComparables} mag.)`}
+              </span>
             </div>
             {magasinCible && (
               <div className="flex items-center gap-2">

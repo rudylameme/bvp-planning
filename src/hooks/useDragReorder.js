@@ -108,6 +108,56 @@ export default function useDragReorder({
     setDragState({ type: null, famille: null, dragIndex: null, hoverIndex: null });
   }, []);
 
+  // Handlers pour le drag & drop des produits (au sein d'un programme)
+  const handleDragStartProduit = useCallback((e, famille, programme, index) => {
+    setDragState({ type: 'produit', famille, programme, dragIndex: index, hoverIndex: null });
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index.toString());
+  }, []);
+
+  const handleDragOverProduit = useCallback((e, famille, programme, index) => {
+    e.preventDefault();
+    if (dragState.type === 'produit' && dragState.famille === famille && dragState.programme === programme && dragState.dragIndex !== index) {
+      setDragState(prev => ({ ...prev, hoverIndex: index }));
+    }
+  }, [dragState.type, dragState.famille, dragState.programme, dragState.dragIndex]);
+
+  const handleDropProduit = useCallback((e, dropIndex, famille, programme, produitsActuels) => {
+    e.preventDefault();
+    const dragIndex = dragState.dragIndex;
+
+    if (dragIndex === null || dragIndex === dropIndex || dragState.famille !== famille || dragState.programme !== programme) {
+      setDragState({ type: null, famille: null, programme: null, dragIndex: null, hoverIndex: null });
+      return;
+    }
+
+    // Réordonner les produits → stocker les libellés comme identifiants stables
+    const newOrder = [...produitsActuels];
+    const [dragged] = newOrder.splice(dragIndex, 1);
+    newOrder.splice(dropIndex, 0, dragged);
+
+    // Stocker l'ordre par libellé (identifiant stable entre les semaines)
+    const ordreLibelles = newOrder.map(p => p.libelle || p.libellePersonnalise || '');
+
+    setOrdrePersonnalise(prev => {
+      const newOrdre = {
+        ...prev,
+        produits: {
+          ...(prev.produits || {}),
+          [`${famille}__${programme}`]: ordreLibelles,
+        },
+      };
+      sauvegarderPrefs(sectionsOuvertes, newOrdre);
+      return newOrdre;
+    });
+
+    setDragState({ type: null, famille: null, programme: null, dragIndex: null, hoverIndex: null });
+  }, [dragState.dragIndex, dragState.famille, dragState.programme, sectionsOuvertes, sauvegarderPrefs, setOrdrePersonnalise]);
+
+  const handleDragEndProduit = useCallback(() => {
+    setDragState({ type: null, famille: null, programme: null, dragIndex: null, hoverIndex: null });
+  }, []);
+
   return {
     dragState,
     handleDragStartFamille,
@@ -118,5 +168,9 @@ export default function useDragReorder({
     handleDragOverProgramme,
     handleDropProgramme,
     handleDragEndProgramme,
+    handleDragStartProduit,
+    handleDragOverProduit,
+    handleDropProduit,
+    handleDragEndProduit,
   };
 }

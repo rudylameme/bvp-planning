@@ -117,6 +117,24 @@ function analyserOpportunite(tranches, ticketMoyen, multiplier) {
   const clientsARecuperer = Math.round((pireTranche.ticketsTotal || 0) * ecart);
   const potentielCATrancheAnnuel = Math.round(clientsARecuperer * ticketMoyen * multiplier);
 
+  // Potentiel GLOBAL : appliquer la meilleure pénétration du PDV à TOUTES les tranches
+  // (même logique que Bloc6Potentiel dans TopFlopProduits.jsx)
+  // Seuil 10% : les tranches sous ce seuil gardent leur pénétration actuelle
+  const totalTickets = TRANCHES_UTILES.reduce((sum, t) => sum + (tranches[t]?.ticketsTotal || 0), 0);
+  const seuil10pct = totalTickets * 0.10;
+  let ticketsPotentielsGlobal = 0;
+  let ticketsActuelsGlobal = 0;
+  for (const tranche of TRANCHES_UTILES) {
+    const data = tranches[tranche];
+    if (!data || data.ticketsTotal === 0) continue;
+    ticketsActuelsGlobal += data.ticketsBVP || 0;
+    // Tranches significatives → pénétration cible = penMax ; petites tranches → garder l'actuelle
+    const penCible = data.ticketsTotal >= seuil10pct ? penMax : data.penetration;
+    ticketsPotentielsGlobal += Math.round(data.ticketsTotal * penCible);
+  }
+  const gainTicketsGlobal = Math.max(0, ticketsPotentielsGlobal - ticketsActuelsGlobal);
+  const potentielCAGlobalAnnuel = Math.round(gainTicketsGlobal * ticketMoyen * multiplier);
+
   return {
     meilleureTrancheKey: meilleure,
     meilleureTrancheLabel: meilleure ? LABELS_TRANCHES[meilleure] : '—',
@@ -126,6 +144,7 @@ function analyserOpportunite(tranches, ticketMoyen, multiplier) {
     penetrationPire: penMin,
     clientsARecuperer,
     potentielCATrancheAnnuel,
+    potentielCAGlobalAnnuel,
   };
 }
 
@@ -221,25 +240,16 @@ export async function chargerDonneesSecteur({ fichierExcel, infoPDV, secteurCode
   // 7. Trier par pénétration décroissante
   pdvs.sort((a, b) => b.penetration - a.penetration);
 
-  // 8. Calculer le potentiel par PDV (global)
-  const penetrationMax = pdvs.length > 0 ? pdvs[0].penetration : 0;
-  const panierMoyenSecteur = moyenneSecteur.ticketMoyen || 0;
-
-  const pdvsAvecRangEtPotentiel = pdvs.map((pdv, idx) => {
-    const panierMoyen = pdv.ticketMoyen > 0 ? pdv.ticketMoyen : panierMoyenSecteur;
-    const ecartPenetration = penetrationMax - pdv.penetration;
-    const ticketsPotentiels = Math.round(pdv.ticketsTotal * ecartPenetration);
-    const potentielCA = ticketsPotentiels * panierMoyen * multiplier;
-
-    return {
-      ...pdv,
-      rang: idx + 1,
-      potentielTickets: ticketsPotentiels,
-      potentielCA: Math.round(potentielCA),
-    };
-  });
+  // 8. Rang + potentiel (utiliser le potentiel tranche déjà calculé par analyserOpportunite)
+  const pdvsAvecRangEtPotentiel = pdvs.map((pdv, idx) => ({
+    ...pdv,
+    rang: idx + 1,
+    potentielCA: pdv.opportunite?.potentielCAGlobalAnnuel || 0,
+    potentielTickets: pdv.opportunite?.clientsARecuperer || 0,
+  }));
 
   // 9. KPIs synthèse
+  const penetrationMax = pdvs.length > 0 ? pdvs[0].penetration : 0;
   const nbSousLaMoyenne = pdvs.filter(p => p.penetration < moyenneSecteur.penetration).length;
   const potentielTotal = pdvsAvecRangEtPotentiel.reduce((acc, p) => acc + p.potentielCA, 0);
   const caTotalSecteur = pdvs.reduce((acc, p) => acc + p.caBVP, 0);

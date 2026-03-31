@@ -78,6 +78,9 @@ const SectorManagerContent = ({ onRetourAccueil }) => {
   const [donneesPdvDetail, setDonneesPdvDetail] = useState(null);
   const [chargementPdv, setChargementPdv] = useState(false);
 
+  // Recherche secteur
+  const [rechercheSecteur, setRechercheSecteur] = useState('');
+
   const contentRef = useRef(null);
 
   // Liste des secteurs
@@ -309,13 +312,29 @@ const SectorManagerContent = ({ onRetourAccueil }) => {
       )}
 
       {/* Sélection secteur */}
-      {infoPDV && secteurs.length > 0 && periodeDisponible && (
+      {infoPDV && secteurs.length > 0 && periodeDisponible && (() => {
+        const secteursFiltres = secteurs.filter(s =>
+          !rechercheSecteur ||
+          s.libelle.toLowerCase().includes(rechercheSecteur.toLowerCase()) ||
+          String(s.code).includes(rechercheSecteur)
+        );
+        return (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Sélectionner un secteur ({secteurs.length} disponibles)
           </label>
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Rechercher un secteur par nom ou code..."
+              value={rechercheSecteur}
+              onChange={e => setRechercheSecteur(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none"
+            />
+          </div>
           <div className="grid gap-2 max-h-96 overflow-y-auto pr-2">
-            {secteurs.map(s => (
+            {secteursFiltres.map(s => (
               <button
                 key={s.code}
                 onClick={() => chargerSecteur(s)}
@@ -340,7 +359,8 @@ const SectorManagerContent = ({ onRetourAccueil }) => {
             ))}
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Message si pas de données */}
       {!chargement && dirHandle && !periodeDisponible && (

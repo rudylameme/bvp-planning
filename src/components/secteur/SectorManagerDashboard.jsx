@@ -107,6 +107,8 @@ const SectorManagerDashboard = ({ donnees, typePeriode, onClickPdv, chargementPd
         case 'ville': va = a.ville; vb = b.ville; break;
         case 'penetration': va = a.penetration; vb = b.penetration; break;
         case 'caBVP': va = a.caBVP; vb = b.caBVP; break;
+        case 'pvMoyen': va = a.qteBVP > 0 ? a.caBVP / a.qteBVP : 0; vb = b.qteBVP > 0 ? b.caBVP / b.qteBVP : 0; break;
+        case 'ticketMoyen': va = a.ticketMoyen || (a.ticketsBVP > 0 ? a.caBVP / a.ticketsBVP : 0); vb = b.ticketMoyen || (b.ticketsBVP > 0 ? b.caBVP / b.ticketsBVP : 0); break;
         case 'potentielCA': va = a.potentielCA; vb = b.potentielCA; break;
         case 'clientsARecuperer': va = a.opportunite?.clientsARecuperer || 0; vb = b.opportunite?.clientsARecuperer || 0; break;
         default: va = a.rang; vb = b.rang;
@@ -124,7 +126,7 @@ const SectorManagerDashboard = ({ donnees, typePeriode, onClickPdv, chargementPd
       setTriDirection(d => d === 'asc' ? 'desc' : 'asc');
     } else {
       setTriColonne(col);
-      setTriDirection(col === 'penetration' || col === 'caBVP' || col === 'potentielCA' || col === 'clientsARecuperer' ? 'desc' : 'asc');
+      setTriDirection(col === 'penetration' || col === 'caBVP' || col === 'pvMoyen' || col === 'ticketMoyen' || col === 'potentielCA' || col === 'clientsARecuperer' ? 'desc' : 'asc');
     }
   };
 
@@ -231,6 +233,12 @@ const SectorManagerDashboard = ({ donnees, typePeriode, onClickPdv, chargementPd
                 <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide cursor-pointer hover:bg-gray-100" onClick={() => toggleTri('caBVP')}>
                   CA BVP/{periodLabel} <TriIcon col="caBVP" />
                 </th>
+                <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide cursor-pointer hover:bg-gray-100" onClick={() => toggleTri('pvMoyen')}>
+                  PV moyen <TriIcon col="pvMoyen" />
+                </th>
+                <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide cursor-pointer hover:bg-gray-100" onClick={() => toggleTri('ticketMoyen')}>
+                  Ticket moyen <TriIcon col="ticketMoyen" />
+                </th>
                 <th className="px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wide">
                   Meilleure tranche
                 </th>
@@ -280,6 +288,27 @@ const SectorManagerDashboard = ({ donnees, typePeriode, onClickPdv, chargementPd
                       <span className="text-sm font-semibold text-gray-800">{fmt(pdv.caBVP)}</span>
                     </td>
 
+                    {/* PV Moyen */}
+                    <td className="px-3 py-3 text-right">
+                      {pdv.qteBVP > 0 ? (() => {
+                        const pv = pdv.caBVP / pdv.qteBVP;
+                        const moyPv = moyenne?.prixMoyenArticle;
+                        const couleur = moyPv && pv >= moyPv ? 'text-emerald-600' : moyPv ? 'text-amber-600' : 'text-gray-800';
+                        return <span className={`text-sm font-semibold ${couleur}`}>{pv.toFixed(2)} €</span>;
+                      })() : <span className="text-xs text-gray-400">—</span>}
+                    </td>
+
+                    {/* Ticket Moyen */}
+                    <td className="px-3 py-3 text-right">
+                      {(() => {
+                        const tm = pdv.ticketMoyen || (pdv.ticketsBVP > 0 ? pdv.caBVP / pdv.ticketsBVP : 0);
+                        if (!tm || tm <= 0) return <span className="text-xs text-gray-400">—</span>;
+                        const moyTm = moyenne?.ticketMoyen;
+                        const couleur = moyTm && tm >= moyTm ? 'text-emerald-600' : moyTm ? 'text-amber-600' : 'text-gray-800';
+                        return <span className={`text-sm font-semibold ${couleur}`}>{tm.toFixed(2)} €</span>;
+                      })()}
+                    </td>
+
                     {/* Meilleure tranche */}
                     <td className="px-3 py-3 text-center">
                       {opp ? (
@@ -315,6 +344,8 @@ const SectorManagerDashboard = ({ donnees, typePeriode, onClickPdv, chargementPd
                     <td className="px-3 py-3 text-right">
                       {pdv.potentielCA > 0 ? (
                         <span className="text-sm font-bold text-emerald-600">+{fmt(pdv.potentielCA)}</span>
+                      ) : pdv.rang === 1 ? (
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">Référence</span>
                       ) : (
                         <span className="text-xs text-gray-400">—</span>
                       )}
