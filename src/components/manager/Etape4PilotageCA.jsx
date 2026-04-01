@@ -225,6 +225,7 @@ const Etape4PilotageCA = () => {
   const syncDirection = useRef(null); // 'fromContext' | 'fromLocal'
 
   // Contexte → local (quand produitsGamme change depuis l'extérieur, ex: import ventes, archive)
+  // Ré-appliquer les corrections manuelles (associations, séparations) pour éviter qu'elles disparaissent
   useEffect(() => {
     if (syncDirection.current === 'fromLocal') {
       syncDirection.current = null;
@@ -232,7 +233,7 @@ const Etape4PilotageCA = () => {
     }
     if (produitsGamme && produitsGamme.length > 0) {
       syncDirection.current = 'fromContext';
-      setProduits(produitsGamme);
+      setProduits(appliquerCorrectionsManuelles([...produitsGamme]));
     }
   }, [produitsGamme]);
 

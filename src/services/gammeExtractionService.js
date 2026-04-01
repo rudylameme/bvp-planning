@@ -772,6 +772,9 @@ export function formaterPourPilotageCA(data, options = {}) {
   const { semaineNumero, moisPlanning, refMagasin, skipNettoyage = false } = options;
   const { produits, statistiques } = data;
 
+  // Compteur pour dédupliquer les EAN identiques (5% des cas environ)
+  const eanCount = {};
+
   const produitsFormates = produits.map((p, index) => {
     // Chercher dans le référentiel : priorité EAN, puis libellé exact, puis libellé fuzzy
     let infoRef = null;
@@ -814,10 +817,17 @@ export function formaterPourPilotageCA(data, options = {}) {
       ? (p.ventesPVTTC / statistiques.totalVentesPVTTC) * 100
       : 0;
 
+    // ID stable basé sur EAN13 (ne change pas quand l'ordre des ventes change)
+    const ean = infoRef ? infoRef.ean13 : p.codeEAN;
+    const idRaw = ean || `noean_${index + 1}`;
+    // Suffixe discriminant pour les EAN en doublon (~5% des cas)
+    eanCount[idRaw] = (eanCount[idRaw] || 0) + 1;
+    const idStable = eanCount[idRaw] > 1 ? `${idRaw}_${eanCount[idRaw]}` : idRaw;
+
     return {
-      id: index + 1,
+      id: idStable,
       codeEAN: p.codeEAN,
-      ean13: infoRef ? infoRef.ean13 : p.codeEAN,
+      ean13: ean,
       itm8: infoRef ? infoRef.itm8 : '',
       plu: infoRef && infoRef.codePLU ? infoRef.codePLU : '',
       codePLU: infoRef ? infoRef.codePLU : '',

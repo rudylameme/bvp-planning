@@ -605,6 +605,7 @@ const EtapeConfigPlanning = () => {
               creneaux: data.configuration.creneaux || null,
               redistribution: null,
               regroupements: data.configuration.regroupements || null,
+              tranchesParFamille: data.configuration.tranchesParFamille || null,
             });
           }
           // Restaurer la gamme

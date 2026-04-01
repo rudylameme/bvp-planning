@@ -201,6 +201,47 @@ export default function PlanningJour({ donneesMagasin, dossierEquipeHandle, donn
 
   const { configuration, frequentation, produits: produitsOriginaux, plaquage, couverturePatisserie } = donneesMagasin;
 
+  // Migration des personnalisations EQUIPE : anciens IDs numériques → nouveaux IDs stables (EAN)
+  useEffect(() => {
+    if (!produitsOriginaux?.length || !Object.keys(produitsModifies).length) return;
+
+    // Détecter si les clés sont des anciens IDs numériques
+    const cles = Object.keys(produitsModifies);
+    const hasAncienIds = cles.some(k => /^\d+$/.test(k));
+    if (!hasAncienIds) return; // Déjà au nouveau format
+
+    // Construire un index libellé → nouveau produit
+    const parLibelle = {};
+    produitsOriginaux.forEach(p => {
+      const lib = (p.libelle || '').toLowerCase().trim();
+      if (lib && !parLibelle[lib]) parLibelle[lib] = p;
+    });
+
+    // Remapper les personnalisations
+    const migrees = {};
+    let nbMigres = 0;
+    Object.entries(produitsModifies).forEach(([ancienId, perso]) => {
+      if (/^\d+$/.test(ancienId) && perso.libelle) {
+        // Chercher le produit par libellé original (stocké dans la personnalisation)
+        const lib = perso.libelle.toLowerCase().trim();
+        const produit = parLibelle[lib];
+        if (produit) {
+          migrees[produit.id] = perso;
+          nbMigres++;
+          return;
+        }
+      }
+      // Garder tel quel (déjà au bon format ou pas de match)
+      migrees[ancienId] = perso;
+    });
+
+    if (nbMigres > 0) {
+      console.warn(`[Migration IDs] ${nbMigres} personnalisations migrées (ancien ID numérique → ID stable EAN)`);
+      setProduitsModifies(migrees);
+      planifierSauvegarde();
+    }
+  }, [produitsOriginaux]);
+
   // Tranches par famille (nouveau format) avec rétrocompatibilité
   const tranchesParFamille = useMemo(() => {
     if (configuration?.tranchesParFamille) {
