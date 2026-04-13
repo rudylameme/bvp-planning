@@ -669,11 +669,10 @@ const TableauProduits = ({ produits, onToggle, onChangeRayon, recherche, filtreR
 /**
  * Onglet Gamme - Sélection des produits
  */
-const OngletGamme = ({ produits, onToggle, onToggleFiltres, onChangeRayon, planifieManager, onChangePlanifie, promoItm8Set, promoPrecedenteMap, onReloadGamme, onUpdateProduits, archiveTrouvee, modeNettoyage, setModeNettoyage }) => {
+const OngletGamme = ({ produits, onToggle, onToggleFiltres, onChangeRayon, planifieManager, onChangePlanifie, promoItm8Set, promoPrecedenteMap, onReloadGamme, onUpdateProduits, archiveTrouvee, modeNettoyage, setModeNettoyage, selectionAssociation, setSelectionAssociation }) => {
   const [recherche, setRecherche] = useState('');
   const [filtreRayon, setFiltreRayon] = useState('tous');
   const [filtreStatut, setFiltreStatut] = useState('tous');
-  const [selectionAssociation, setSelectionAssociation] = useState(new Set());
 
   // Récupérer le modèle du magasin depuis le contexte
   const { donneesMagasin } = useMagasin();

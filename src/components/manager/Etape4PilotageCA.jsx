@@ -197,7 +197,7 @@ const Onglets = ({ actif, onChange }) => {
 // ============================================================================
 
 const Etape4PilotageCA = () => {
-  const { semaineSelectionnee, produitsGamme, setProduitsGamme, objectifCA, objectifPourcent, planifieManager, setPlanifieManager, promosActives, setPromosActives, promosPrecedentes, archiveTrouvee, produitsVentesBrutes, semainePlanning } = useMagasin();
+  const { semaineSelectionnee, produitsGamme, setProduitsGamme, objectifCA, objectifPourcent, planifieManager, setPlanifieManager, promosActives, setPromosActives, promosPrecedentes, archiveTrouvee, produitsVentesBrutes, semainePlanning, selectionAssociation, setSelectionAssociation } = useMagasin();
 
   // État local
   const [ongletActif, setOngletActif] = useState('gamme');
@@ -464,6 +464,8 @@ const Etape4PilotageCA = () => {
             archiveTrouvee={archiveTrouvee}
             modeNettoyage={modeNettoyage}
             setModeNettoyage={setModeNettoyage}
+            selectionAssociation={selectionAssociation}
+            setSelectionAssociation={setSelectionAssociation}
           />
         )}
         {ongletActif === 'limites' && (

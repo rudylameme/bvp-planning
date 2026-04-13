@@ -90,6 +90,9 @@ export function MagasinProvider({ children }) {
   // Pâtisserie : couverture multi-jours (ex: { jours: 3, jourDepart: "mercredi", exemplesIds: [] })
   const [couverturePatisserie, setCouverturePatisserie] = useState({ jours: 2, jourDepart: 'lundi', exemplesIds: [] });
 
+  // Sélection d'association (Set d'IDs produits) — remonté ici pour survivre aux changements de filtre
+  const [selectionAssociation, setSelectionAssociation] = useState(new Set());
+
   // Charger les handles depuis IndexedDB au montage
   useEffect(() => {
     // Dossier BVP partagé (migration : essayer dossierBVP, sinon dossierArchives, sinon dossierEquipe)
@@ -271,6 +274,7 @@ export function MagasinProvider({ children }) {
     setRapportIdentification(null);
     setPlaquageProgrammes({});
     setCouverturePatisserie({ jours: 2, jourDepart: 'lundi', exemplesIds: [] });
+    setSelectionAssociation(new Set());
   }, []);
 
   // Vérifie si l'import est complet (prêt à passer à l'étape suivante)
@@ -383,6 +387,10 @@ export function MagasinProvider({ children }) {
     // Pâtisserie couverture multi-jours
     couverturePatisserie,
     setCouverturePatisserie,
+
+    // Sélection association (survit aux changements de filtre)
+    selectionAssociation,
+    setSelectionAssociation,
 
     // Helpers
     reinitialiser,
