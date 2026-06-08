@@ -98,7 +98,7 @@ const Etape2ObjectifCA = ({ onPrecedent }) => {
     setArchiveProduitsEnAttente,
     archiveTrouvee,
     setArchiveTrouvee,
-    setArchiveCorrectionsEnAttente,
+    chargerCorrectionsArchive,
     produitsVentesBrutes,
     setProduitsGamme,
     archiveAppliquee,
@@ -344,7 +344,9 @@ const Etape2ObjectifCA = ({ onPrecedent }) => {
           }
 
           if (data.correctionsManuelles) {
-            setArchiveCorrectionsEnAttente(data.correctionsManuelles);
+            // SB-6 — merge SYNCHRONE des corrections d'archive dans le state typé
+            // (élimine la race condition contre appliquerArchiveSurBruts).
+            chargerCorrectionsArchive(data.correctionsManuelles);
           }
 
           setPromosActives([]);

@@ -16,7 +16,9 @@ import PageParametres from './components/shared/PageParametres';
 import WizardBenchmark from './components/manager/WizardBenchmark';
 import WizardManager from './components/manager/WizardManager';
 import AccueilEquipe from './components/equipe/AccueilEquipe';
-import SectorManagerWizard from './components/secteur/SectorManagerWizard';
+// SectorManagerWizard n'est plus importé : remplacé par BenchmarkMensuelWizard (Phase 1).
+// Le fichier src/components/secteur/SectorManagerWizard.jsx est conservé pour rollback.
+import BenchmarkMensuelWizard from './components/benchmark-mensuel/BenchmarkMensuelWizard';
 
 // Profil : 'all' (dev local), 'manager' (univers 1+2+3), 'equipe' (univers 3 seul), 'secteur' (secteur seul)
 const PROFIL = import.meta.env.VITE_PROFIL || 'all';
@@ -180,7 +182,10 @@ function AppV5() {
 
     case 'secteur':
       if (!isSecteur) { setEcran('accueil'); return null; }
-      return <SectorManagerWizard onRetourAccueil={allerAccueil} />;
+      // Module Benchmark Mensuel (Phase 1) : wizard multi-niveaux National → Région → Secteur → Magasin.
+      // Le niveau 3 (Secteur) réutilise SectorManagerDashboard inchangé via VueSecteurWrapper.
+      // Le niveau 4 (Magasin) réutilise les composants Bloc4/5/6 du diagnostic manager.
+      return <BenchmarkMensuelWizard onRetourAccueil={allerAccueil} />;
 
     case 'benchmark':
       if (!isManager) { setEcran('accueil'); return null; }

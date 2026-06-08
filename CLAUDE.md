@@ -18,7 +18,50 @@
    - `CLAUDE.md` — ajouter les anomalies corrigées, nouvelles interdictions, fichiers modifiés
    - `ADDENDUM_CDC_V5.2.md` — documenter les changements fonctionnels (nouvelle section ou ajout à la section existante)
 
-3. **OBJECTIF** : ces documents constituent la mémoire du projet entre les sessions. Sans eux, le contexte est perdu. Chaque modification non documentée est une dette technique.
+3. **TOUJOURS écrire un compte rendu de session dans le vault BVP-Brain** :
+   - **Fichier cible** : `/Users/rudyremy/Developer/BVP-Brain/BVP-Planning/Sessions/Session — AAAA-MM-JJ.md`
+   - **Quand écrire ou mettre à jour** :
+     a) **Déclencheur explicite** : dès que l'utilisateur tape une phrase clé de fin de session
+        (« fin de session », « compte rendu », « écris la note de session », « synthèse »),
+        écrire ou compléter la note immédiatement, avant toute autre réponse.
+     b) **Mise à jour incrémentale** : après chaque modification validée par l'utilisateur
+        (correctif appliqué, décision actée, bug ouvert, point identifié), ajouter une ligne
+        dans la section correspondante de la note du jour. Si la note du jour n'existe pas
+        encore, la créer en suivant le template.
+     c) **Filet en début de session suivante** : à l'ouverture d'une nouvelle session,
+        vérifier qu'une note existe pour la dernière session active. Si elle est incomplète
+        ou si la section « Prochaine session » est vide, le proposer à l'utilisateur.
+   - **Comportement de fichier** :
+     - Si la note du jour existe déjà : ajouter en bas (append), ne JAMAIS écraser le contenu.
+     - Si la note n'existe pas : créer en suivant le template
+       `/Users/rudyremy/Developer/BVP-Brain/Templates/Template — Session.md`.
+   - **Format obligatoire** (titre + 4 sections, exactement) :
+     ```
+     # Session — JJ mois AAAA
+     > Heure : | Sujet :
+
+     ## Ce qu'on a fait
+     1. [action concrète, fichiers modifiés, résultat observé]
+
+     ## Décisions prises
+     - [choix techniques actés, alternatives écartées et pourquoi]
+
+     ## Bugs ouverts / points à valider
+     - [ce qui reste à vérifier côté Rudy ou en magasin]
+
+     ## Prochaine session
+     - [étapes suivantes proposées]
+     ```
+   - **Pourquoi cette règle** : ce compte rendu est lu par Claude Cowork (qui n'a PAS accès
+     aux sessions Claude Code) pour suivre l'avancement et préparer les prompts suivants.
+     C'est le point de jonction entre les deux assistants.
+   - **Règle d'accents** (cf. CLAUDE.md racine `/Users/rudyremy/Developer/CLAUDE.md`) :
+     nom de fichier sans accents (compatibilité FS/Git), contenu de la note AVEC tous les
+     accents français corrects (é, è, ê, à, â, ç, î, ô, ù, œ...).
+   - **Sync** : le vault BVP-Brain se synchronise sur GitHub toutes les minutes
+     (plugin Git d'Obsidian), donc le compte rendu est visible côté Cowork en moins d'1 minute.
+
+4. **OBJECTIF** : ces documents constituent la mémoire du projet entre les sessions. Sans eux, le contexte est perdu. Chaque modification non documentée est une dette technique.
 
 ---
 
@@ -1170,7 +1213,16 @@ Source : `src/styles/mousquetaires-theme.js` lignes 69-114
 
 ## 🤝 MÉTHODE DE COLLABORATION COWORK ↔ CLAUDE CODE
 
-Voir `ORGANISATION_PROJET.md` pour le flux de travail complet, les règles de format des prompts, et la règle QUOI+POURQUOI (pas le COMMENT).
+**Convention des prompts (à jour, avril 2026) :**
+
+- Les prompts actifs envoyés par Rudy (via Cowork) se trouvent TOUJOURS dans : `/Users/rudyremy/Developer/BVP-Brain/Prompts/` sous la forme `PROMPT_[ACTION]_[CIBLE].md`
+- Quand Rudy colle une instruction du type « Lis et exécute le fichier `PROMPT_FIX_*.md` », le fichier est dans ce dossier — pas dans `bvp-planning/`.
+- Format attendu des prompts : **QUOI + POURQUOI + contraintes**, pas le COMMENT détaillé ligne par ligne. Claude Code connaît l'architecture mieux que Cowork et doit garder l'initiative sur l'implémentation.
+- Une fois le prompt exécuté et le correctif validé par Rudy, le fichier `PROMPT_*.md` est supprimé par Cowork. La trace historique reste dans `/Users/rudyremy/Developer/BVP-Brain/BVP-Planning/Bug — [description].md`.
+
+**Règles de méthode :** voir `/Users/rudyremy/Developer/BVP-Brain/Workflow.md` et `/Users/rudyremy/Developer/CLAUDE.md` (racine Developer) qui font foi.
+
+> Note : l'ancien fichier `ORGANISATION_PROJET.md` a été archivé — sa méthode (prompts dans `bvp-planning/`) est obsolète depuis la mise en place du vault BVP-Brain.
 
 7. ~~**Bug UTC dateDebut**~~ **CORRIGÉ le 23/02/2026** : `getDateDebutSemaine()` dans `Etape5Communication.jsx` utilisait `toISOString().split('T')[0]` qui convertit en UTC → en France (UTC+1), un lundi minuit devenait dimanche 23h UTC → date de la veille stockée dans le .bvp.json. Corrigé avec `formatDateLocale()`. Rétrocompatibilité assurée dans `helpers.js` (si dateDebut = dimanche → +1 jour).
 

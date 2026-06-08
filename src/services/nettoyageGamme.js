@@ -19,6 +19,13 @@
 import { getReferentielCache, mapFamilleV2VersRayon } from './referentielITM8';
 import { resoudreParLiaisonEAN } from './referentielMagasin';
 
+// SB-3 — La règle `normaliserLibelle` est désormais source unique dans
+// `src/domain/rules/normaliserLibelle.ts`. Re-export pour conserver l'API
+// publique de ce service (utilisée par OngletGamme.jsx, Etape5Communication.jsx,
+// PlanningJour.jsx) — pas de changement d'import côté consommateurs.
+import { normaliserLibelle } from '../domain/rules/normaliserLibelle.js';
+export { normaliserLibelle };
+
 // ── Produits saisonniers ──
 
 const PRODUITS_SAISONNIERS = [
@@ -30,51 +37,6 @@ const PRODUITS_SAISONNIERS = [
   // ATTENTION : "BUCHETTE" dans sf "BAGUETTE ET PAIN SPECIAUX" n'est PAS saisonnier !
   { motsCles: ['BUCHE DE NOEL', 'BUCHE GLACEE'], moisValides: [11, 12] },
 ];
-
-// ── Normalisation ──
-
-/**
- * Normalise un libellé pour la détection de doublons.
- * Retire : *, P&C, PAC, CRU, PRE/PREC/PRECUIT(E)(S), PREP/PREPOUSSE, CUI/CUIT,
- *          PC (précuit abrégé), DECONGELE(E)(S), OFF, AOP, S.A,
- *          fractions (1/2→DEMI), poids (250G, 300KG, 235GR), nombres seuls, X1 (unité),
- *          diamètres (D22), ponctuation résiduelle.
- *          Le "/" est traité comme séparateur.
- *          ATTENTION : les conditionnements X2+ (X8, X12, X20) sont GARDÉS car produits différents.
- */
-export const normaliserLibelle = (lib) => {
-  return (lib || '')
-    .toUpperCase()
-    .replace(/^\*/, '')                    // retirer * promo
-    // Normaliser les fractions AVANT tout le reste
-    .replace(/\b1\/2\b/g, 'DEMI')         // 1/2 → DEMI
-    .replace(/\b1\/3\b/g, 'TIERS')        // 1/3 → TIERS
-    .replace(/\b1\/4\b/g, 'QUART')        // 1/4 → QUART
-    .replace(/\//g, ' ')                   // "/" → espace (séparateur)
-    .replace(/[.,;:!?]+/g, ' ')           // ponctuation résiduelle → espace (CHOCO. → CHOCO, NAT.PC → NAT PC)
-    .replace(/\bP&C\b/g, '')
-    .replace(/\bPAC\b/g, '')
-    .replace(/\bCRU\b/g, '')
-    .replace(/\bPRE\b|\bPREC\b|\bPRECUI\w*\b/g, '')  // PRE, PREC, PRECUIT, PRECUITE, PRECUITES, PRECUI (tronqué)
-    .replace(/\bPREP\b|\bPREPOUS\w*\b/g, '')          // PREP, PREPOUSSE, PREPOUSSEE — méthode cuisson
-    .replace(/\bCUI\b|\bCUITS?\b/g, '')                // CUI, CUIT, CUITS — variantes de "cuit"
-    .replace(/\bPC\b/g, '')                             // PC — abréviation de "précuit" très fréquente en BVP
-    .replace(/\bDECONGELEE?S?\b/g, '')    // DECONGELE, DECONGELEE, DECONGELES, DECONGELEES
-    .replace(/\bOFF\b/g, '')              // "OFF" (offre) n'est pas distinctif
-    .replace(/\bAOP\b/g, '')              // AOP (Appellation d'Origine Protégée) — classification, pas produit distinct
-    .replace(/\bSTICK\w*\b/g, '')         // STICK, STICKER — sticker prix collé sur le produit (pas un produit différent)
-    .replace(/\bSTI\b/g, '')              // STI — version tronquée de STICK dans certains libellés
-    .replace(/\d+\s*[GK]G?\b/gi, '')      // poids avec unité : 300G, 250KG, 1K, etc.
-    .replace(/\d+\s*GR\b/gi, '')           // poids en GR : 235GR, 290GR, etc.
-    .replace(/\b(\d+)\+(\d+)\b/g, 'PACK$1PLUS$2')  // Protéger "3+1" → "PACK3PLUS1" AVANT suppression des nombres
-    .replace(/\b\d{1,4}\b/g, '')          // nombres seuls de 1-4 chiffres (poids, codes, numéros résiduels)
-    .replace(/PACK(\d+)PLUS(\d+)/g, '$1+$2')        // Restaurer "3+1" après suppression des nombres
-    .replace(/\bX\d+\b/gi, '')            // X1, X5, X10, X20 — conditionnement lot, même produit vendu en boîte ou à l'unité
-    .replace(/\bD\d+\b/g, '')             // D22, D28 — diamètres galettes
-    .replace(/\bS\.?A\.?\b/g, '')         // S.A, SA (service arrière)
-    .replace(/\s+/g, ' ')
-    .trim();
-};
 
 // ── Passe 1 : Promos ──
 
@@ -1034,9 +996,21 @@ export const associerRefV2 = (libelleNormalise, itm8Cible) => {
  *
  * Les fusions manuelles recalculent les indicateurs depuis les ventes quotidiennes
  * brutes (jour par jour), exactement comme la fusion automatique de doublons.
+ *
+ * @param {Array} produits — gamme à corriger
+ * @param {Object|null} [corrections] — corrections à appliquer (SB-6).
+ *   Forme : { separations:string[], fusions:[{source,cible}],
+ *   dissociations:string[], associations:[{libelle,itm8}] }. Si null/absent,
+ *   no-op. La fonction NE LIT PLUS localStorage en ambient (verrou bug 1).
+ * @returns {Array} produits corrigés
  */
-export const appliquerCorrectionsManuelles = (produits) => {
-  const corrections = chargerCorrectionsDoublons();
+export const appliquerCorrectionsManuelles = (produits, corrections = null) => {
+  // SB-6 — verrou bug 1 : les corrections sont désormais reçues en argument
+  // explicite. La fonction NE LIT PLUS `localStorage` en ambient. La race
+  // condition useEffect × localStorage est éliminée par construction : si
+  // `corrections` n'est pas fourni, on retourne les produits inchangés (no-op
+  // sûr pour les appelants legacy le temps que SB-14 nettoie définitivement).
+  if (!corrections) return produits;
   const hasCorrections = corrections.separations?.length || corrections.fusions?.length
     || corrections.dissociations?.length || corrections.associations?.length;
   if (!hasCorrections) return produits;
@@ -1154,9 +1128,12 @@ export const appliquerCorrectionsManuelles = (produits) => {
  *
  * @param {Array} produitsBruts — ventes brutes (tous actif=true), sortie de formaterPourPilotageCA(skipNettoyage=true)
  * @param {Array} archiveProduits — produits lus depuis le fichier MANAGER .bvp.json
+ * @param {Object|null} corrections — corrections manuelles à appliquer (SB-6).
+ *   Si null, aucune correction n'est appliquée. La fonction NE LIT PLUS
+ *   localStorage en ambient (verrou bug 1).
  * @returns {Array} produits finaux (archive appliquée + corrections manuelles)
  */
-export function appliquerArchiveSurBruts(produitsBruts, archiveProduits) {
+export function appliquerArchiveSurBruts(produitsBruts, archiveProduits, corrections = null) {
   // Construire les maps de matching (ARRAYS pour gérer les doublons d'EAN)
   const archiveByEan = new Map();
   const archiveByItm8 = new Map();
@@ -1280,8 +1257,14 @@ export function appliquerArchiveSurBruts(produitsBruts, archiveProduits) {
                         (ap.itm8 && brutsItm8s.has(String(ap.itm8))) ||
                         (ap.libelle && brutsLibelles.has(ap.libelle));
     if (!dejaPresent) {
+      // ID canonique stable : on réutilise l'id de l'archive si déjà canonique
+      // (format "nat-", "plu-", "itm-", "ean-", "hash-"), sinon on le reconstruit.
+      const apId = String(ap.id || '');
+      const idCanonique = /^(nat|plu|itm|ean|hash)-/.test(apId)
+        ? apId
+        : (ap.itm8 ? `itm-${ap.itm8}` : ap.ean13 ? `ean-${ap.ean13}` : `archive-${ap.libelle || 'unknown'}-${addedCount}`);
       updated.push({
-        id: `archive_${ap.ean13 || ap.itm8 || Date.now()}_${addedCount}`,
+        id: idCanonique,
         plu: ap.plu || '', itm8: ap.itm8 || '', ean13: ap.ean13 || '',
         libelle: ap.libelle || '', famille: ap.famille || 'AUTRE',
         rayon: ap.rayon || ap.famille || 'AUTRE', actif: ap.actif ?? false,
@@ -1295,8 +1278,10 @@ export function appliquerArchiveSurBruts(produitsBruts, archiveProduits) {
   });
 
   // PAS DE DÉDOUBLONNAGE. L'archive décide, point final.
-  // Appliquer les corrections manuelles (séparations, dissociations) PAR-DESSUS
-  const final = appliquerCorrectionsManuelles(updated);
+  // Appliquer les corrections manuelles (séparations, dissociations) PAR-DESSUS.
+  // SB-6 — `corrections` passé en argument explicite par MagasinContext, plus de
+  // lecture localStorage ambient (race condition éliminée).
+  const final = appliquerCorrectionsManuelles(updated, corrections);
 
   console.log(`[appliquerArchiveSurBruts] ${matchCount} matchés, ${changedCount} modifiés, ${addedCount} ajoutés depuis l'archive`);
   return final;
@@ -1308,9 +1293,12 @@ export function appliquerArchiveSurBruts(produitsBruts, archiveProduits) {
  * @param {number} semaineNumero — numéro de semaine ISO du planning
  * @param {number} moisPlanning — mois du planning (1-12)
  * @param {Object|null} refMagasin — référentiel magasin (liaison EAN→ITM), optionnel
+ * @param {Object|null} corrections — corrections manuelles à appliquer en passe 6 (SB-6).
+ *   Si null, la passe 6 est un no-op. La fonction NE LIT PLUS localStorage en
+ *   ambient (verrou bug 1).
  * @returns {Object} { produits: Array, rapportIdentification: Object }
  */
-export function nettoyerGamme(produits, semaineNumero, moisPlanning, refMagasin = null) {
+export function nettoyerGamme(produits, semaineNumero, moisPlanning, refMagasin = null, corrections = null) {
   // Initialiser les champs sur tous les produits
   let result = produits.map(p => ({
     ...p,
@@ -1349,8 +1337,8 @@ export function nettoyerGamme(produits, semaineNumero, moisPlanning, refMagasin 
   // Passe 5c : Désactiver les produits à faible contribution CA
   result = desactiverFaibleCA(result);
 
-  // Passe 6 : Appliquer les corrections manuelles (localStorage)
-  result = appliquerCorrectionsManuelles(result);
+  // Passe 6 : Appliquer les corrections manuelles (SB-6 — passées en argument)
+  result = appliquerCorrectionsManuelles(result, corrections);
 
   // Générer le rapport d'identification par niveau
   const rapportIdentification = genererRapportIdentification(result);

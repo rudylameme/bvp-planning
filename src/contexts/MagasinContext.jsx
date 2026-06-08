@@ -8,6 +8,16 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { saveHandle, loadHandle, verifyHandlePermission } from '../services/handleStorage';
 import { appliquerArchiveSurBruts, nettoyerGamme } from '../services/nettoyageGamme';
+// SB-5 — Persistance centralisée derrière IPersistanceMagasin. Le rebranchement
+// remplace les accès directs à localStorage par les helpers de l'adapter
+// (iso-comportement strict : même clé `bvp_corrections_doublons`, même JSON).
+// Le bug 1 reste OUVERT à la fin de SB-5 — la race condition useEffect ×
+// localStorage n'est PAS corrigée ici (cf. SB-6).
+import {
+  adapterFichierLocal,
+  obtenirCorrectionsLocales,
+  sauvegarderCorrectionsLocales,
+} from '../domain/persistence/adapterFichierLocal.js';
 
 const MagasinContext = createContext();
 
@@ -72,8 +82,16 @@ export function MagasinProvider({ children }) {
   // Flag : l'archive a été appliquée sur les produits
   const [archiveAppliquee, setArchiveAppliquee] = useState(false);
 
-  // Corrections manuelles en attente de restauration depuis l'archive
-  const [archiveCorrectionsEnAttente, setArchiveCorrectionsEnAttente] = useState(null);
+  // SB-6 — Corrections manuelles : VRAIE source de vérité (état typé qui voyage
+  // avec la gamme et qui est persisté dans le .bvp.json v3.1 via l'adapter).
+  // Init : lecture UNE FOIS de localStorage au montage (migration douce des
+  // utilisateurs qui n'ont leurs corrections que dans localStorage). Après cela,
+  // l'état React fait foi pour le flux gamme — plus de lecture ambient.
+  const [correctionsManuelles, setCorrectionsManuelles] = useState(() =>
+    obtenirCorrectionsLocales() ?? {
+      separations: [], fusions: [], dissociations: [], associations: [],
+    },
+  );
 
   // Dossier BVP partagé — unique dossier pour Manager et Équipe (persisté via IndexedDB)
   const [dossierBVP, setDossierBVPState] = useState(null);
@@ -127,66 +145,101 @@ export function MagasinProvider({ children }) {
     }
   }, []);
 
-  // ═══════════════════════════════════════════════════════════════
-  // RÈGLE FONDAMENTALE (CDC §19) :
-  // Archive et nettoyage sont MUTUELLEMENT EXCLUSIFS.
-  // Ce useEffect applique l'archive sur les ventes BRUTES (pas sur produitsGamme).
-  // Dépend de produitsVentesBrutes (stable) pour éviter les re-déclenchements.
-  // PAS de dédoublonnage — l'archive décide, point final.
-  // ═══════════════════════════════════════════════════════════════
-  useEffect(() => {
-    if (!archiveProduitsEnAttente || !produitsVentesBrutes || produitsVentesBrutes.length === 0) return;
-
-    const updated = appliquerArchiveSurBruts(produitsVentesBrutes, archiveProduitsEnAttente);
-
-    setArchiveAppliquee(true);
-    // Marquer qu'une archive a été trouvée (pour le switch Gamme/Nettoyage dans l'UI)
-    if (!archiveTrouvee) {
-      setArchiveTrouvee({ nomFichier: 'archive MANAGER', estMemeSemaine: false });
-    }
-    setProduitsGamme(updated);
-    setArchiveProduitsEnAttente(null);
-  }, [archiveProduitsEnAttente, produitsVentesBrutes]);
-
-  // ═══════════════════════════════════════════════════════════════
-  // NETTOYAGE AUTOMATIQUE (Cas D du CDC §19) :
-  // Quand les ventes brutes sont chargées et qu'aucune archive n'existe,
-  // déclencher le nettoyage pour réduire la gamme à ~80-120 produits.
-  // Le flag nettoyageNecessaire est mis à true par EtapeConfigPlanning
-  // quand la recherche d'archive se termine sans résultat.
-  // ═══════════════════════════════════════════════════════════════
-  useEffect(() => {
-    if (!nettoyageNecessaire || !produitsVentesBrutes || produitsVentesBrutes.length === 0) return;
-    if (archiveAppliquee) return; // L'archive a été appliquée, pas de nettoyage
-
-    const sem = semainePlanning;
-    const moisP = sem ? new Date(sem.annee, 0, 1 + (sem.semaine - 1) * 7).getMonth() + 1 : null;
-    const { produits: nettoyes } = nettoyerGamme(produitsVentesBrutes, sem?.semaine, moisP);
-    setProduitsGamme(nettoyes);
-    setNettoyageNecessaire(false);
-  }, [nettoyageNecessaire, produitsVentesBrutes, archiveAppliquee, semainePlanning]);
-
-  // Restaurer les corrections manuelles depuis l'archive (merge avec localStorage)
-  useEffect(() => {
-    if (!archiveCorrectionsEnAttente) return;
-    try {
-      const existant = JSON.parse(localStorage.getItem('bvp_corrections_doublons') || '{}');
+  // SB-6 — Verrou bug 1. Reçoit les corrections d'une archive (fichier .bvp.json
+  // chargé par Etape2ObjectifCA) et les merge SYNCHRONIQUEMENT dans l'état
+  // typé `correctionsManuelles`. Met aussi à jour localStorage pour iso-comportement
+  // avec les consommateurs legacy (Etape5Communication export, 4 fonctions de
+  // correction manuelle dans nettoyageGamme.js).
+  //
+  // Remplace le useEffect ancien sur `archiveCorrectionsEnAttente` (cause racine
+  // de la race condition décrite dans la fiche Bug 1 — diagnostic SB-0).
+  const chargerCorrectionsArchive = useCallback((archiveCorrections) => {
+    if (!archiveCorrections) return;
+    setCorrectionsManuelles(prev => {
       const merged = {
-        separations: [...new Set([...(existant.separations || []), ...(archiveCorrectionsEnAttente.separations || [])])],
-        fusions: [...(existant.fusions || []), ...(archiveCorrectionsEnAttente.fusions || [])].reduce((acc, f) => {
+        separations: [...new Set([
+          ...(prev.separations || []),
+          ...(archiveCorrections.separations || []),
+        ])],
+        fusions: [
+          ...(prev.fusions || []),
+          ...(archiveCorrections.fusions || []),
+        ].reduce((acc, f) => {
           if (!acc.find(a => a.source === f.source)) acc.push(f);
           return acc;
         }, []),
-        dissociations: [...new Set([...(existant.dissociations || []), ...(archiveCorrectionsEnAttente.dissociations || [])])],
-        associations: [...(existant.associations || []), ...(archiveCorrectionsEnAttente.associations || [])].reduce((acc, a) => {
+        dissociations: [...new Set([
+          ...(prev.dissociations || []),
+          ...(archiveCorrections.dissociations || []),
+        ])],
+        associations: [
+          ...(prev.associations || []),
+          ...(archiveCorrections.associations || []),
+        ].reduce((acc, a) => {
           if (!acc.find(x => x.libelle === a.libelle)) acc.push(a);
           return acc;
         }, []),
       };
-      localStorage.setItem('bvp_corrections_doublons', JSON.stringify(merged));
-    } catch { /* ignore */ }
-    setArchiveCorrectionsEnAttente(null);
-  }, [archiveCorrectionsEnAttente]);
+      sauvegarderCorrectionsLocales(merged);
+      return merged;
+    });
+  }, []);
+
+  // ═══════════════════════════════════════════════════════════════
+  // SB-6 — VERROU BUG 1.
+  // useEffect UNIFIÉ pour l'application de la gamme. Remplace les 2
+  // useEffects historiques (archive + nettoyage Cas D) ET supprime le 3e
+  // useEffect de merge corrections (qui causait la race condition contre
+  // `appliquerArchiveSurBruts`). Les corrections sont désormais passées
+  // EN ARGUMENT EXPLICITE — la fonction du domaine ne lit plus localStorage
+  // en ambient. La race condition est éliminée par construction.
+  //
+  // RÈGLE FONDAMENTALE (CDC §19) : archive et nettoyage sont MUTUELLEMENT
+  // EXCLUSIFS. La branche A (archive) prime sur la branche B (nettoyage Cas D).
+  // ═══════════════════════════════════════════════════════════════
+  useEffect(() => {
+    if (!produitsVentesBrutes || produitsVentesBrutes.length === 0) return;
+
+    // Branche A — Archive disponible (priorité)
+    if (archiveProduitsEnAttente) {
+      const updated = appliquerArchiveSurBruts(
+        produitsVentesBrutes,
+        archiveProduitsEnAttente,
+        correctionsManuelles,
+      );
+      setArchiveAppliquee(true);
+      if (!archiveTrouvee) {
+        setArchiveTrouvee({ nomFichier: 'archive MANAGER', estMemeSemaine: false });
+      }
+      setProduitsGamme(updated);
+      setArchiveProduitsEnAttente(null);
+      return;
+    }
+
+    // Branche B — Nettoyage automatique Cas D (déclenché par EtapeConfigPlanning
+    // quand la recherche d'archive échoue)
+    if (nettoyageNecessaire && !archiveAppliquee) {
+      const sem = semainePlanning;
+      const moisP = sem ? new Date(sem.annee, 0, 1 + (sem.semaine - 1) * 7).getMonth() + 1 : null;
+      const { produits: nettoyes } = nettoyerGamme(
+        produitsVentesBrutes,
+        sem?.semaine,
+        moisP,
+        null,
+        correctionsManuelles,
+      );
+      setProduitsGamme(nettoyes);
+      setNettoyageNecessaire(false);
+    }
+  }, [
+    produitsVentesBrutes,
+    archiveProduitsEnAttente,
+    correctionsManuelles,
+    nettoyageNecessaire,
+    semainePlanning,
+    archiveAppliquee,
+    archiveTrouvee,
+  ]);
 
   // Appliquer les personnalisations équipe (unitesParLot, programme, etc.) aux produitsGamme
   useEffect(() => {
@@ -367,8 +420,14 @@ export function MagasinProvider({ children }) {
     setArchiveTrouvee,
     archiveAppliquee,
 
-    // Corrections manuelles depuis l'archive
-    setArchiveCorrectionsEnAttente,
+    // SB-6 — Corrections manuelles : source de vérité unique, typée, persistée
+    // dans le .bvp.json v3.1. Voyagent avec la gamme.
+    correctionsManuelles,
+    setCorrectionsManuelles,
+    // Remplace setArchiveCorrectionsEnAttente (race condition éliminée) :
+    // merge SYNCHRONE des corrections d'archive dans le state — pas de useEffect
+    // intermédiaire qui courrait contre appliquerArchiveSurBruts.
+    chargerCorrectionsArchive,
 
     // Nettoyage automatique (Cas D — pas d'archive)
     nettoyageNecessaire,
@@ -395,6 +454,14 @@ export function MagasinProvider({ children }) {
     // Helpers
     reinitialiser,
     importComplet,
+
+    // SB-5 — Adapter de persistance (contrat IPersistanceMagasin).
+    // Exposé pour les futurs sous-blocs (SB-6+) qui consommeront les méthodes
+    // typées (importer / exporter / charger / sauvegarder / fusionner).
+    // En SB-5 la V5 utilise déjà ce module pour les helpers localStorage
+    // (cf. useEffect ci-dessus). Le contrat est en place ; les chemins live
+    // d'import/export viendront en SB-6.
+    persistance: adapterFichierLocal,
   };
 
   return (

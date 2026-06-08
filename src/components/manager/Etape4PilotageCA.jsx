@@ -34,6 +34,10 @@ import OngletPlaquage from './pilotage/OngletPlaquage';
 import OngletPatisserie from './pilotage/OngletPatisserie';
 import DashboardCA from './pilotage/DashboardCA';
 import { appliquerCorrectionsManuelles, nettoyerGamme } from '../../services/nettoyageGamme';
+// SB-6 — lecture fraîche localStorage après une action manuelle Séparer/Fusionner
+// (OngletGamme écrit dans localStorage via separerDoublon/fusionnerManuellement ;
+// le state context n'est pas encore synchronisé à ce moment-là).
+import { obtenirCorrectionsLocales } from '../../domain/persistence/adapterFichierLocal.js';
 
 // ============================================================================
 // CONSTANTES
@@ -197,7 +201,7 @@ const Onglets = ({ actif, onChange }) => {
 // ============================================================================
 
 const Etape4PilotageCA = () => {
-  const { semaineSelectionnee, produitsGamme, setProduitsGamme, objectifCA, objectifPourcent, planifieManager, setPlanifieManager, promosActives, setPromosActives, promosPrecedentes, archiveTrouvee, produitsVentesBrutes, semainePlanning, selectionAssociation, setSelectionAssociation } = useMagasin();
+  const { semaineSelectionnee, produitsGamme, setProduitsGamme, objectifCA, objectifPourcent, planifieManager, setPlanifieManager, promosActives, setPromosActives, promosPrecedentes, archiveTrouvee, produitsVentesBrutes, semainePlanning, selectionAssociation, setSelectionAssociation, correctionsManuelles } = useMagasin();
 
   // État local
   const [ongletActif, setOngletActif] = useState('gamme');
@@ -210,9 +214,10 @@ const Etape4PilotageCA = () => {
     if (!modeNettoyage || !produitsVentesBrutes || produitsVentesBrutes.length === 0) return null;
     const sem = semaineSelectionnee || semainePlanning;
     const moisP = sem ? new Date(sem.annee, 0, 1 + (sem.semaine - 1) * 7).getMonth() + 1 : null;
-    const { produits: nettoyes } = nettoyerGamme(produitsVentesBrutes, sem?.semaine, moisP);
+    // SB-6 — corrections passées en argument (plus de lecture localStorage ambient).
+    const { produits: nettoyes } = nettoyerGamme(produitsVentesBrutes, sem?.semaine, moisP, null, correctionsManuelles);
     return nettoyes;
-  }, [modeNettoyage, produitsVentesBrutes, semaineSelectionnee, semainePlanning]);
+  }, [modeNettoyage, produitsVentesBrutes, semaineSelectionnee, semainePlanning, correctionsManuelles]);
   const [periodePromo, setPeriodePromo] = useState(null);
   const [produits, setProduits] = useState(() => {
     if (produitsGamme && produitsGamme.length > 0) {
@@ -233,9 +238,10 @@ const Etape4PilotageCA = () => {
     }
     if (produitsGamme && produitsGamme.length > 0) {
       syncDirection.current = 'fromContext';
-      setProduits(appliquerCorrectionsManuelles([...produitsGamme]));
+      // SB-6 — corrections passées en argument explicite.
+      setProduits(appliquerCorrectionsManuelles([...produitsGamme], correctionsManuelles));
     }
-  }, [produitsGamme]);
+  }, [produitsGamme, correctionsManuelles]);
 
   // Local → contexte (quand produits change localement, ex: toggle actif, changement rayon)
   useEffect(() => {
@@ -259,8 +265,13 @@ const Etape4PilotageCA = () => {
   }, [produits]);
 
   // Callback pour re-appliquer les corrections manuelles (après Séparer/Fusionner)
+  // SB-6 — la correction vient d'être écrite dans localStorage par OngletGamme
+  // (via separerDoublon/fusionnerManuellement). Lecture FRAÎCHE depuis localStorage
+  // pour récupérer la dernière correction ; le state `correctionsManuelles` du
+  // contexte n'est pas garanti synchrone à ce moment. SB-14 unifiera ce flux.
   const handleReloadGamme = useCallback(() => {
-    setProduits(prev => appliquerCorrectionsManuelles([...prev]));
+    const corrections = obtenirCorrectionsLocales();
+    setProduits(prev => appliquerCorrectionsManuelles([...prev], corrections));
   }, []);
 
   // Set des itm8 en promo (pour icône dans Gamme)

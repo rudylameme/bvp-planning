@@ -27,6 +27,7 @@
 import * as XLSX from 'xlsx';
 import { rechercherParLibelle, rechercherParLibelleFuzzy, rechercherParEAN, isReferentielCharge, mapRayonVersFamille } from './referentielITM8';
 import { nettoyerGamme } from './nettoyageGamme';
+import { construireIdCanonique } from './idCanonique';
 
 // Cache pour éviter de relire les fichiers
 const cache = {
@@ -769,11 +770,12 @@ export async function extraireProduitsParRayon(file, catalogueRayons = null) {
  * @returns {Array} Tableau de produits formatés pour le pilotage CA
  */
 export function formaterPourPilotageCA(data, options = {}) {
-  const { semaineNumero, moisPlanning, refMagasin, skipNettoyage = false } = options;
+  const { semaineNumero, moisPlanning, refMagasin, bbdNationale = null, skipNettoyage = false } = options;
   const { produits, statistiques } = data;
 
-  // Compteur pour dédupliquer les EAN identiques (5% des cas environ)
-  const eanCount = {};
+  // Compteur pour dédupliquer les clés canoniques identiques (collision rare entre produits
+  // distincts qui partagent le même PLU/ITM8 — on suffixe par EAN pour garder la stabilité)
+  const idCount = {};
 
   const produitsFormates = produits.map((p, index) => {
     // Chercher dans le référentiel : priorité EAN, puis libellé exact, puis libellé fuzzy
@@ -817,12 +819,26 @@ export function formaterPourPilotageCA(data, options = {}) {
       ? (p.ventesPVTTC / statistiques.totalVentesPVTTC) * 100
       : 0;
 
-    // ID stable basé sur EAN13 (ne change pas quand l'ordre des ventes change)
+    // ID canonique stable : CODE_PLU national → PLU local → ITM8 → EAN → hash(libellé+famille)
+    // Ne dépend plus de l'ordre d'itération des ventes. Cf. idCanonique.js.
     const ean = infoRef ? infoRef.ean13 : p.codeEAN;
-    const idRaw = ean || `noean_${index + 1}`;
-    // Suffixe discriminant pour les EAN en doublon (~5% des cas)
-    eanCount[idRaw] = (eanCount[idRaw] || 0) + 1;
-    const idStable = eanCount[idRaw] > 1 ? `${idRaw}_${eanCount[idRaw]}` : idRaw;
+    const produitPourId = {
+      ean13: ean,
+      codeEAN: p.codeEAN,
+      itm8: infoRef?.itm8 || '',
+      codePLU: infoRef?.codePLU || '',
+      libelle: p.libelle,
+      famille: rayon,
+      rayon,
+    };
+    const idBase = construireIdCanonique(produitPourId, { refMagasin, bbdNationale });
+    // Collision rare : deux produits distincts partageant même PLU/ITM8 → discriminer par EAN
+    idCount[idBase] = (idCount[idBase] || 0) + 1;
+    const idStable = idCount[idBase] > 1 && ean
+      ? `${idBase}__${ean}`
+      : idCount[idBase] > 1
+        ? `${idBase}__${index + 1}`
+        : idBase;
 
     return {
       id: idStable,
