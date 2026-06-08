@@ -33,7 +33,7 @@ import OngletAnalyseGamme from './pilotage/OngletAnalyseGamme';
 import OngletPlaquage from './pilotage/OngletPlaquage';
 import OngletPatisserie from './pilotage/OngletPatisserie';
 import DashboardCA from './pilotage/DashboardCA';
-import { appliquerCorrectionsManuelles, nettoyerGamme } from '../../services/nettoyageGamme';
+import { appliquerCorrectionsManuelles } from '../../services/nettoyageGamme';
 // SB-6 — lecture fraîche localStorage après une action manuelle Séparer/Fusionner
 // (OngletGamme écrit dans localStorage via separerDoublon/fusionnerManuellement ;
 // le state context n'est pas encore synchronisé à ce moment-là).
@@ -201,23 +201,15 @@ const Onglets = ({ actif, onChange }) => {
 // ============================================================================
 
 const Etape4PilotageCA = () => {
-  const { semaineSelectionnee, produitsGamme, setProduitsGamme, objectifCA, objectifPourcent, planifieManager, setPlanifieManager, promosActives, setPromosActives, promosPrecedentes, archiveTrouvee, produitsVentesBrutes, semainePlanning, selectionAssociation, setSelectionAssociation, correctionsManuelles } = useMagasin();
+  const { semaineSelectionnee, produitsGamme, setProduitsGamme, objectifCA, objectifPourcent, planifieManager, setPlanifieManager, promosActives, setPromosActives, promosPrecedentes, semainePlanning, selectionAssociation, setSelectionAssociation, correctionsManuelles } = useMagasin();
 
   // État local
   const [ongletActif, setOngletActif] = useState('gamme');
   const [limitesProgression, setLimitesProgression] = useState(LIMITES_PROGRESSION_DEFAUT);
   const [produitsExceptionnels, setProduitsExceptionnels] = useState([]);
-  const [modeNettoyage, setModeNettoyage] = useState(false); // false = gamme magasin (défaut)
-
-  // Calculer les produits nettoyés à la demande (depuis les ventes brutes)
-  const produitsNettoyesCalcules = useMemo(() => {
-    if (!modeNettoyage || !produitsVentesBrutes || produitsVentesBrutes.length === 0) return null;
-    const sem = semaineSelectionnee || semainePlanning;
-    const moisP = sem ? new Date(sem.annee, 0, 1 + (sem.semaine - 1) * 7).getMonth() + 1 : null;
-    // SB-6 — corrections passées en argument (plus de lecture localStorage ambient).
-    const { produits: nettoyes } = nettoyerGamme(produitsVentesBrutes, sem?.semaine, moisP, null, correctionsManuelles);
-    return nettoyes;
-  }, [modeNettoyage, produitsVentesBrutes, semaineSelectionnee, semainePlanning, correctionsManuelles]);
+  // Retrait du state local `modeNettoyage` et du useMemo `produitsNettoyesCalcules` :
+  // le choix « gamme magasin / nettoyage auto » est désormais porté en amont par
+  // le sélecteur de EtapeConfigPlanning (un seul contrôle, pas de doublon).
   const [periodePromo, setPeriodePromo] = useState(null);
   const [produits, setProduits] = useState(() => {
     if (produitsGamme && produitsGamme.length > 0) {
@@ -462,7 +454,7 @@ const Etape4PilotageCA = () => {
       <div className="min-h-[400px]">
         {ongletActif === 'gamme' && (
           <OngletGamme
-            produits={modeNettoyage && produitsNettoyesCalcules ? produitsNettoyesCalcules : produits}
+            produits={produits}
             onToggle={handleToggleProduit}
             onToggleFiltres={handleToggleFiltres}
             onChangeRayon={handleChangeRayon}
@@ -472,9 +464,6 @@ const Etape4PilotageCA = () => {
             promoPrecedenteMap={promoPrecedenteMap}
             onReloadGamme={handleReloadGamme}
             onUpdateProduits={setProduits}
-            archiveTrouvee={archiveTrouvee}
-            modeNettoyage={modeNettoyage}
-            setModeNettoyage={setModeNettoyage}
             selectionAssociation={selectionAssociation}
             setSelectionAssociation={setSelectionAssociation}
           />

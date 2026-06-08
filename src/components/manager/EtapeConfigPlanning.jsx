@@ -175,6 +175,8 @@ const EtapeConfigPlanning = () => {
     archiveProduitsEnAttente,
     setProduitsVentesBrutes,
     setNettoyageNecessaire,
+    setArchiveAppliquee,
+    chargerCorrectionsArchive,
   } = useMagasin();
 
   const [etapeChargement, setEtapeChargement] = useState('');
@@ -269,6 +271,16 @@ const EtapeConfigPlanning = () => {
   // ── Archive ──
   const [archiveTrouvee, setArchiveTrouvee] = useState(null);
   const [rechercheArchiveEnCours, setRechercheArchiveEnCours] = useState(false);
+
+  // ── Sélection manuelle de l'archive MANAGER (corrige le bug racine bug 1) ──
+  // - `archivesDisponibles` : tous les MANAGER détectés pour ce PDV, triés par
+  //   `exportDate` décroissant (date dans le JSON, pas la date FS modifiée par OneDrive).
+  // - `choixArchive` : `null` (avant scan), `'aucun'` (= refaire le nettoyage),
+  //   ou le nom du fichier choisi. Pré-sélection par défaut = la plus récente
+  //   par `exportDate`. Cf. PROMPT_FILTRE_BUG1.
+  const [archivesDisponibles, setArchivesDisponibles] = useState([]);
+  const [choixArchive, setChoixArchive] = useState(null);
+  const [chargementArchive, setChargementArchive] = useState(false);
 
   // Overlay global : visible tant qu'une opération de chargement est en cours
   const isChargementGlobal = chargement || rechercheAS1EnCours || rechercheFreqEnCours || rechercheArchiveEnCours;
@@ -534,11 +546,20 @@ const EtapeConfigPlanning = () => {
   }, [dirHandle, semaineAppliquee, typePonderation, setFrequentationData]);
 
   // ═══════════════════════════════════════════════════════
-  // RECHERCHE ARCHIVE MANAGER — 3 étapes : Promos S(X), Gamme hautes, Gamme basses
+  // RECHERCHE ARCHIVE MANAGER (refactor cause racine bug 1) :
+  //   1) Promos depuis S(X)               — inchangé
+  //   2) SCAN de toutes les archives MANAGER du PDV + métadonnées
+  //      (exportDate du JSON, nb actifs) → présenté à l'opérateur
+  //      qui CHOISIT la semaine. Pré-sélection = le plus récent par
+  //      `exportDate`. L'option « Sans MANAGER » est disponible même
+  //      en présence d'archives — elle remplace l'ancien toggle
+  //      Gamme magasin / Nettoyage auto d'OngletGamme.
   // ═══════════════════════════════════════════════════════
   useEffect(() => {
     if (!dossierBVP || !semaineAppliquee || !magasinSelectionne) {
       setArchiveTrouvee(null);
+      setArchivesDisponibles([]);
+      setChoixArchive(null);
       if (!dossierBVP) setNettoyageNecessaire(true);
       return;
     }
@@ -548,22 +569,12 @@ const EtapeConfigPlanning = () => {
     let cancelled = false;
     setRechercheArchiveEnCours(true);
     setArchiveTrouvee(null);
+    setArchivesDisponibles([]);
+    setChoixArchive(null);
 
-    // Helper : ajuster semaine/année si débordement
-    const ajusterSemAn = (sem, an) => {
-      if (sem > 52) return { semaine: sem - 52, annee: an + 1 };
-      if (sem <= 0) return { semaine: sem + 52, annee: an - 1 };
-      return { semaine: sem, annee: an };
-    };
-
-    // Helper : tenter de charger un fichier MANAGER
-    const chargerFichier = async (sem) => {
-      const nom = `MANAGER-${codePDV}-S${String(sem.semaine).padStart(2, '0')}-${sem.annee}.bvp.json`;
-      const fileHandle = await dossierBVP.getFileHandle(nom);
-      const file = await fileHandle.getFile();
-      const data = JSON.parse(await file.text());
-      return { data, nom, sem };
-    };
+    // Helper : nom de fichier pour une semaine donnée (pour ÉTAPE Promos S(X))
+    const nomFichierMANAGER = (semaine, annee) =>
+      `MANAGER-${codePDV}-S${String(semaine).padStart(2, '0')}-${annee}.bvp.json`;
 
     (async () => {
       try {
@@ -571,104 +582,189 @@ const EtapeConfigPlanning = () => {
         if (!ok || cancelled) { setRechercheArchiveEnCours(false); return; }
       } catch { setRechercheArchiveEnCours(false); return; }
 
-      // ── ÉTAPE A : Promos uniquement depuis S(X) ──
+      // ── ÉTAPE A : Promos depuis S(X) (inchangé) ──
       try {
-        if (!cancelled) {
-          const { data } = await chargerFichier({ semaine: semX, annee: anX });
-          if (!cancelled && data.promotions?.length > 0) {
-            setPromosPrecedentes(data.promotions.map(p => ({
-              plu: p.plu || '', itm8: p.itm8 || '',
-              libelle: p.libelle || '',
-              qteValidee: p.qteValidee || p.quantitePrevue || 0,
-            })));
-          } else if (!cancelled) {
-            setPromosPrecedentes([]);
+        const fileHandle = await dossierBVP.getFileHandle(nomFichierMANAGER(semX, anX));
+        const file = await fileHandle.getFile();
+        const data = JSON.parse(await file.text());
+        if (!cancelled && data.promotions?.length > 0) {
+          setPromosPrecedentes(data.promotions.map(p => ({
+            plu: p.plu || '', itm8: p.itm8 || '',
+            libelle: p.libelle || '',
+            qteValidee: p.qteValidee || p.quantitePrevue || 0,
+          })));
+        } else if (!cancelled) {
+          setPromosPrecedentes([]);
+        }
+      } catch {
+        if (!cancelled) setPromosPrecedentes([]);
+      }
+      if (cancelled) return;
+
+      // ── ÉTAPE B : Scanner toutes les archives MANAGER du PDV ──
+      const regex = new RegExp(`^MANAGER-${codePDV}-S(\\d{2})-(\\d{4})(?:_v(\\d+))?\\.bvp\\.json$`);
+      const fichiersDetectes = [];
+      try {
+        for await (const [nom] of dossierBVP.entries()) {
+          if (cancelled) return;
+          const match = nom.match(regex);
+          if (match) {
+            fichiersDetectes.push({
+              nom,
+              semaine: parseInt(match[1], 10),
+              annee: parseInt(match[2], 10),
+              version: match[3] ? parseInt(match[3], 10) : 1,
+            });
           }
         }
       } catch {
-        // S(X) n'existe pas → pas de promos
-        if (!cancelled) setPromosPrecedentes([]);
-      }
-
-      // ── ÉTAPE B : Gamme depuis les hautes S(X+10) → S(X) ──
-      let gammeTrouvee = false;
-      for (let offset = 10; offset >= 0; offset--) {
-        if (cancelled) return;
-        const sem = ajusterSemAn(semX + offset, anX);
-        try {
-          const { data, nom } = await chargerFichier(sem);
-          if (cancelled) return;
-
-          // Restaurer la configuration (tranches horaires, créneaux)
-          if (data.configuration) {
-            setJoursOuverture({
-              creneaux: data.configuration.creneaux || null,
-              redistribution: null,
-              regroupements: data.configuration.regroupements || null,
-              tranchesParFamille: data.configuration.tranchesParFamille || null,
-            });
-          }
-          // Restaurer la gamme
-          if (data.produits?.length > 0) setArchiveProduitsEnAttente(data.produits);
-          setPromosActives([]);
-
-          // planifieManager seulement si c'est la semaine exacte (offset 0 = S(X))
-          const estSemaineExacte = (sem.semaine === semX && sem.annee === anX);
-          if (estSemaineExacte && data.produits) {
-            const planifie = {};
-            data.produits.forEach(p => {
-              if (p.planifieManager > 0)
-                planifie[p.plu || p.itm8 || p.libelle] = p.planifieManager;
-            });
-            if (Object.keys(planifie).length > 0) setPlanifieManager(planifie);
-          } else {
-            setPlanifieManager({});
-          }
-
-          setArchiveTrouvee({ semaine: sem, estExacte: estSemaineExacte, nomFichier: nom });
-          gammeTrouvee = true;
+        if (!cancelled) {
+          setArchivesDisponibles([]);
+          setChoixArchive('aucun');
           setRechercheArchiveEnCours(false);
-          return;
-        } catch { /* fichier non trouvé, continuer */ }
-      }
-
-      // ── ÉTAPE C : Gamme depuis les basses S(X-1) → S(X-52) ──
-      if (!gammeTrouvee) {
-        for (let offset = 1; offset <= 52; offset++) {
-          if (cancelled) return;
-          const sem = ajusterSemAn(semX - offset, anX);
-          try {
-            const { data, nom } = await chargerFichier(sem);
-            if (cancelled) return;
-
-            if (data.configuration) {
-              setJoursOuverture({
-                creneaux: data.configuration.creneaux || null,
-                redistribution: null,
-                regroupements: data.configuration.regroupements || null,
-                tranchesParFamille: data.configuration.tranchesParFamille || null,
-              });
-            }
-            if (data.produits?.length > 0) setArchiveProduitsEnAttente(data.produits);
-            setPromosActives([]);
-            setPlanifieManager({});
-
-            setArchiveTrouvee({ semaine: sem, estExacte: false, nomFichier: nom });
-            setRechercheArchiveEnCours(false);
-            return;
-          } catch { /* continuer */ }
         }
+        return;
       }
+      if (cancelled) return;
 
-      // Rien trouvé nulle part → nettoyage automatique
-      if (!cancelled) {
-        setArchiveTrouvee(null);
-        setRechercheArchiveEnCours(false);
-        setNettoyageNecessaire(true);
-      }
+      // ── ÉTAPE C : Lire metadata (exportDate + nbActifs) en parallèle ──
+      const archivesAvecMeta = await Promise.all(fichiersDetectes.map(async (f) => {
+        try {
+          const fh = await dossierBVP.getFileHandle(f.nom);
+          const file = await fh.getFile();
+          const data = JSON.parse(await file.text());
+          const nbActifs = Array.isArray(data.produits)
+            ? data.produits.filter(p => p.actif !== false).length
+            : 0;
+          return {
+            ...f,
+            exportDate: data.exportDate || null,
+            nbActifs,
+          };
+        } catch {
+          return { ...f, exportDate: null, nbActifs: null };
+        }
+      }));
+      if (cancelled) return;
+
+      // ── ÉTAPE D : Tri par exportDate desc (puis semaine/version en fallback) ──
+      archivesAvecMeta.sort((a, b) => {
+        // 1) exportDate ISO descendant
+        if (a.exportDate && b.exportDate) return b.exportDate.localeCompare(a.exportDate);
+        if (a.exportDate) return -1;
+        if (b.exportDate) return 1;
+        // 2) Fallback : annee/semaine descendant
+        const cmpSem = (b.annee * 100 + b.semaine) - (a.annee * 100 + a.semaine);
+        if (cmpSem !== 0) return cmpSem;
+        // 3) Fallback ultime : version descendante
+        return (b.version || 0) - (a.version || 0);
+      });
+
+      // ── ÉTAPE E : Pré-sélection ──
+      // Si au moins un fichier → la plus récente (par exportDate).
+      // Sinon → 'aucun' (nettoyage auto).
+      setArchivesDisponibles(archivesAvecMeta);
+      setChoixArchive(archivesAvecMeta.length > 0 ? archivesAvecMeta[0].nom : 'aucun');
+      setRechercheArchiveEnCours(false);
     })();
     return () => { cancelled = true; };
   }, [dossierBVP, semaineAppliquee, magasinSelectionne]);
+
+  // ═══════════════════════════════════════════════════════
+  // CHARGEMENT DE L'ARCHIVE CHOISIE (ou bascule en nettoyage auto)
+  //   Réagit au state `choixArchive` mis à jour soit par la pré-sélection
+  //   (étape E ci-dessus), soit par un clic de l'opérateur sur un radio
+  //   du sélecteur. Cas spécial : `'aucun'` = bascule nettoyage auto.
+  // ═══════════════════════════════════════════════════════
+  useEffect(() => {
+    if (!choixArchive || !dossierBVP || !magasinSelectionne || !semaineAppliquee) return;
+    let cancelled = false;
+    setChargementArchive(true);
+
+    (async () => {
+      // ── Cas « Sans MANAGER » : nettoyage auto ──
+      if (choixArchive === 'aucun') {
+        if (cancelled) return;
+        setArchiveTrouvee(null);
+        setArchiveProduitsEnAttente(null);
+        setArchiveAppliquee(false);
+        setPlanifieManager({});
+        setPromosActives([]);
+        setNettoyageNecessaire(true);
+        setChargementArchive(false);
+        return;
+      }
+
+      // ── Cas « Archive MANAGER choisie » : chargement ciblé ──
+      const archive = archivesDisponibles.find(a => a.nom === choixArchive);
+      if (!archive) {
+        if (!cancelled) setChargementArchive(false);
+        return;
+      }
+
+      try {
+        const fileHandle = await dossierBVP.getFileHandle(choixArchive);
+        const file = await fileHandle.getFile();
+        const data = JSON.parse(await file.text());
+        if (cancelled) return;
+
+        const sem = { semaine: archive.semaine, annee: archive.annee };
+        const estSemaineExacte = (
+          sem.semaine === semaineAppliquee.semaine &&
+          sem.annee === semaineAppliquee.annee
+        );
+
+        if (data.configuration) {
+          setJoursOuverture({
+            creneaux: data.configuration.creneaux || null,
+            redistribution: null,
+            regroupements: data.configuration.regroupements || null,
+            tranchesParFamille: data.configuration.tranchesParFamille || null,
+          });
+        }
+
+        if (data.produits?.length > 0) setArchiveProduitsEnAttente(data.produits);
+        setPromosActives([]);
+
+        if (estSemaineExacte && data.produits) {
+          const planifie = {};
+          data.produits.forEach(p => {
+            if (p.planifieManager > 0)
+              planifie[p.plu || p.itm8 || p.libelle] = p.planifieManager;
+          });
+          if (Object.keys(planifie).length > 0) {
+            setPlanifieManager(planifie);
+          } else {
+            setPlanifieManager({});
+          }
+        } else {
+          setPlanifieManager({});
+        }
+
+        // SB-6 — corrections d'archive mergées dans le state typé
+        // (élimine la race condition cf. Bug 1 racine).
+        if (data.correctionsManuelles) chargerCorrectionsArchive(data.correctionsManuelles);
+
+        // Reset des flags nettoyage et pose archiveTrouvee
+        setNettoyageNecessaire(false);
+        setArchiveAppliquee(false);
+        setArchiveTrouvee({
+          semaine: sem,
+          estExacte: estSemaineExacte,
+          nomFichier: choixArchive,
+        });
+      } catch {
+        if (!cancelled) {
+          setArchiveTrouvee(null);
+          setNettoyageNecessaire(true);
+        }
+      } finally {
+        if (!cancelled) setChargementArchive(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [choixArchive, dossierBVP, magasinSelectionne, semaineAppliquee, archivesDisponibles]);
 
   // ═══════════════════════════════════════════════════════
   // RECHERCHE FICHIER EQUIPE (retour personnalisations équipe)
@@ -970,6 +1066,118 @@ const EtapeConfigPlanning = () => {
                   <p className="text-red-800 text-sm">{erreur}</p>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ──── 2bis. CHOIX DE LA GAMME (archive MANAGER ou nettoyage auto) ──── */}
+          {/*
+              Remplace l'ancienne sélection automatique (S(X+10)→S(X) puis S(X-1)→S(X-52))
+              qui prenait la première archive trouvée — cause racine du bug 1
+              (un vieux MANAGER-S30 masquait des S25/S26/S27 plus récents).
+
+              L'opérateur voit toutes les archives détectées, triées par date de
+              génération (`exportDate` dans le JSON, pas la date FS qui est modifiée
+              par OneDrive à la synchro). Pré-sélection = la plus récente.
+
+              L'option « Sans fichier MANAGER » remplace AUSSI l'ancien toggle
+              « Gamme magasin / Nettoyage auto » d'OngletGamme — un seul contrôle
+              pour la même fonction.
+          */}
+          {importComplet && semaineAppliquee && magasinSelectionne && dossierBVP && (
+            <div className="bg-white rounded-xl shadow-md p-5">
+              <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <Database className="w-5 h-5 text-[#8B1538]" />
+                Choix de la gamme
+                {(rechercheArchiveEnCours || chargementArchive) && (
+                  <Loader2 className="w-4 h-4 animate-spin text-mousquetaires-gris" />
+                )}
+              </h3>
+
+              {!rechercheArchiveEnCours && archivesDisponibles.length === 0 && (
+                <p className="text-sm text-mousquetaires-gris mb-3">
+                  Aucun fichier MANAGER trouvé pour ce magasin dans le dossier BVP.
+                  Le nettoyage automatique sera appliqué.
+                </p>
+              )}
+
+              {!rechercheArchiveEnCours && archivesDisponibles.length > 0 && (
+                <p className="text-xs text-mousquetaires-gris mb-3">
+                  Choisissez la semaine à importer. Par défaut, la dernière générée
+                  est pré-sélectionnée.
+                </p>
+              )}
+
+              <div className="space-y-1.5">
+                {/* Liste des archives détectées */}
+                {archivesDisponibles.map((archive) => {
+                  const dateAffichee = archive.exportDate
+                    ? new Date(archive.exportDate).toLocaleString('fr-FR', {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit',
+                      })
+                    : 'date inconnue';
+                  const versionLabel = archive.version > 1 ? ` (v${archive.version})` : '';
+                  const actifsLabel = archive.nbActifs != null
+                    ? `${archive.nbActifs} produits actifs`
+                    : 'contenu illisible';
+                  const isSelected = choixArchive === archive.nom;
+
+                  return (
+                    <label
+                      key={archive.nom}
+                      className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors ${
+                        isSelected
+                          ? 'border-[#8B1538] bg-mousquetaires-beige'
+                          : 'border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="choixArchive"
+                        value={archive.nom}
+                        checked={isSelected}
+                        onChange={() => setChoixArchive(archive.nom)}
+                        className="mt-0.5 accent-[#8B1538]"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-800 text-sm">
+                          Semaine {String(archive.semaine).padStart(2, '0')} / {archive.annee}{versionLabel}
+                        </p>
+                        <p className="text-xs text-mousquetaires-gris">
+                          Généré le {dateAffichee} — {actifsLabel}
+                        </p>
+                      </div>
+                    </label>
+                  );
+                })}
+
+                {/* Option Sans MANAGER (toujours disponible) */}
+                <label
+                  className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors ${
+                    choixArchive === 'aucun'
+                      ? 'border-amber-500 bg-amber-50'
+                      : 'border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="choixArchive"
+                    value="aucun"
+                    checked={choixArchive === 'aucun'}
+                    onChange={() => setChoixArchive('aucun')}
+                    className="mt-0.5 accent-amber-600"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-800 text-sm">
+                      Sans fichier MANAGER — refaire le nettoyage
+                    </p>
+                    <p className="text-xs text-mousquetaires-gris">
+                      Repart des 2 sources (Mercalys ventes/casse + Liste PLU) et applique
+                      le nettoyage automatique.
+                    </p>
+                  </div>
+                </label>
+              </div>
             </div>
           )}
 

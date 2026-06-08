@@ -150,9 +150,39 @@ const TableauProduits = ({ produits, onToggle, onChangeRayon, recherche, filtreR
   const [editingLotId, setEditingLotId] = useState(null);
   const [editingLotValue, setEditingLotValue] = useState('');
 
+  // ────────────────────────────────────────────────────────────────────────
+  // CORRECTION cause racine bug filtre — clé React unique par ligne, FIGÉE au
+  // chargement de la gamme (avant tout filtre/tri).
+  //
+  // Stratégie : on attribue UNE FOIS un `_rowKey` à chaque produit du tableau
+  // `produits` (la prop) en utilisant une signature stable (id+ean13+codeEAN+
+  // codePLU+libellé) + un indice d'occurrence dans CE tableau d'origine.
+  // L'objet enrichi `{...produit, _rowKey}` est ensuite propagé à `produitsFiltres`
+  // puis `produitsTries` par référence — la clé suit le produit à travers
+  // filtre/tri SANS dépendre de sa position d'affichage.
+  //
+  // Renouvellement : le useMemo se réexécute uniquement quand `produits` change
+  // (= nouveau chargement de la gamme). Pas besoin de survivre entre imports,
+  // la stabilité intra-session suffit pour la réconciliation React.
+  // ────────────────────────────────────────────────────────────────────────
+  const produitsAvecRowKey = useMemo(() => {
+    const compteurParSignature = new Map();
+    return produits.map((produit) => {
+      const sig = [
+        produit.id || produit.itm8 || 'noid',
+        produit.ean13 || produit.codeEAN || 'noean',
+        produit.codePLU || 'noplu',
+        produit.libelle || 'nolib',
+      ].join('|');
+      const n = (compteurParSignature.get(sig) || 0) + 1;
+      compteurParSignature.set(sig, n);
+      return { ...produit, _rowKey: `${sig}#${n}` };
+    });
+  }, [produits]);
+
   // Filtrer les produits
   const produitsFiltres = useMemo(() => {
-    return produits
+    return produitsAvecRowKey
       .filter((p) => !recherche || p.libelle.toLowerCase().includes(recherche.toLowerCase()))
       .filter((p) => !filtreRayon || filtreRayon === 'tous' || p.rayon === filtreRayon)
       .filter((p) => {
@@ -162,7 +192,7 @@ const TableauProduits = ({ produits, onToggle, onChangeRayon, recherche, filtreR
         if (filtreStatut === 'a-creer') return p.aCreer;
         return true;
       });
-  }, [produits, recherche, filtreRayon, filtreStatut]);
+  }, [produitsAvecRowKey, recherche, filtreRayon, filtreStatut]);
 
   const handleTri = (colonne) => {
     setTri((prev) => ({
@@ -288,7 +318,7 @@ const TableauProduits = ({ produits, onToggle, onChangeRayon, recherche, filtreR
         <tbody className="divide-y divide-gray-100">
           {produitsTries.map((produit) => (
             <tr
-              key={produit.id}
+              key={produit._rowKey}
               className={`hover:bg-gray-50 transition-colors ${!produit.actif ? 'opacity-50 bg-gray-50' : ''}`}
             >
               {/* Actif */}
@@ -669,7 +699,7 @@ const TableauProduits = ({ produits, onToggle, onChangeRayon, recherche, filtreR
 /**
  * Onglet Gamme - Sélection des produits
  */
-const OngletGamme = ({ produits, onToggle, onToggleFiltres, onChangeRayon, planifieManager, onChangePlanifie, promoItm8Set, promoPrecedenteMap, onReloadGamme, onUpdateProduits, archiveTrouvee, modeNettoyage, setModeNettoyage, selectionAssociation, setSelectionAssociation }) => {
+const OngletGamme = ({ produits, onToggle, onToggleFiltres, onChangeRayon, planifieManager, onChangePlanifie, promoItm8Set, promoPrecedenteMap, onReloadGamme, onUpdateProduits, selectionAssociation, setSelectionAssociation }) => {
   const [recherche, setRecherche] = useState('');
   const [filtreRayon, setFiltreRayon] = useState('tous');
   const [filtreStatut, setFiltreStatut] = useState('tous');
@@ -822,36 +852,12 @@ const OngletGamme = ({ produits, onToggle, onToggleFiltres, onChangeRayon, plani
 
   return (
     <div className="space-y-4">
-      {/* Switch Mode Gamme */}
-      {archiveTrouvee && (
-        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
-          <span className={`text-sm font-medium ${!modeNettoyage ? 'text-[#8B1538]' : 'text-gray-400'}`}>
-            Gamme magasin
-          </span>
-          <button
-            type="button"
-            onClick={() => setModeNettoyage(!modeNettoyage)}
-            className={`relative w-12 h-6 rounded-full transition-colors ${
-              modeNettoyage ? 'bg-amber-500' : 'bg-[#8B1538]'
-            }`}
-          >
-            <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-              modeNettoyage ? 'translate-x-6' : 'translate-x-0.5'
-            }`} />
-          </button>
-          <span className={`text-sm font-medium ${modeNettoyage ? 'text-amber-600' : 'text-gray-400'}`}>
-            Nettoyage auto
-          </span>
-          <span className="text-xs text-gray-400 ml-2">
-            ({archiveTrouvee.nomFichier})
-          </span>
-          {modeNettoyage && (
-            <span className="text-xs text-amber-600 italic ml-auto">
-              Nettoyage automatique actif — vos choix de gamme précédents ne sont pas appliqués
-            </span>
-          )}
-        </div>
-      )}
+      {/*
+        Le toggle « Gamme magasin / Nettoyage auto » a été supprimé : la fonction
+        est désormais portée par le sélecteur de l'étape « Préparer la semaine »
+        (cf. EtapeConfigPlanning, section « Choix de la gamme »). Un seul contrôle
+        pour le choix d'archive ET pour le mode nettoyage auto.
+      */}
 
       {/* Compteurs nettoyage + modèle magasin */}
       <div className="flex flex-wrap items-center gap-3 px-1 text-sm">
