@@ -171,16 +171,8 @@ export function genererFicheJourHTML(jour, {
             joursCouverts.forEach((j, i) => {
               const qtesJ = calculerQuantites(produit, j, 'journalier');
               const qteJ = qtesJ.total?.preco || 0;
-              // Fix A2 : pour les produits en lots, chaque jour est affiché arrondi
-              // au lot supérieur (ex. 35u → 3 lt /48 u). La somme doit être cohérente
-              // avec l'affichage : sommer les lots, pas les unités brutes.
-              // Avant : 35 + 26 = 61u brut → affiché 4 lt /64 u (incohérent avec 3+2=5 lt affichés)
-              // Après : 48 + 32 = 80u → affiché 5 lt /80 u (3 + 2 = 5 lt cohérent)
-              const qteJAligne = isLot && qteJ > 0
-                ? Math.ceil(qteJ / produit.unitesParLot) * produit.unitesParLot
-                : qteJ;
-              totalMultiJours += qteJAligne;
-              capaciteTranches[i] += qteJAligne;
+              totalMultiJours += qteJ;
+              capaciteTranches[i] += qteJ;
               joursColsHTML += `<td class="qte">${formatQte(qteJ)}</td>`;
             });
             if (totalMultiJours === 0) return;

@@ -141,8 +141,6 @@ const AccueilEquipe = ({ onRetourAccueil, dossierEquipeHandle }) => {
     personnalisationProduits: fichierCharge.personnalisationProduits || {},
     plaquage: fichierCharge.plaquage || {},
     couverturePatisserie: fichierCharge.couverturePatisserie || null,
-    // Table de correspondance ancien_id → nouvel_id (priorité sur la migration par libellé)
-    idMapping: fichierCharge.idMapping || {},
   } : null;
 
   // Si chargement en cours ou pas de fichier trouvé

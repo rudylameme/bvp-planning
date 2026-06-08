@@ -45,7 +45,6 @@ import {
 } from '../../services/gammeExtractionService';
 import { parseFrequentationExcel } from '../../services/excelParser';
 import { checkHandlePermission } from '../../hooks/useFileAccess';
-import { chargerBBDNationale } from '../../services/bbdNationaleService';
 
 // ── Utilitaires ──
 
@@ -392,14 +391,10 @@ const EtapeConfigPlanning = () => {
             const semApp = semaineAppliquee || semainePlanning;
             const moisP = semApp ? new Date(semApp.annee, 0, 1 + (semApp.semaine - 1) * 7).getMonth() + 1 : null;
 
-            // Charger la BBD nationale (non bloquant)
-            const bbdNationale = dirHandle ? await chargerBBDNationale(dirHandle) : null;
-
             // Extraire les ventes brutes (sans nettoyage)
             const produitsBruts = formaterPourPilotageCA(donneesVC, {
               semaineNumero: semApp?.semaine,
               moisPlanning: moisP,
-              bbdNationale,
               skipNettoyage: true,
             });
             setProduitsVentesBrutes(produitsBruts);

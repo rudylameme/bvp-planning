@@ -19,7 +19,6 @@ import {
 } from 'lucide-react';
 import { useMagasin } from '../../contexts/MagasinContext';
 import { useFileAccess, checkHandlePermission } from '../../hooks/useFileAccess';
-import { normaliserLibelle } from '../../services/nettoyageGamme';
 
 // ============================================================================
 // Poids de fréquentation par défaut (même valeurs que PilotageCA)
@@ -68,91 +67,6 @@ const getDateFinSemaine = (semaine, annee) => {
 const padSemaine = (s) => String(s).padStart(2, '0');
 
 // ============================================================================
-// Construction de la table de correspondance idMapping
-// ============================================================================
-
-/**
- * Compare les produits du MANAGER S-1 (précédent) et S+1 (nouveau) et construit
- * une table {ancien_id → nouveau_id} pour les produits dont l'ID canonique a changé
- * mais dont (libellé normalisé, famille, rayon) restent identiques.
- *
- * @param {Array} produitsPrecedents - produits du MANAGER S précédent
- * @param {Array} produitsNouveaux - produits du MANAGER S+1 en cours d'export
- * @returns {Object} { "ancien_id": "nouveau_id", ... }
- */
-const construireIdMapping = (produitsPrecedents, produitsNouveaux) => {
-  if (!Array.isArray(produitsPrecedents) || !Array.isArray(produitsNouveaux)) return {};
-  // Index des nouveaux par (libelleNorm + famille + rayon)
-  const parCle = new Map();
-  produitsNouveaux.forEach(p => {
-    if (!p.libelle || !p.id) return;
-    const key = `${normaliserLibelle(p.libelle)}|${p.famille || ''}|${p.rayon || ''}`;
-    if (!parCle.has(key)) parCle.set(key, []);
-    parCle.get(key).push(p);
-  });
-
-  const mapping = {};
-  produitsPrecedents.forEach(ancien => {
-    if (!ancien.libelle || !ancien.id) return;
-    const key = `${normaliserLibelle(ancien.libelle)}|${ancien.famille || ''}|${ancien.rayon || ''}`;
-    const candidats = parCle.get(key) || [];
-    if (candidats.length === 0) return;
-    // Disambiguation quand plusieurs candidats partagent le même libellé normalisé.
-    // Règle : EAN strictement prioritaire (le plus discriminant). ITM8 en fallback
-    // SEULEMENT si un seul candidat a cet ITM (sinon ambiguïté → ne pas mapper).
-    // Contexte : ~16% des ITM8 en production ont plusieurs EAN (variantes PAC/PRE,
-    // promos, conditionnements). Matcher par ITM seul donne un faux positif :
-    // la personnalisation de l'ancien « X4 PAC » atterrit sur le nouveau « X4 1KG ».
-    let cible = null;
-    if (candidats.length === 1) {
-      cible = candidats[0];
-    } else {
-      const byEan = ancien.ean13 ? candidats.find(c => c.ean13 === ancien.ean13) : null;
-      if (byEan) {
-        cible = byEan;
-      } else if (ancien.itm8) {
-        const matchsItm = candidats.filter(c => c.itm8 === ancien.itm8);
-        cible = matchsItm.length === 1 ? matchsItm[0] : null;
-      }
-    }
-    if (cible && cible.id !== ancien.id) {
-      mapping[ancien.id] = cible.id;
-    }
-  });
-  return mapping;
-};
-
-/**
- * Charge le dernier fichier MANAGER précédent (semaine S-1 ou la plus proche antérieure)
- * pour construire l'idMapping.
- * @param {FileSystemDirectoryHandle} dossierBVP
- * @param {string} codePDV
- * @param {{semaine, annee}} semaineActuelle
- * @returns {Promise<Array|null>} liste des produits du dernier MANAGER trouvé, ou null
- */
-const chargerProduitsMgrPrecedent = async (dossierBVP, codePDV, semaineActuelle) => {
-  if (!dossierBVP || !codePDV || !semaineActuelle) return null;
-  const ajuster = (sem, an) => {
-    if (sem <= 0) return { semaine: sem + 52, annee: an - 1 };
-    if (sem > 52) return { semaine: sem - 52, annee: an + 1 };
-    return { semaine: sem, annee: an };
-  };
-  for (let offset = 1; offset <= 52; offset++) {
-    const sem = ajuster(semaineActuelle.semaine - offset, semaineActuelle.annee);
-    const nom = `MANAGER-${codePDV}-S${String(sem.semaine).padStart(2, '0')}-${sem.annee}.bvp.json`;
-    try {
-      const fh = await dossierBVP.getFileHandle(nom);
-      const file = await fh.getFile();
-      const data = JSON.parse(await file.text());
-      if (Array.isArray(data.produits) && data.produits.length > 0) {
-        return data.produits;
-      }
-    } catch { /* fichier absent, essayer semaine précédente */ }
-  }
-  return null;
-};
-
-// ============================================================================
 // Construction de l'archive
 // ============================================================================
 
@@ -170,7 +84,6 @@ const construireArchive = ({
   frequentationData,
   plaquageProgrammes,
   couverturePatisserie,
-  idMapping = {},
 }) => {
   const sem = semainePlanning || { semaine: 1, annee: 2026 };
   const code = infoPDV?.code || donneesMagasin?.magasin?.code || 'XXXXX';
@@ -378,11 +291,6 @@ const construireArchive = ({
       jourDepart: couverturePatisserie.jourDepart || 'lundi',
     } : null,
 
-    // Table de correspondance ancien_id → nouvel_id (calculée au moment de l'export
-    // en comparant avec le MANAGER précédent). Utilisée par la migration EQUIPE en
-    // priorité pour éviter les faux matchs par libellé.
-    idMapping: idMapping && Object.keys(idMapping).length > 0 ? idMapping : {},
-
     // Corrections manuelles (séparations, fusions, dissociations, associations)
     correctionsManuelles: (() => {
       try {
@@ -396,56 +304,6 @@ const construireArchive = ({
   };
 
   return archive;
-};
-
-// ============================================================================
-// Composant : popup informatif sur les codes produits actualisés (§3 bis)
-// ============================================================================
-
-const SEUIL_AFFICHAGE_LISTE = 20;
-
-const PopupCodesActualises = ({ mapping, produits }) => {
-  const [ouvert, setOuvert] = useState(false);
-  const nb = Object.keys(mapping).length;
-  if (nb === 0) return null;
-
-  // Index produits par id pour retrouver le libellé
-  const parId = new Map((produits || []).map(p => [p.id, p]));
-
-  return (
-    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-      <div className="flex items-start gap-3">
-        <div className="flex-shrink-0 mt-0.5">
-          <Check className="w-5 h-5 text-blue-600" />
-        </div>
-        <div className="flex-1">
-          <p className="text-sm text-blue-900">
-            <strong>{nb}</strong> code{nb > 1 ? 's' : ''} produit{nb > 1 ? 's' : ''} {nb > 1 ? 'ont' : 'a'} changé cette semaine et {nb > 1 ? 'seront' : 'sera'} automatiquement actualisé{nb > 1 ? 's' : ''} pour les équipes.
-          </p>
-          {nb <= SEUIL_AFFICHAGE_LISTE && (
-            <button
-              onClick={() => setOuvert(o => !o)}
-              className="text-xs text-blue-700 underline mt-1 hover:text-blue-900"
-            >
-              {ouvert ? 'Masquer la liste' : 'Voir la liste'}
-            </button>
-          )}
-          {ouvert && nb <= SEUIL_AFFICHAGE_LISTE && (
-            <ul className="mt-2 space-y-1 text-xs text-blue-800 max-h-48 overflow-y-auto">
-              {Object.entries(mapping).map(([ancien, nouveau]) => {
-                const lib = parId.get(nouveau)?.libelle || '';
-                return (
-                  <li key={ancien} className="font-mono">
-                    {ancien} → {nouveau} <span className="font-sans text-blue-600">{lib}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-      </div>
-    </div>
-  );
 };
 
 // ============================================================================
@@ -476,8 +334,6 @@ const Etape5Communication = () => {
   const [exportOk, setExportOk] = useState(false);
   const [erreur, setErreur] = useState(null);
   const [nomFichierExporte, setNomFichierExporte] = useState(null);
-  // Table de correspondance construite au moment de l'export (pour popup informatif)
-  const [idMappingExporte, setIdMappingExporte] = useState({});
 
   // Construire l'archive en preview
   const archive = useMemo(() => construireArchive({
@@ -516,27 +372,11 @@ const Etape5Communication = () => {
     setExportOk(false);
 
     try {
-      const dirToUse = dossierBVP;
-
-      // 1. Construire l'idMapping en comparant avec le MANAGER précédent (si accessible)
-      let idMapping = {};
-      if (dirToUse) {
-        try {
-          const codePDV = archive.magasin.code;
-          const produitsPrecedents = await chargerProduitsMgrPrecedent(dirToUse, codePDV, semainePlanning);
-          if (produitsPrecedents) {
-            idMapping = construireIdMapping(produitsPrecedents, archive.produits);
-          }
-        } catch { /* non bloquant : export continue sans idMapping */ }
-      }
-      setIdMappingExporte(idMapping);
-
-      // 2. Reconstruire l'archive finale avec l'idMapping
-      const archiveFinale = { ...archive, idMapping };
+      let dirToUse = dossierBVP;
 
       // Si pas de dossier configuré → téléchargement navigateur
       if (!dirToUse) {
-        const blob = new Blob([JSON.stringify(archiveFinale, null, 2)], { type: 'application/json' });
+        const blob = new Blob([JSON.stringify(archive, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -556,7 +396,7 @@ const Etape5Communication = () => {
       }
 
       // Écrire le fichier dans le dossier
-      await writeFile(dirToUse, nomFichier, JSON.stringify(archiveFinale, null, 2));
+      await writeFile(dirToUse, nomFichier, JSON.stringify(archive, null, 2));
 
       setExportOk(true);
       setNomFichierExporte(nomFichier);
@@ -682,22 +522,15 @@ const Etape5Communication = () => {
             <span className="text-gray-600 font-medium">Création du fichier planning...</span>
           </div>
         ) : exportOk ? (
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <Check className="w-6 h-6 text-green-600" />
-              <div>
-                <p className="font-semibold text-green-800">Planning exporté avec succès</p>
-                <p className="text-sm text-green-600 font-mono">{nomFichierExporte}</p>
-                {dossierBVP && (
-                  <p className="text-xs text-green-500 mt-1">Sauvegardé dans : {dossierBVP.name}</p>
-                )}
-              </div>
+          <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <Check className="w-6 h-6 text-green-600" />
+            <div>
+              <p className="font-semibold text-green-800">Planning exporté avec succès</p>
+              <p className="text-sm text-green-600 font-mono">{nomFichierExporte}</p>
+              {dossierBVP && (
+                <p className="text-xs text-green-500 mt-1">Sauvegardé dans : {dossierBVP.name}</p>
+              )}
             </div>
-
-            {/* §3 bis : Popup informatif sur les codes produits actualisés */}
-            {Object.keys(idMappingExporte).length > 0 && (
-              <PopupCodesActualises mapping={idMappingExporte} produits={archive.produits} />
-            )}
           </div>
         ) : erreur ? (
           <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">

@@ -23,7 +23,6 @@ import { useProduitsParFamille, useFamillesTriees, useGetProgrammesOrdonnes } fr
 
 // Service fichier équipe (architecture zéro-localStorage)
 import { sauvegarderFichierEquipe } from '../../services/dossierEquipeService';
-import { normaliserLibelle } from '../../services/nettoyageGamme';
 
 /**
  * Composant Planning du Jour pour l'équipe
@@ -200,133 +199,48 @@ export default function PlanningJour({ donneesMagasin, dossierEquipeHandle, donn
     };
   }, [executerSauvegarde]);
 
-  const { configuration, frequentation, produits: produitsOriginaux, plaquage, couverturePatisserie, idMapping } = donneesMagasin;
+  const { configuration, frequentation, produits: produitsOriginaux, plaquage, couverturePatisserie } = donneesMagasin;
 
-  // ═══════════════════════════════════════════════════════════════════
-  // MIGRATION DES PERSONNALISATIONS EQUIPE vers les IDs canoniques stables
-  // ═══════════════════════════════════════════════════════════════════
-  // Le MANAGER export des IDs canoniques (nat-*, plu-*, itm-*, ean-*, hash-*).
-  // Les anciens fichiers EQUIPE peuvent contenir des clés :
-  //   - numériques (ancien "index + 1")
-  //   - EAN brut sans préfixe (ancien format)
-  //   - suffixes _N (ancien dédoublonnage)
-  //   - "undefined" (produit sans id au moment de l'édition)
-  //   - ref-v2-*, archive_* (formats intermédiaires)
-  //
-  // Stratégie :
-  //   1. Essayer idMapping transmis par le MANAGER (priorité — fiable).
-  //   2. Matcher par (itm8 || plu) si la perso expose ces champs.
-  //   3. Matcher par libellé normalisé + famille + rayon.
-  //   4. En cas d'ambiguïté → console.warn, pas de remap.
-  //   5. Après remap réussi → supprimer l'ancienne clé (évite doublons DOONY'S).
+  // Migration des personnalisations EQUIPE : anciens IDs numériques → nouveaux IDs stables (EAN)
   useEffect(() => {
     if (!produitsOriginaux?.length || !Object.keys(produitsModifies).length) return;
 
-    // Index des produits courants pour lookup rapide
-    const parId = new Map();
-    const parItm = new Map();
-    const parPlu = new Map();
-    const parLibelleNorm = new Map(); // libNorm → [{produit, famille, rayon}]
+    // Détecter si les clés sont des anciens IDs numériques
+    const cles = Object.keys(produitsModifies);
+    const hasAncienIds = cles.some(k => /^\d+$/.test(k));
+    if (!hasAncienIds) return; // Déjà au nouveau format
+
+    // Construire un index libellé → nouveau produit
+    const parLibelle = {};
     produitsOriginaux.forEach(p => {
-      if (p.id) parId.set(p.id, p);
-      if (p.itm8) parItm.set(String(p.itm8), p);
-      if (p.plu) parPlu.set(String(p.plu), p);
-      if (p.libelle) {
-        const key = normaliserLibelle(p.libelle);
-        if (!parLibelleNorm.has(key)) parLibelleNorm.set(key, []);
-        parLibelleNorm.get(key).push(p);
-      }
+      const lib = (p.libelle || '').toLowerCase().trim();
+      if (lib && !parLibelle[lib]) parLibelle[lib] = p;
     });
 
-    // Une clé est considérée canonique si elle a un préfixe reconnu
-    const estCanonique = (k) => /^(nat|plu|itm|ean|hash)-/.test(k);
-
+    // Remapper les personnalisations
     const migrees = {};
     let nbMigres = 0;
-    let nbAmbigus = 0;
-    let nbOrphelins = 0;
-
     Object.entries(produitsModifies).forEach(([ancienId, perso]) => {
-      // Cas 1 : clé déjà canonique ET produit existe → on garde tel quel
-      if (estCanonique(ancienId) && parId.has(ancienId)) {
-        migrees[ancienId] = perso;
-        return;
-      }
-
-      // Cas 2 : idMapping du MANAGER (priorité — le manager a vu les deux exports)
-      const cibleMapping = idMapping?.[ancienId];
-      if (cibleMapping && parId.has(cibleMapping)) {
-        migrees[cibleMapping] = perso;
-        nbMigres++;
-        return;
-      }
-
-      // Cas 3 : match par ITM8 stocké dans la perso
-      if (perso.itm) {
-        const produit = parItm.get(String(perso.itm));
-        if (produit?.id) {
+      if (/^\d+$/.test(ancienId) && perso.libelle) {
+        // Chercher le produit par libellé original (stocké dans la personnalisation)
+        const lib = perso.libelle.toLowerCase().trim();
+        const produit = parLibelle[lib];
+        if (produit) {
           migrees[produit.id] = perso;
           nbMigres++;
           return;
         }
       }
-
-      // Cas 4 : match par PLU local stocké dans la perso
-      if (perso.plu_local || perso.plu) {
-        const pluKey = String(perso.plu_local || perso.plu);
-        const produit = parPlu.get(pluKey);
-        if (produit?.id) {
-          migrees[produit.id] = perso;
-          nbMigres++;
-          return;
-        }
-      }
-
-      // Cas 5 : match par libellé normalisé + famille + rayon
-      if (perso.libelle) {
-        const libNorm = normaliserLibelle(perso.libelle);
-        const candidats = parLibelleNorm.get(libNorm) || [];
-        if (candidats.length === 1) {
-          migrees[candidats[0].id] = perso;
-          nbMigres++;
-          return;
-        }
-        if (candidats.length > 1) {
-          // Filtrer par famille + rayon si la perso les a
-          const filtres = candidats.filter(c =>
-            (!perso.famille || c.famille === perso.famille) &&
-            (!perso.rayon || c.rayon === perso.rayon)
-          );
-          if (filtres.length === 1) {
-            migrees[filtres[0].id] = perso;
-            nbMigres++;
-            return;
-          }
-          // Ambigu → on log et on garde tel quel
-          nbAmbigus++;
-          console.warn(`[Migration EQUIPE] Ambiguïté pour "${perso.libelle}" (${candidats.length} candidats), clé "${ancienId}" non migrée`);
-          migrees[ancienId] = perso;
-          return;
-        }
-      }
-
-      // Cas 6 : aucun match → perso orpheline conservée (nettoyage manuel éventuel plus tard)
-      if (!estCanonique(ancienId)) {
-        nbOrphelins++;
-      }
+      // Garder tel quel (déjà au bon format ou pas de match)
       migrees[ancienId] = perso;
     });
 
-    if (nbMigres > 0 || nbAmbigus > 0 || nbOrphelins > 0) {
-      console.info(
-        `[Migration EQUIPE] ${nbMigres} migrées, ${nbAmbigus} ambiguës, ${nbOrphelins} orphelines (sur ${Object.keys(produitsModifies).length} total)`
-      );
-    }
     if (nbMigres > 0) {
+      console.warn(`[Migration IDs] ${nbMigres} personnalisations migrées (ancien ID numérique → ID stable EAN)`);
       setProduitsModifies(migrees);
       planifierSauvegarde();
     }
-  }, [produitsOriginaux, idMapping]);
+  }, [produitsOriginaux]);
 
   // Tranches par famille (nouveau format) avec rétrocompatibilité
   const tranchesParFamille = useMemo(() => {
@@ -438,31 +352,10 @@ export default function PlanningJour({ donneesMagasin, dossierEquipeHandle, donn
   // Sauvegarder les modifications d'un produit
   const handleSaveProduit = useCallback((modifications) => {
     if (!produitEnEdition) return;
-    // Garde-fou : refuser de sauvegarder si l'id est invalide (sinon collision sous "undefined")
-    if (!produitEnEdition.id || produitEnEdition.id === 'undefined') {
-      console.error('[handleSaveProduit] Refus de sauvegarder : produit sans id stable', produitEnEdition);
-      setProduitEnEdition(null);
-      return;
-    }
-
-    // Enrichir avec un triplet de référence stable (schéma 3.0)
-    // pour faciliter les futures migrations sans dépendre de la clé.
-    const personnalisationEnrichie = {
-      ...modifications,
-      _ref: {
-        itm: produitEnEdition.itm8 || null,
-        plu_local: produitEnEdition.plu || produitEnEdition.codePLU || null,
-        plu_national: null, // rempli côté Manager si BBD nationale dispo
-        ean: produitEnEdition.ean13 || produitEnEdition.codeEAN || null,
-        libelle: produitEnEdition.libelle || null,
-        famille: produitEnEdition.famille || produitEnEdition.rayon || null,
-        rayon: produitEnEdition.rayon || produitEnEdition.famille || null,
-      },
-    };
 
     const newModifs = {
       ...produitsModifies,
-      [produitEnEdition.id]: personnalisationEnrichie
+      [produitEnEdition.id]: modifications
     };
 
     setProduitsModifies(newModifs);

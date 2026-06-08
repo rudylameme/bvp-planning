@@ -21,13 +21,8 @@ const LABELS_TRANCHES = {
   '00_Autre': 'Autre',
 };
 
-// Toutes les tranches horaires du fichier Excel (dans l'ordre de la journée)
-// RÈGLE UNIFIÉE (Rudy 20/04/2026) :
-//  - 00_Autre est INCLUE dans le calcul du delta tickets/CA (cible appliquée)
-//  - 00_Autre n'est PAS CANDIDATE pour le calcul de pen_max (contenu variable
-//    selon les PDV, pas comparable : ventes non-horodatées, ouvertures 7h30…)
-const TOUTES_TRANCHES = ['00_Autre', '09h_12h', '12h_14h', '14h_16h', '16h_19h', '19h_23h'];
-const TRANCHES_CANDIDATES = ['09h_12h', '12h_14h', '14h_16h', '16h_19h', '19h_23h'];
+// Tranches pertinentes (on exclut "00_Autre")
+const TRANCHES_UTILES = ['09h_12h', '12h_14h', '14h_16h', '16h_19h', '19h_23h'];
 
 /**
  * Liste les secteurs uniques depuis info_PDV.json
@@ -70,9 +65,7 @@ function extraireTranchesHoraires(codeNorm, venteHeure) {
     return rowCode && rowCode.replace(/^0+/, '') === codeNorm;
   });
 
-  // On extrait les 6 tranches (y compris 00_Autre) — nécessaire pour le calcul
-  // delta tickets/CA qui applique pen_max à toutes les tranches.
-  for (const tranche of TOUTES_TRANCHES) {
+  for (const tranche of TRANCHES_UTILES) {
     const lignes = lignesMagasin.filter(row => {
       const horaire = row.HORAIRE || row.Horaire || row.Tr_horaire;
       return horaire === tranche;
@@ -99,58 +92,45 @@ function extraireTranchesHoraires(codeNorm, venteHeure) {
  * @returns {Object} { meilleureTrancheLabel, pireTrancheLabel, penetrationMeilleure, penetrationPire, clientsARecuperer, potentielCATrancheAnnuel }
  */
 function analyserOpportunite(tranches, ticketMoyen, multiplier) {
-  // Règle unifiée Rudy 20/04/2026 :
-  //   Seuil 10 % sur le total tickets PDV du PDV (toutes tranches, y compris 00_Autre)
-  //   Candidates pen_max = tranches ≠ "00_Autre" ET ≥ seuil 10 %
-  //   Cible = pen_max appliquée aux 6 tranches (y compris 00_Autre) pour le delta
-  const totalTickets = TOUTES_TRANCHES.reduce((sum, t) => sum + (tranches[t]?.ticketsTotal || 0), 0);
-  const seuil10pct = totalTickets * 0.10;
-
-  // 1. Calcul de la référence (penMax) : uniquement parmi TRANCHES_CANDIDATES
-  //    (sans "00_Autre"), qui portent ≥ 10 % du trafic PDV.
   let meilleure = null;
+  let pire = null;
   let penMax = 0;
-  for (const tranche of TRANCHES_CANDIDATES) {
+  let penMin = 1;
+
+  for (const tranche of TRANCHES_UTILES) {
     const data = tranches[tranche];
     if (!data || data.ticketsTotal === 0) continue;
-    if (data.ticketsTotal < seuil10pct) continue;
+
     if (data.penetration > penMax) {
       penMax = data.penetration;
       meilleure = tranche;
     }
-  }
-
-  // 2. Tranche à travailler (règle Rudy 17/04/2026) : plus gros volume absolu de
-  //    clients à conquérir. Formule :
-  //      clientsARecuperer_tranche = ticketsTotal × max(0, penMax − penetration)
-  //    Toutes les 6 tranches sont éligibles comme cible (y compris 00_Autre).
-  let pire = null;
-  let maxClients = 0;
-  for (const tranche of TOUTES_TRANCHES) {
-    const data = tranches[tranche];
-    if (!data || data.ticketsTotal === 0) continue;
-    const ecart = Math.max(0, penMax - (data.penetration || 0));
-    const clients = Math.round(data.ticketsTotal * ecart);
-    if (clients > maxClients) {
-      maxClients = clients;
+    if (data.penetration < penMin) {
+      penMin = data.penetration;
       pire = tranche;
     }
   }
 
-  // Données exposées sur la pire tranche (même noms pour le composant d'affichage)
+  // Clients à récupérer sur la pire tranche = écart vs meilleure × tickets total de cette tranche
   const pireTranche = tranches[pire] || {};
-  const clientsARecuperer = maxClients;
+  const ecart = penMax - (pireTranche.penetration || 0);
+  const clientsARecuperer = Math.round((pireTranche.ticketsTotal || 0) * ecart);
   const potentielCATrancheAnnuel = Math.round(clientsARecuperer * ticketMoyen * multiplier);
 
-  // 3. Potentiel GLOBAL : appliquer penMax à TOUTES les 6 tranches (y compris
-  //    00_Autre). Garantit la cohérence liste secteur ↔ détail magasin.
+  // Potentiel GLOBAL : appliquer la meilleure pénétration du PDV à TOUTES les tranches
+  // (même logique que Bloc6Potentiel dans TopFlopProduits.jsx)
+  // Seuil 10% : les tranches sous ce seuil gardent leur pénétration actuelle
+  const totalTickets = TRANCHES_UTILES.reduce((sum, t) => sum + (tranches[t]?.ticketsTotal || 0), 0);
+  const seuil10pct = totalTickets * 0.10;
   let ticketsPotentielsGlobal = 0;
   let ticketsActuelsGlobal = 0;
-  for (const tranche of TOUTES_TRANCHES) {
+  for (const tranche of TRANCHES_UTILES) {
     const data = tranches[tranche];
     if (!data || data.ticketsTotal === 0) continue;
     ticketsActuelsGlobal += data.ticketsBVP || 0;
-    ticketsPotentielsGlobal += Math.round(data.ticketsTotal * penMax);
+    // Tranches significatives → pénétration cible = penMax ; petites tranches → garder l'actuelle
+    const penCible = data.ticketsTotal >= seuil10pct ? penMax : data.penetration;
+    ticketsPotentielsGlobal += Math.round(data.ticketsTotal * penCible);
   }
   const gainTicketsGlobal = Math.max(0, ticketsPotentielsGlobal - ticketsActuelsGlobal);
   const potentielCAGlobalAnnuel = Math.round(gainTicketsGlobal * ticketMoyen * multiplier);
@@ -161,7 +141,7 @@ function analyserOpportunite(tranches, ticketMoyen, multiplier) {
     pireTrancheKey: pire,
     pireTrancheLabel: pire ? LABELS_TRANCHES[pire] : '—',
     penetrationMeilleure: penMax,
-    penetrationPire: pireTranche.penetration || 0,
+    penetrationPire: penMin,
     clientsARecuperer,
     potentielCATrancheAnnuel,
     potentielCAGlobalAnnuel,

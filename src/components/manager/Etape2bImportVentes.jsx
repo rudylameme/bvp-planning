@@ -25,13 +25,11 @@ import {
 import { loadHandle } from '../../services/handleStorage';
 import { checkHandlePermission } from '../../hooks/useFileAccess';
 import { chargerReferentielMagasin } from '../../services/referentielMagasin';
-import { chargerBBDNationale } from '../../services/bbdNationaleService';
 
 const MIN_SEMAINES = 3;
 
 const Etape2bImportVentes = () => {
   const {
-    dirHandle,
     fichierVentesSelectionne,
     setFichierVentesSelectionne,
     donneesGamme,
@@ -92,16 +90,12 @@ const Etape2bImportVentes = () => {
         }
       }
 
-      // Charger la BBD nationale si présente dans le dossier DATA_perso (non bloquant)
-      const bbdNationale = dirHandle ? await chargerBBDNationale(dirHandle) : null;
-
       const moisP = semainePlanning ? new Date(semainePlanning.annee, 0, 1 + (semainePlanning.semaine - 1) * 7).getMonth() + 1 : null;
       // Extraire les ventes brutes (sans nettoyage)
       const produitsBruts = formaterPourPilotageCA(donneesVC, {
         semaineNumero: semainePlanning?.semaine,
         moisPlanning: moisP,
         refMagasin: refMagasinLocal || null,
-        bbdNationale,
         skipNettoyage: true,
       });
       setProduitsVentesBrutes(produitsBruts);

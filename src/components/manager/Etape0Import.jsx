@@ -44,7 +44,6 @@ import {
   formaterPourPilotageCA,
 } from '../../services/gammeExtractionService';
 import { chargerReferentielMagasin, genererRapportMatching } from '../../services/referentielMagasin';
-import { chargerBBDNationale } from '../../services/bbdNationaleService';
 import { useFileAccess } from '../../hooks/useFileAccess';
 
 const Etape0Import = ({ masquerReferentielMagasin = false }) => {
@@ -289,14 +288,11 @@ const Etape0Import = ({ masquerReferentielMagasin = false }) => {
             await attendrePeinture();
 
             const moisP = semainePlanning ? new Date(semainePlanning.annee, 0, 1 + (semainePlanning.semaine - 1) * 7).getMonth() + 1 : null;
-            // Charger la BBD nationale (non bloquant si absente)
-            const bbdNationale = dirHandle ? await chargerBBDNationale(dirHandle) : null;
             // Extraire les ventes brutes (sans nettoyage)
             const produitsBruts = formaterPourPilotageCA(donneesVC, {
               semaineNumero: semainePlanning?.semaine,
               moisPlanning: moisP,
               refMagasin: refMagasin || null,
-              bbdNationale,
               skipNettoyage: true,
             });
             setProduitsVentesBrutes(produitsBruts);

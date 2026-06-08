@@ -11,12 +11,6 @@
 import { checkHandlePermission } from '../hooks/useFileAccess';
 import { SCHEMA_VERSION } from './fichierEchangeService';
 
-// Version du schéma EQUIPE — bumpée à 3.0 quand les personnalisations utilisent
-// les IDs canoniques stables (cf. idCanonique.js) et embarquent un triplet de
-// référence stable. Rétrocompat lecture du 2.0 garantie : pas de migration
-// destructive, juste une lecture tolérante.
-const SCHEMA_VERSION_EQUIPE = '3.0';
-
 // ============================================
 // UTILITAIRES DE NOMMAGE
 // ============================================
@@ -309,30 +303,11 @@ export async function sauvegarderFichierEquipe(dirHandle, {
     const existant = await trouverDernierFichierEquipe(dirHandle, semaine, annee);
     const versionActuelle = existant ? existant.version : 1;
 
-    // Garde-fou : refuser d'écrire des clés de personnalisation invalides
-    // (undefined, vide, null) → elles seraient écrasées par les futures écritures
-    // et créeraient des collisions silencieuses.
-    const personnalisationsValidees = {};
-    let nbCleInvalide = 0;
-    Object.entries(personnalisations).forEach(([k, v]) => {
-      if (!k || k === 'undefined' || k === 'null') {
-        nbCleInvalide++;
-        return;
-      }
-      personnalisationsValidees[k] = v;
-    });
-    if (nbCleInvalide > 0) {
-      console.warn(`[sauvegarderFichierEquipe] ${nbCleInvalide} clé(s) personnalisation invalide(s) rejetée(s)`);
-    }
-
     // Créer le contenu du fichier avec la structure enrichie
     const contenu = {
       // Métadonnées
       type: 'equipe',
-      // Schéma 3.0 : clés canoniques (nat-/plu-/itm-/ean-/hash-) + triplet de référence
-      // dans chaque personnalisation. Lecture rétrocompat 2.0 conservée.
-      schemaVersion: SCHEMA_VERSION_EQUIPE,
-      _legacySchemaVersion: SCHEMA_VERSION,
+      schemaVersion: SCHEMA_VERSION,
       updatedAt: new Date().toISOString(),
 
       // Identification
@@ -345,7 +320,7 @@ export async function sauvegarderFichierEquipe(dirHandle, {
       operateur,
 
       // Données de personnalisation (ce qui vient de PlanningJour)
-      personnalisations: personnalisationsValidees,
+      personnalisations,
 
       // Programmes personnalisés (renommages, ajouts par l'équipe)
       programmesPersonnalises: programmesPersonnalises || [],
@@ -361,7 +336,7 @@ export async function sauvegarderFichierEquipe(dirHandle, {
 
       // Statistiques
       stats: {
-        nbPersonnalisations: Object.keys(personnalisationsValidees).length,
+        nbPersonnalisations: Object.keys(personnalisations).length,
         nbProgrammesPerso: (programmesPersonnalises || []).length,
         nbInventaires: Object.keys(inventaires).length,
         nbProduitsJ1: plaquageJ1.produits?.length || 0,
