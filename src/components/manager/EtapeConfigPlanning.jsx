@@ -728,9 +728,15 @@ const EtapeConfigPlanning = () => {
 
         if (estSemaineExacte && data.produits) {
           const planifie = {};
+          // Fix idempotence cycle archive : `planifieManager` côté fichier est en
+          // UNITÉS RÉELLES (× upv à l'export, Etape5Communication.jsx L172). On
+          // RAMÈNE en ventes/lots ici par symétrie stricte, sinon ×upv cumulatif
+          // à chaque cycle export → réimport → ré-export.
           data.produits.forEach(p => {
-            if (p.planifieManager > 0)
-              planifie[p.plu || p.itm8 || p.libelle] = p.planifieManager;
+            if (p.planifieManager > 0) {
+              const upv = p.unitesParLot || p.unitesParVente || 1;
+              planifie[p.plu || p.itm8 || p.libelle] = p.planifieManager / upv;
+            }
           });
           if (Object.keys(planifie).length > 0) {
             setPlanifieManager(planifie);

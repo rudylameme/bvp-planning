@@ -354,10 +354,15 @@ const Etape2ObjectifCA = ({ onPrecedent }) => {
           if (estMemeSemaine) {
             if (data.produits) {
               const planifie = {};
+              // Fix idempotence cycle archive : `planifieManager` côté fichier
+              // est en UNITÉS RÉELLES (× upv à l'export). On RAMÈNE en
+              // ventes/lots ici, symétriquement avec EtapeConfigPlanning et la
+              // branche "ajout depuis archive" de nettoyageGamme.js.
               data.produits.forEach(p => {
                 if (p.planifieManager && p.planifieManager > 0) {
                   const id = p.plu || p.itm8 || p.libelle;
-                  planifie[id] = p.planifieManager;
+                  const upv = p.unitesParLot || p.unitesParVente || 1;
+                  planifie[id] = p.planifieManager / upv;
                 }
               });
               if (Object.keys(planifie).length > 0) {

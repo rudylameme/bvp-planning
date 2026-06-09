@@ -1263,14 +1263,26 @@ export function appliquerArchiveSurBruts(produitsBruts, archiveProduits, correct
       const idCanonique = /^(nat|plu|itm|ean|hash)-/.test(apId)
         ? apId
         : (ap.itm8 ? `itm-${ap.itm8}` : ap.ean13 ? `ean-${ap.ean13}` : `archive-${ap.libelle || 'unknown'}-${addedCount}`);
+      // Fix idempotence cycle archive : `moyenneHebdo` et `potentielAlgo` côté
+      // fichier sont exprimés en UNITÉS RÉELLES (× upv à l'export, cf.
+      // Etape5Communication.jsx L170-171). La représentation interne manager,
+      // elle, est en VENTES/LOTS (cf. formaterPourPilotageCA, qui sort moyHebdo
+      // depuis ventesQte). On RAMÈNE donc en ventes/lots par symétrie stricte
+      // avec l'export, sinon on aurait ×upv cumulatif à chaque cycle
+      // export → réimport → ré-export (preuve CONFOLENS « BAG CONSTANCE
+      // 3+1 PAC 1K », unitesParLot=4 : 1108 → 4432 → 17728 → …).
+      const upv = ap.unitesParLot || ap.unitesParVente || 1;
       updated.push({
         id: idCanonique,
         plu: ap.plu || '', itm8: ap.itm8 || '', ean13: ap.ean13 || '',
         libelle: ap.libelle || '', famille: ap.famille || 'AUTRE',
         rayon: ap.rayon || ap.famille || 'AUTRE', actif: ap.actif ?? false,
         programme: ap.programme || '', unitesParPlaque: ap.unitesParPlaque || 0,
-        unitesParLot: ap.unitesParLot || 1, moyHebdo: ap.moyenneHebdo || 0,
-        caSemaine: 0, potentiel: ap.potentielAlgo || 0, cdt: ap.cdt || 0,
+        unitesParLot: ap.unitesParLot || 1,
+        moyHebdo: Math.round((ap.moyenneHebdo || 0) / upv),
+        caSemaine: 0,
+        potentiel: Math.round((ap.potentielAlgo || 0) / upv),
+        cdt: ap.cdt || 0,
         _sourceArchive: true,
       });
       addedCount++;
